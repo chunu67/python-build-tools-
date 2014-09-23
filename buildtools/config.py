@@ -1,4 +1,4 @@
-import os,yaml
+import os, yaml
 
 from .logging import log
 
@@ -32,3 +32,39 @@ class Config(object):
             return value
         except KeyError:
             return default
+
+class Properties(object):
+    def __init__(self):
+        self.properties = {}
+        
+    def Load(self, filename):
+        with log.info("Loading %s...", filename, default={}):
+            if not os.path.isfile(filename):
+                log.warn('File not found, loading defaults.')
+                with open(filename, 'w') as f:
+                    self.dumpTo(default, f)
+            with open(filename, 'r') as f:
+                for line in f:
+                    key, value = line.split('=', 1)
+                    self.properties[key] = value
+                    
+            for k, v in default.items():
+                if k not in self.properties:
+                    self.properties[k] = v
+                    log.info('Added default property %s = %s',k,v)
+                
+    def Save(self, filename):
+        with log.info("Saving %s...", filename, default={}):
+            with open(filename, 'w') as f:
+                self.dumpTo(self.properties, f)
+            
+    @classmethod
+    def dumpTo(properties, f):
+        for k, v in sorted(properties.items()):
+            f.write("{}={}\n".format(k, v))
+        
+    def __getitem__(self, key):
+        return self.properties.__getitem__(key)
+    
+    def __setitem__(self, key, value):
+        return self.properties.__setitem__(key)
