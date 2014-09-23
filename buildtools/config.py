@@ -1,6 +1,14 @@
 import os, yaml
 
 from .logging import log
+    
+def replace_var(input, varname, replacement):
+    return input.replace('%%' + varname + '%%', replacement)
+
+def replace_vars(input, var_replacements):
+    for key, val in var_replacements.items():
+        input = replace_var(input, key, val)
+    return input
 
 class Config(object):
     def __init__(self, filename, default={}):
