@@ -63,7 +63,7 @@ class Properties(object):
                     # Ignore comments.
                     if line.strip().startswith('#'): continue
                     
-                    key, value = line.split('=', 1)
+                    key, value = line.strip().split('=', 1)
                     if key in self.properties:
                         log.warn('Key "%s" already exists, overwriting!',key)
                     value=replace_vars(value, expand_vars)
