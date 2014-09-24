@@ -1,6 +1,6 @@
 import os, yaml
 
-from .logging import log
+from buildtools.bt_logging import log
     
 def replace_var(input, varname, replacement):
     return input.replace('%%' + varname + '%%', replacement)
@@ -45,8 +45,8 @@ class Properties(object):
     def __init__(self):
         self.properties = {}
         
-    def Load(self, filename):
-        with log.info("Loading %s...", filename, default={}):
+    def Load(self, filename, default={}, expand_vars={}):
+        with log.info("Loading %s...", filename):
             if not os.path.isfile(filename):
                 log.warn('File not found, loading defaults.')
                 with open(filename, 'w') as f:
@@ -54,6 +54,7 @@ class Properties(object):
             with open(filename, 'r') as f:
                 for line in f:
                     key, value = line.split('=', 1)
+                    value=replace_vars(value, expand_vars)
                     self.properties[key] = value
                     
             for k, v in default.items():
@@ -62,9 +63,9 @@ class Properties(object):
                     log.info('Added default property %s = %s',k,v)
                 
     def Save(self, filename):
-        with log.info("Saving %s...", filename, default={}):
+        with log.info("Saving %s...", filename):
             with open(filename, 'w') as f:
-                self.dumpTo(self.properties, f)
+                Properties.dumpTo(self.properties, f)
             
     @classmethod
     def dumpTo(properties, f):

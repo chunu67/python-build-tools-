@@ -1,6 +1,6 @@
 import os, sys, glob, subprocess
 
-from .logging import log
+from buildtools.bt_logging import log
 
 class Chdir(object):
     def __init__(self, newdir):
