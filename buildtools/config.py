@@ -54,6 +54,8 @@ class Properties(object):
             with open(filename, 'r') as f:
                 for line in f:
                     key, value = line.split('=', 1)
+                    if key in self.properties:
+                        log.warn('Key "%s" already exists, overwriting!',key)
                     value=replace_vars(value, expand_vars)
                     self.properties[key] = value
                     
@@ -68,7 +70,7 @@ class Properties(object):
                 Properties.dumpTo(self.properties, f)
             
     @classmethod
-    def dumpTo(properties, f):
+    def dumpTo(cls, properties, f):
         for k, v in sorted(properties.items()):
             f.write("{}={}\n".format(k, v))
         
