@@ -45,14 +45,23 @@ class Properties(object):
     def __init__(self):
         self.properties = {}
         
-    def Load(self, filename, default={}, expand_vars={}):
+    def Load(self, filename, default=None, expand_vars={}):
         with log.info("Loading %s...", filename):
             if not os.path.isfile(filename):
-                log.warn('File not found, loading defaults.')
-                with open(filename, 'w') as f:
-                    self.dumpTo(default, f)
+                if default is None:
+                    log.critical('File not found, exiting!')
+                    log.info('To load defaults, specify default=<dict> to Properties.Load().')
+                    sys.exit(1)
+                else:
+                    log.warn('File not found, loading defaults.')
+                    with open(filename, 'w') as f:
+                        self.dumpTo(default, f)
+                        
             with open(filename, 'r') as f:
                 for line in f:
+                    # Ignore comments.
+                    if line.strip().startswith('#'): continue
+                    
                     key, value = line.split('=', 1)
                     if key in self.properties:
                         log.warn('Key "%s" already exists, overwriting!',key)
