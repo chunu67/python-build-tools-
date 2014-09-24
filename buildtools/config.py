@@ -59,6 +59,7 @@ class Properties(object):
                         
             with open(filename, 'r') as f:
                 for line in f:
+                    if line.strip() == '': continue
                     # Ignore comments.
                     if line.strip().startswith('#'): continue
                     
