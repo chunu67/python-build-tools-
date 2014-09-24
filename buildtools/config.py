@@ -69,6 +69,7 @@ class Properties(object):
                     value=replace_vars(value, expand_vars)
                     self.properties[key] = value
                     
+            if default is None: return
             for k, v in default.items():
                 if k not in self.properties:
                     self.properties[k] = v
