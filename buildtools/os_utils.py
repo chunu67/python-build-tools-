@@ -29,6 +29,7 @@ def cmd(command, echo=False, env=os.environ, show_output=True, critical=False):
     # Shell-style globbin'.
     new_args = [command[0]]
     for arg in command[1:]:
+        arg=str(arg)
         if '*' in arg or '?' in arg:
             new_args += glob.glob(arg)
         else:
