@@ -11,8 +11,7 @@ class CMake(object):
         log.info('CMake: {} = {}'.format(key, val))
         self.flags[key] = val
         
-    def run(cfg, env=os.environ, dir='.'):
-        CMAKE = cfg.get('bin.cmake', 'cmake')
+    def run(self, CMAKE, env=os.environ, dir='.'):
         flags = []
         
         for key, value in self.flags.items():
@@ -21,5 +20,4 @@ class CMake(object):
         with log.info('Running CMake:'):
             for key, value in BUILD_ENV.items():
                 log.info('+{0}="{1}"'.format(key, value))
-            lolenv=env
-            cmd([CMAKE] + flags + [dir], env=lolenv, critical=True, echo=True)
+            cmd([CMAKE] + flags + [dir], env=env, critical=True, echo=True)
