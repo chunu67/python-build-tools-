@@ -9,7 +9,7 @@ class FPM(object):
         self.input_type = ''
         self.output_type = ''
         self.workdir = ''
-        self.increment = 0
+        self.iteration = 0
         
         self.dependencies = []
         self.conflicts = []
