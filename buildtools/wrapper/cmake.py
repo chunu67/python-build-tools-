@@ -21,4 +21,5 @@ class CMake(object):
         with log.info('Running CMake:'):
             for key, value in BUILD_ENV.items():
                 log.info('+{0}="{1}"'.format(key, value))
-            cmd([CMAKE] + flags + [dir], env=env, critical=True, echo=True)
+            lolenv=env
+            cmd([CMAKE] + flags + [dir], env=lolenv, critical=True, echo=True)
