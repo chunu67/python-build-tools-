@@ -5,7 +5,7 @@ from buildtools.os_utils import cmd
 
 class CMake(object):
     def __init__(self):
-        self.flags = []
+        self.flags = {}
         
     def setFlag(self, key, val):
         log.info('CMake: {} = {}'.format(key, val))
