@@ -2,7 +2,7 @@ import os
 from buildtools.bt_logging import log
 from buildtools.os_utils import cmd, ENV
 
-def configure_distcc(cfg):
+def configure_distcc(cfg, cmake):
     global ENV
     with log.info('Configuring distcc...'):
         if not cfg.get('env.distcc.enabled', False):
