@@ -26,4 +26,4 @@ class Ant(object):
             
         cmdline += targets
         
-        cmd(cmdline, critical=True, echo=True)
+        return cmd(cmdline, critical=True, echo=True)

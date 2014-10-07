@@ -2,6 +2,27 @@ import os, sys, glob, subprocess
 
 from buildtools.bt_logging import log
 
+ENV = BuildEnv()
+
+class BuildEnv(object):
+    def __init__(self,initial=None):
+        if initial is not None:
+            self.env = initial
+        else:
+            self.env = os.environ
+            
+    def set(self,key,val):
+        log.info('Build env: {} = {}'.format(key, val))
+        self.env[key] = val
+    
+    def get(self,val,default=None):
+        if key not in self.env:
+            return default
+        return self.env[key]
+    
+    def merge(self,newvars):
+        self.env = dict(self.env, **newvars)
+
 class Chdir(object):
     def __init__(self, newdir):
         self.pwd = os.path.abspath(os.getcwd())
@@ -25,13 +46,18 @@ class Chdir(object):
             sys.exit(1)
         return False
     
-def cmd(command, echo=False, env=os.environ, show_output=True, critical=False):
+def cmd(command, echo=False, env=None, show_output=True, critical=False):
+    if env is None:
+        global ENV
+        env=ENV.env
     # Shell-style globbin'.
     new_args = [command[0]]
     for arg in command[1:]:
         arg=str(arg)
         if '*' in arg or '?' in arg:
             new_args += glob.glob(arg)
+        if '~' in arg:
+            new_args += os.path.expanduser(arg)
         else:
             new_args += [arg]
             

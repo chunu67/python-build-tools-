@@ -89,4 +89,4 @@ class FPM(object):
         for inp in self.inputs:
             cmdline += [inp]
             
-        cmd(cmdline, critical=True, echo=True)
+        return cmd(cmdline, critical=True, echo=True)
