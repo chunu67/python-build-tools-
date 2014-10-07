@@ -2,8 +2,6 @@ import os, sys, glob, subprocess
 
 from buildtools.bt_logging import log
 
-ENV = BuildEnv()
-
 class BuildEnv(object):
     def __init__(self,initial=None):
         if initial is not None:
@@ -85,3 +83,5 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
         if critical:
             sys.exit(1)
         return False
+
+ENV = BuildEnv()
