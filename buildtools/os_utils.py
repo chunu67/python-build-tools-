@@ -13,7 +13,7 @@ class BuildEnv(object):
         log.info('Build env: {} = {}'.format(key, val))
         self.env[key] = val
     
-    def get(self,val,default=None):
+    def get(self,key,default=None):
         if key not in self.env:
             return default
         return self.env[key]
