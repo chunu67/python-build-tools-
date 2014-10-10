@@ -71,7 +71,7 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
         log.info('$ ' + ' '.join(command))
         
     if show_output:
-        return subprocess.call(command, env=new_env, shell=False) != 0
+        return subprocess.call(command, env=new_env, shell=False) == 0
     output = ''
     try:
         output = subprocess.check_output(command, env=new_env, stderr=subprocess.STDOUT)
@@ -79,9 +79,9 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
     except Exception as e:
         log.error(repr(command))
         log.error(output)
-        log.error(e)
         if critical:
-            sys.exit(1)
+            raise e
+        log.error(e)
         return False
 
 ENV = BuildEnv()
