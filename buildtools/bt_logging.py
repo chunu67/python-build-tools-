@@ -4,9 +4,11 @@ class IndentLogger(object):
     '''
     Indents stuff.
     '''
-    def __init__(self):
+    def __init__(self, logger=None):
         self.indent = 0
-        self.log = logging.getLogger()
+        self.log = logger
+        if self.log is None:
+            self.log = logging.getLogger()
         
     def __enter__(self):
         self.indent += 1
