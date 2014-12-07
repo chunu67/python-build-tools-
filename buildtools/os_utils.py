@@ -1,6 +1,20 @@
-import os, sys, glob, subprocess, shutil
+import os, sys, glob, subprocess, shutil, platform, time
 
 from buildtools.bt_logging import log
+
+def clock():
+    if sys.platform == 'win32':
+        return time.clock()
+    else:
+        return time.time()
+
+def getElapsed(start):
+    return '%d:%02d:%02d.%03d' % reduce(lambda ll, b : divmod(ll[0], b) + ll[1:], [((clock() - start) * 1000,), 1000, 60, 60])
+
+def secondsToStr(t):
+    return "%d:%02d:%02d.%03d" % \
+        reduce(lambda ll,b : divmod(ll[0],b) + ll[1:],
+            [(t*1000,),1000,60,60])
 
 class BuildEnv(object):
     def __init__(self, initial=None):
@@ -31,7 +45,7 @@ class TimeExecution(object):
         return self
     
     def __exit__(self, type, value, traceback):
-        logging.info('  Completed in {1}s - {0}'.format(self.label, secondsToStr(clock() - self.start_time)))
+        log.info('  Completed in {1}s - {0}'.format(self.label, secondsToStr(clock() - self.start_time)))
         return False
 
 class Chdir(object):
@@ -153,33 +167,35 @@ def old_copytree(src, dst, symlinks=False, ignore=None):
 def _op_copy(fromfile, newroot, op_args):
     newfile = os.path.join(newroot, os.path.basename(fromfile))
     if not os.path.isfile(newfile) or os.stat(fromfile).st_mtime - os.stat(newfile).st_mtime > 1:
-        #if op_args.get('verbose',False):
-        #    log.info('Copying {} -> {}'.format(fromfile,newfile))
+        #if op_args.get('verbose', False):
+        #    log.info('Copying {} -> {}'.format(fromfile, newfile))
         shutil.copy2(fromfile, newfile)
         
 def copytree(fromdir, todir, ignore=[], verbose=False):
     optree(fromdir, todir, _op_copy, ignore, verbose=verbose)
 
 def optree(fromdir, todir, op, ignore=[], **op_args):
-    print('ignore='+repr(ignore))
+    print('ignore=' + repr(ignore))
     for root, dirs, files in os.walk(fromdir):
-        path = root.split(u'/')
-        substructure = root[len(fromdir):]
-        if any([(x+'/' in ignore) for x in path]):
-            if op_args.get('verbose',False):
+        path = root.split(os.sep)
+        if platform.system() != 'Windows':
+            substructure = root[len(fromdir):]
+        else:
+            substructure = root[len(fromdir) + 1:]
+        if any([(x + '/' in ignore) for x in path]):
+            if op_args.get('verbose', False):
                 log.info(u'Skipping {}'.format(substructure))
             continue
-        #substructure=root[len(fromdir) + 1:]
         newroot = os.path.join(todir, substructure)
         if not os.path.isdir(newroot):
-            #if op_args.get('verbose',False):
+            # if op_args.get('verbose',False):
             #    log.info('mkdir {}'.format(newroot))
             os.makedirs(newroot)
         for file in files:
             fromfile = os.path.join(root, file)
             title, ext = os.path.splitext(os.path.basename(fromfile))
             if ext in ignore:
-                if op_args.get('verbose',False):
+                if op_args.get('verbose', False):
                     log.info(u'Skipping {} ({})'.format(fromfile, ext))
                 continue
             op(fromfile, newroot, op_args)
