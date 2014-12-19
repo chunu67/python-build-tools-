@@ -164,15 +164,15 @@ def old_copytree(src, dst, symlinks=False, ignore=None):
             if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(dst).st_mtime > 1:
                 shutil.copy2(s, d)
     
-def _op_copy(fromfile, newroot, op_args):
+def _op_copy(fromfile, newroot, **op_args):
     newfile = os.path.join(newroot, os.path.basename(fromfile))
-    if not os.path.isfile(newfile) or (op_args.get('ignore_mtime',False) or os.stat(fromfile).st_mtime - os.stat(newfile).st_mtime > 1):
+    if not os.path.isfile(newfile) or op_args.get('ignore_mtime',False) or (os.stat(fromfile).st_mtime - os.stat(newfile).st_mtime > 1):
         if op_args.get('verbose', False):
             log.info('Copying {} -> {}'.format(fromfile, newfile))
         shutil.copy2(fromfile, newfile)
         
 def copytree(fromdir, todir, ignore=[], verbose=False, ignore_mtime=False):
-    optree(fromdir, todir, _op_copy, ignore, verbose=verbose)
+    optree(fromdir, todir, _op_copy, ignore, verbose=verbose, ignore_mtime=ignore_mtime)
 
 def optree(fromdir, todir, op, ignore=[], **op_args):
     # print('ignore=' + repr(ignore))
@@ -199,6 +199,6 @@ def optree(fromdir, todir, op, ignore=[], **op_args):
                 if op_args.get('verbose', False):
                     log.info(u'Skipping {} ({})'.format(fromfile, ext))
                 continue
-            op(fromfile, newroot, op_args)
+            op(fromfile, newroot, **op_args)
             
 ENV = BuildEnv()
