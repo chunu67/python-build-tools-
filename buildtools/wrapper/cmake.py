@@ -15,8 +15,8 @@ class CMake(object):
     def build(self, CMAKE, dir='.', env=None, target=None, moreflags=[]):
         moreflags += ['--build']
         if target is not None:
-            moreflags += ['--target',target]
-        self.run(CMAKE,dir,env,moreflags)
+            moreflags += ['--target', target]
+        self.run(CMAKE, env, dir, moreflags)
         
     def run(self, CMAKE, env=None, dir='.', moreflags=[]):
         if env is None:
@@ -24,7 +24,7 @@ class CMake(object):
         flags = []
         
         if self.generator is not None:
-            flags += ['-G',self.generator]
+            flags += ['-G', self.generator]
         
         for key, value in self.flags.items():
             flags += ['-D{0}={1}'.format(key, value)]
