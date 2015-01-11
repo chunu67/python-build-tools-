@@ -13,10 +13,16 @@ class CMake(object):
         self.flags[key] = val
         
     def build(self, CMAKE, dir='.', env=None, target=None, moreflags=[]):
-        moreflags += ['--build']
+        flags = ['--build', dir]
         if target is not None:
             moreflags += ['--target', target]
-        self.run(CMAKE, env=env, dir=dir, moreflags=moreflags)
+        
+        flags += moreflags
+        
+        with log.info('Running CMake --build:'):
+            for key, value in env.items():
+                log.info('+{0}="{1}"'.format(key, value))
+            return cmd([CMAKE] + flags, env=env, critical=True, echo=True)
         
     def run(self, CMAKE, env=None, dir='.', moreflags=[]):
         if env is None:
