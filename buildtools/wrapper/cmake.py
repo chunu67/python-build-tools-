@@ -13,6 +13,8 @@ class CMake(object):
         self.flags[key] = val
         
     def build(self, CMAKE, dir='.', env=None, target=None, moreflags=[]):
+        if env is None:
+            env = ENV.env
         flags = ['--build', dir]
         if target is not None:
             moreflags += ['--target', target]
