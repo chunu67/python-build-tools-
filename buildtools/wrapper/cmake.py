@@ -16,7 +16,7 @@ class CMake(object):
         moreflags += ['--build']
         if target is not None:
             moreflags += ['--target', target]
-        self.run(CMAKE, env, dir, moreflags)
+        self.run(CMAKE, env=env, dir=dir, moreflags=moreflags)
         
     def run(self, CMAKE, env=None, dir='.', moreflags=[]):
         if env is None:
