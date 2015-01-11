@@ -142,7 +142,13 @@ def cmd_daemonize(command, echo=False, env=None, show_output=True, critical=Fals
         log.info('& ' + ' '.join(command))
         
     try:
-        subprocess.Popen(command, env=new_env)
+        if platform.system() == 'Windows':
+            batch = os.tmpnam()+'.bat'
+            with open(batch,'w') as b:
+                b.write(' '.join(command))
+            os.startfile(batch)
+        else:
+            subprocess.Popen(command, env=new_env)
         return True
     except Exception as e:
         log.error(repr(command))
