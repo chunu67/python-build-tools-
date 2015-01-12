@@ -143,8 +143,8 @@ def cmd_daemonize(command, echo=False, env=None, show_output=True, critical=Fals
         
     try:
         if platform.system() == 'Windows':
-            batch = os.tmpnam()+'.bat'
-            with open(batch,'w') as b:
+            batch = os.tmpnam() + '.bat'
+            with open(batch, 'w') as b:
                 b.write(' '.join(command))
             os.startfile(batch)
         else:
@@ -172,7 +172,7 @@ def old_copytree(src, dst, symlinks=False, ignore=None):
     
 def _op_copy(fromfile, newroot, **op_args):
     newfile = os.path.join(newroot, os.path.basename(fromfile))
-    if not os.path.isfile(newfile) or op_args.get('ignore_mtime',False) or (os.stat(fromfile).st_mtime - os.stat(newfile).st_mtime > 1):
+    if not os.path.isfile(newfile) or op_args.get('ignore_mtime', False) or (os.stat(fromfile).st_mtime - os.stat(newfile).st_mtime > 1):
         if op_args.get('verbose', False):
             log.info('Copying {} -> {}'.format(fromfile, newfile))
         shutil.copy2(fromfile, newfile)
@@ -206,5 +206,12 @@ def optree(fromdir, todir, op, ignore=[], **op_args):
                     log.info(u'Skipping {} ({})'.format(fromfile, ext))
                 continue
             op(fromfile, newroot, **op_args)
+            
+def safe_rmtree(dir):
+    for root, dirs, files in os.walk(dir, topdown=False):
+        for name in files:
+            os.remove(os.path.join(root, name))
+        for name in dirs:
+            os.rmdir(os.path.join(root, name))
             
 ENV = BuildEnv()
