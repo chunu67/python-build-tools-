@@ -22,7 +22,7 @@ class CMake(object):
         flags += moreflags
         
         with log.info('Running CMake --build:'):
-            for key, value in env.items():
+            for key, value in sorted(env.iteritems()):
                 log.info('+{0}="{1}"'.format(key, value))
             return cmd([CMAKE] + flags, env=env, critical=True, echo=True)
         
