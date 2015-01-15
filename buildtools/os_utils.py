@@ -36,7 +36,7 @@ class BuildEnv(object):
         self.env = dict(self.env, **newvars)
         
     @classmethod
-    def dump(env):
+    def dump(cls, env):
         for key, value in sorted(env.iteritems()):
             log.info('+{0}="{1}"'.format(key, value))
         
