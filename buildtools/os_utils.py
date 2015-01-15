@@ -35,6 +35,11 @@ class BuildEnv(object):
     def merge(self, newvars):
         self.env = dict(self.env, **newvars)
         
+    @classmethod
+    def dump(env):
+        for key, value in sorted(env.iteritems()):
+            log.info('+{0}="{1}"'.format(key, value))
+        
 class TimeExecution(object):
     def __init__(self, label):
         self.start_time = None

@@ -1,7 +1,7 @@
 import os
 
 from buildtools.bt_logging import log
-from buildtools.os_utils import cmd, ENV
+from buildtools.os_utils import cmd, ENV, BuildEnv
 
 class CMake(object):
     def __init__(self):
@@ -22,8 +22,7 @@ class CMake(object):
         flags += moreflags
         
         with log.info('Running CMake --build:'):
-            for key, value in sorted(env.iteritems()):
-                log.info('+{0}="{1}"'.format(key, value))
+            BuildEnv.dump(env)
             return cmd([CMAKE] + flags, env=env, critical=True, echo=True)
         
     def run(self, CMAKE, env=None, dir='.', moreflags=[]):
@@ -40,7 +39,6 @@ class CMake(object):
         flags += moreflags
         
         with log.info('Running CMake:'):
-            for key, value in sorted(env.iteritems()):
-                log.info('+{0}="{1}"'.format(key, value))
+            BuildEnv.dump(env)
             return cmd([CMAKE] + flags + [dir], env=env, critical=True, echo=True)
         return False
