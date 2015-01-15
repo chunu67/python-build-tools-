@@ -40,7 +40,7 @@ class CMake(object):
         flags += moreflags
         
         with log.info('Running CMake:'):
-            for key, value in env.items():
+            for key, value in sorted(env).items():
                 log.info('+{0}="{1}"'.format(key, value))
             return cmd([CMAKE] + flags + [dir], env=env, critical=True, echo=True)
         return False
