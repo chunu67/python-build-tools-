@@ -16,6 +16,27 @@ def secondsToStr(t):
         reduce(lambda ll, b : divmod(ll[0], b) + ll[1:],
             [(t * 1000,), 1000, 60, 60])
 
+def InstallDpkgPackages(packages):
+    import apt
+    with log.info('Checking dpkg packages...'):
+        cache = apt.Cache()
+        num_changes = 0
+        with cache.actiongroup():
+            for pkg in packages:
+                if not cache.has_key(pkg):
+                    log.critical('UNKNOWN APT PACKAGE {}!'.format(pkg))
+                    sys.exit(1)
+                package = cache[pkg]
+                if not package.is_installed:
+                    package.mark_install()
+                    num_changes += 1
+        if num_changes == 0:
+            log.info('No changes required, skipping.')
+            return
+        
+        cache.commit(apt.progress.text.AcquireProgress(),
+            apt.progress.base.InstallProgress())
+        
 class BuildEnv(object):
     def __init__(self, initial=None):
         if initial is not None:
@@ -78,6 +99,24 @@ class Chdir(object):
             log.critical('Failed to chdir to {}.'.format(self.pwd))
             sys.exit(1)
         return False
+    
+def which(program):
+    import os
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
     
 def _cmd_handle_env(env):
     if env is None:
