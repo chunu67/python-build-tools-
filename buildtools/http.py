@@ -10,7 +10,7 @@ def DownloadFile(url, filename):
     with open(filename, 'wb') as f:
         meta = u.info()
         file_size = int(meta.getheaders("Content-Length")[0])
-        print "Downloading: %s Bytes: %s" % (file_name, file_size)
+        print "Downloading: %s Bytes: %s" % (filename, file_size)
         
         file_size_dl = 0
         block_sz = 8192
