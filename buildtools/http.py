@@ -1,12 +1,13 @@
 import httplib, logging, urlparse, urllib, urllib2
 
+from .bt_logging import log
+
 HTTP_METHOD_GET = 'GET'
 HTTP_METHOD_POST = 'POST'
 
-def DownloadFile(url, file):
-    file_name = url.split('/')[-1]
+def DownloadFile(url, filename):
     u = urllib2.urlopen(url)
-    with open(file_name, 'wb') as f:
+    with open(filename, 'wb') as f:
         meta = u.info()
         file_size = int(meta.getheaders("Content-Length")[0])
         print "Downloading: %s Bytes: %s" % (file_name, file_size)
@@ -23,6 +24,7 @@ def DownloadFile(url, file):
             status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
             status = status + chr(8) * (len(status) + 1)
             print status,
+        log.info('Downloaded {} to {} ({}B)'.format(url,filename,file_size_dl))
 
 class HTTPFetcher(object):
     def __init__(self, url):
