@@ -182,7 +182,7 @@ def _cmd_handle_env(env):
 def _cmd_handle_args(command):
     # Shell-style globbin'.
     new_args = []  # command[0]]
-    for arg in command[:]:  # 1:
+    for arg in command:  # 1:
         arg = str(arg)
         if '*' in arg or '?' in arg:
             new_args += glob.glob(arg)
@@ -196,7 +196,7 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
     new_env = _cmd_handle_env(env)
     command = _cmd_handle_args(command)
     if echo:
-        log.info('$ ' + ' '.join(command))
+        log.info('$ ' + (' '.join(command)))
         
     if show_output:
         return subprocess.call(command, env=new_env, shell=False) == 0
@@ -216,7 +216,7 @@ def cmd_output(command, echo=False, env=None, critical=False):
     new_env = _cmd_handle_env(env)
     command = _cmd_handle_args(command)
     if echo:
-        log.info('$ ' + ' '.join(command))
+        log.info('$ ' + (' '.join(command)))
         
     try:
         return subprocess.Popen(command, env=new_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
