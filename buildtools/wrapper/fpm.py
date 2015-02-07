@@ -70,9 +70,12 @@ class FPM(object):
         cmdline += ['-v', self.version]
         cmdline += ['-a', self.architecture]
         
-        if self.maintainer != '':cmdline += ['-m', self.maintainer]
-        if self.description != '':cmdline += ['--description', self.description]
-        if self.iteration > 0: cmdline += ['--iteration', self.iteration]
+        if self.maintainer != '': 
+            cmdline += ['-m', self.maintainer]
+        if self.description != '': 
+            cmdline += ['--description', self.description]
+        if self.iteration > 0: 
+            cmdline += ['--iteration', self.iteration]
         
         for dep in self.dependencies:
             cmdline += ['-d', dep]
@@ -89,4 +92,5 @@ class FPM(object):
         for inp in self.inputs:
             cmdline += [inp]
             
+        print(target_file,repr(cmdline))
         return cmd(cmdline, critical=True, echo=True)
