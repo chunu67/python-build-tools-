@@ -1,6 +1,7 @@
 import os, sys, glob, subprocess, shutil, platform, time
 
 from buildtools.bt_logging import log
+from compileall import expand_args
 
 def clock():
     if sys.platform == 'win32':
@@ -187,7 +188,7 @@ def _cmd_handle_args(command):
         if '*' in arg or '?' in arg:
             new_args += glob.glob(arg)
         elif '~' in arg:
-            new_args += os.path.expanduser(arg)
+            new_args += [os.path.expanduser(arg)]
         else:
             new_args += [arg]
     return new_args
