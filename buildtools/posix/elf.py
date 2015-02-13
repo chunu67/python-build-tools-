@@ -3,7 +3,7 @@ Created on Feb 13, 2015
 
 @author: Rob
 '''
-import os
+import os, re, sys, glob
 
 from buildtools.bt_logging import log
 
@@ -22,8 +22,6 @@ class ELFInfo:
         self.rpath = []
         self.runpath = []
         self.interpreter = None
-        
-        self.libs = []
         
         with open(path) as f:
             self.elf = ELFFile(f)
@@ -61,7 +59,7 @@ class ELFInfo:
             if os.path.exists(lib):
                 if self.getElfClass() == ELFInfo(lib).getElfClass():
                     return lib
-        return 'UNABLE TO FIND '+givenname
+        return 'UNABLE TO FIND ' + givenname
     
     def getElfClass(self):
         """ Return the ELF Class
@@ -78,12 +76,12 @@ def ldpaths(ld_so_conf='/etc/ld.so.conf'):
     """
     with open(ld_so_conf, 'r') as path_file:
         lines = path_file.read()
-    lines = re.sub('#.*', '', lines)                   # kill comments
-    lines = list(re.split(':+|\s+|\t+|\n+|,+', lines)) # man 8 ldconfig
+    lines = re.sub('#.*', '', lines)  # kill comments
+    lines = list(re.split(':+|\s+|\t+|\n+|,+', lines))  # man 8 ldconfig
 
     paths = []
     include_globs = []
-    for i in range(0,len(lines)):
+    for i in range(0, len(lines)):
         if lines[i] == '':
             continue
         if lines[i] == 'include':
