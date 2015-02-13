@@ -1,0 +1,109 @@
+'''
+Created on Feb 13, 2015
+
+@author: Rob
+'''
+import os
+
+from buildtools.bt_logging import log
+
+from elftools.elf.elffile import ELFFile
+from elftools.common import exceptions
+from elftools.common.exceptions import ELFError
+from elftools.common.py3compat import bytes2str
+from elftools.elf.dynamic import DynamicSection
+from elftools.elf.descriptions import describe_ei_class
+
+class ELFInfo:
+    def __init__(self, path, ld_library_path=None):
+        self.path = path
+        
+        self.needed = []
+        self.rpath = []
+        self.runpath = []
+        self.interpreter = None
+        
+        self.libs = []
+        
+        with open(path) as f:
+            self.elf = ELFFile(f)
+            
+    def Load(self):
+        libs = []
+        for segment in self.elf.iter_segments():
+            if segment.header.p_type == 'PT_INTERP':
+                self.interpreter = segment.get_interp_name()
+                self.needed += [os.path.normpath(self.interpreter)]
+            elif segment.header.p_type == 'PT_DYNAMIC':
+                for tag in segment.iter_tags():
+                    if tag.entry.d_tag == 'DT_NEEDED': 
+                        libs += [t.needed]
+                    if tag.entry.d_tag == 'DT_RPATH': 
+                        self.setRawRPath(t.rpath)
+                    if tag.entry.d_tag == 'DT_RUNPATH': 
+                        self.setRawRunPath(t.runpath)
+        for lib in libs:
+            self.needed += [self.findLib(lib)]
+        
+    def setRawRunPath(self, runpath_data):
+        if len(self.rpath) > 0:
+            self.rpath = []
+        self.runpath = self._ParseLdPaths(runpath_data)
+        
+    def setRawRPath(self, rpath_data):
+        if len(self.runpath) > 0:
+            return
+        self.rpath = self._ParseLdPaths(rpath_data)
+        
+    def findLib(self, givenname):
+        for path in paths:
+            lib = p + os.sep + n
+            if os.path.exists(lib):
+                if self.getElfClass() == ELFInfo(lib).getElfClass():
+                    return lib
+        return 'UNABLE TO FIND '+givenname
+    
+    def getElfClass(self):
+        """ Return the ELF Class
+        """
+        header = self.elf.header
+        e_ident = header['e_ident']
+        return describe_ei_class(e_ident['EI_CLASS'])
+
+# From http://cgit.gentooexperimental.org/proj/elfix.git/tree/pocs/ldd/ldd.py
+def ldpaths(ld_so_conf='/etc/ld.so.conf'):
+    """ Generate paths to search for libraries from ld.so.conf.  Recursively
+        parse included files.  We assume correct syntax and the ld.so.cache
+        is in sync with ld.so.conf.
+    """
+    with open(ld_so_conf, 'r') as path_file:
+        lines = path_file.read()
+    lines = re.sub('#.*', '', lines)                   # kill comments
+    lines = list(re.split(':+|\s+|\t+|\n+|,+', lines)) # man 8 ldconfig
+
+    paths = []
+    include_globs = []
+    for i in range(0,len(lines)):
+        if lines[i] == '':
+            continue
+        if lines[i] == 'include':
+            f = lines[i + 1]
+            include_globs.append(f)
+            continue
+        if lines[i] not in include_globs:
+            real_path = os.path.realpath(lines[i])
+            if os.path.exists(real_path):
+                paths.append(real_path)
+
+    include_files = []
+    for g in include_globs:
+        include_files = include_files + glob.glob('/etc/' + g)
+    for c in include_files:
+        paths = paths + ldpaths(os.path.realpath(c))
+
+    paths = list(set(paths))
+    paths.sort()
+    return paths
+
+paths = ldpaths()
+                

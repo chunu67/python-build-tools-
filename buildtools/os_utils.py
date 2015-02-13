@@ -38,6 +38,42 @@ def InstallDpkgPackages(packages):
         cache.commit(apt.progress.text.AcquireProgress(),
             apt.progress.base.InstallProgress())
         
+def DpkgSearchFiles(files):
+    '''Find packages for a given set of files.'''
+    
+    out = cmd_output(['dpkg','--search']+files,critical=True)
+    
+    '''
+    libc6:amd64: /lib/x86_64-linux-gnu/libc-2.19.so
+    libcap2:amd64: /lib/x86_64-linux-gnu/libcap.so.2
+    libcap2:amd64: /lib/x86_64-linux-gnu/libcap.so.2.24
+    libc6:amd64: /lib/x86_64-linux-gnu/libcidn-2.19.so
+    libc6:amd64: /lib/x86_64-linux-gnu/libcidn.so.1
+    libcomerr2:amd64: /lib/x86_64-linux-gnu/libcom_err.so.2
+    libcomerr2:amd64: /lib/x86_64-linux-gnu/libcom_err.so.2.1
+    libc6:amd64: /lib/x86_64-linux-gnu/libcrypt-2.19.so
+    libcryptsetup4:amd64: /lib/x86_64-linux-gnu/libcryptsetup.so.4
+    libcryptsetup4:amd64: /lib/x86_64-linux-gnu/libcryptsetup.so.4.6.0
+    libc6:amd64: /lib/x86_64-linux-gnu/libcrypt.so.1
+    libc6:amd64: /lib/x86_64-linux-gnu/libc.so.6
+    '''
+    
+    packages = []
+    for line in out.split('\n'):
+        line=line.strip()
+        if line == '': continue
+        
+        chunks = line.split()
+        # libc6:amd64: /lib/x86_64-linux-gnu/libc.so.6
+        if len(chunks) == 2:
+            pkgName = chunks[0][:-1] # Strip ending colon
+            if pkgName not in packages:
+                packages += [pkgName]
+        else:
+            log.error('UNHANDLED dpkg --search LINE (len == %d): "%s"',len(chunks),line)
+    
+    return 
+        
 class WindowsEnv:
     """Utility class to get/set windows environment variable"""
     
