@@ -15,6 +15,7 @@ from elftools.elf.dynamic import DynamicSection
 from elftools.elf.descriptions import describe_ei_class
 
 class ELFInfo:
+    LDPATHS = None
     def __init__(self, path, ld_library_path=None):
         self.path = path
         
@@ -57,7 +58,9 @@ class ELFInfo:
         self.rpath = self._ParseLdPaths(rpath_data)
         
     def findLib(self, givenname):
-        log.info('Search ldpaths: '+repr(paths))
+        if self.LDPATHS is None:
+            self.LDPATHS = ldpaths()
+            log.info('Search ldpaths: '+repr(paths))
         for path in paths:
             lib = p + os.sep + n
             if os.path.exists(lib):
