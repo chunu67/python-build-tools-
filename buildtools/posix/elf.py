@@ -38,11 +38,11 @@ class ELFInfo:
             elif segment.header.p_type == 'PT_DYNAMIC':
                 for tag in segment.iter_tags():
                     if tag.entry.d_tag == 'DT_NEEDED': 
-                        libs += [t.needed]
+                        libs += [tag.needed]
                     if tag.entry.d_tag == 'DT_RPATH': 
-                        self.setRawRPath(t.rpath)
+                        self.setRawRPath(tag.rpath)
                     if tag.entry.d_tag == 'DT_RUNPATH': 
-                        self.setRawRunPath(t.runpath)
+                        self.setRawRunPath(tag.runpath)
         for lib in libs:
             self.needed += [self.findLib(lib)]
         
