@@ -57,6 +57,7 @@ class ELFInfo:
         self.rpath = self._ParseLdPaths(rpath_data)
         
     def findLib(self, givenname):
+        log.info('Search ldpaths: '+repr(paths))
         for path in paths:
             lib = p + os.sep + n
             if os.path.exists(lib):
