@@ -93,7 +93,7 @@ def ldpaths(ld_so_conf='/etc/ld.so.conf'):
     paths = []
     include_globs = []
     for i in range(0, len(lines)):
-        print('%d: %s' % (i , lines[i]))
+        # print('%d: %s' % (i , lines[i]))
         if lines[i] == '':
             continue
         if lines[i] == 'include':
@@ -107,7 +107,9 @@ def ldpaths(ld_so_conf='/etc/ld.so.conf'):
 
     include_files = []
     for g in include_globs:
-        include_files = include_files + glob.glob('/etc/' + g)
+        if not os.path.isabs(g):
+            g = os.path.realpath(os.path.join('/etc/', g))
+        include_files += [glob.glob(g)]
     for c in include_files:
         paths += ldpaths(os.path.realpath(c))
 
