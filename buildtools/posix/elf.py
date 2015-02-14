@@ -93,6 +93,7 @@ def ldpaths(ld_so_conf='/etc/ld.so.conf'):
     paths = []
     include_globs = []
     for i in range(0, len(lines)):
+        print('%d: %s' % (i , lines[i]))
         if lines[i] == '':
             continue
         if lines[i] == 'include':
