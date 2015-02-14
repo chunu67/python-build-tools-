@@ -23,8 +23,11 @@ class ELFInfo:
         self.runpath = []
         self.interpreter = None
         
-        with open(path) as f:
-            self.elf = ELFFile(f)
+        self.f = open(path, 'rb')
+        self.elf = ELFFile(self.f)
+        
+    def Close(self):
+        self.f.close()
             
     def Load(self):
         libs = []
