@@ -39,10 +39,10 @@ class ELFInfo:
                 for tag in segment.iter_tags():
                     if tag.entry.d_tag == 'DT_NEEDED': 
                         libs += [tag.needed]
-                    if tag.entry.d_tag == 'DT_RPATH': 
-                        self.setRawRPath(tag.rpath)
-                    if tag.entry.d_tag == 'DT_RUNPATH': 
-                        self.setRawRunPath(tag.runpath)
+                    #if tag.entry.d_tag == 'DT_RPATH': 
+                    #    self.setRawRPath(tag.rpath)
+                    #if tag.entry.d_tag == 'DT_RUNPATH': 
+                    #    self.setRawRunPath(tag.runpath)
         for lib in libs:
             self.needed += [self.findLib(lib)]
         
@@ -60,7 +60,11 @@ class ELFInfo:
         for path in paths:
             lib = p + os.sep + n
             if os.path.exists(lib):
-                if self.getElfClass() == ELFInfo(lib).getElfClass():
+                e = ELFInfo(lib)
+                eclass = e.getElfClass()
+                e.Close()
+                log.info('Found {0}, using {1}'.format(lib, eclass))
+                if self.getElfClass() == eclass:
                     return lib
         return 'UNABLE TO FIND ' + givenname
     
