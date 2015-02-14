@@ -41,7 +41,7 @@ def InstallDpkgPackages(packages):
 def DpkgSearchFiles(files):
     '''Find packages for a given set of files.'''
     
-    out = cmd_output(['dpkg','--search']+files,critical=True)
+    stdout, stderr = cmd_output(['dpkg', '--search'] + files, critical=True)
     
     '''
     libc6:amd64: /lib/x86_64-linux-gnu/libc-2.19.so
@@ -59,20 +59,21 @@ def DpkgSearchFiles(files):
     '''
     
     packages = []
-    for line in out.split('\n'):
-        line=line.strip()
-        if line == '': continue
-        
-        chunks = line.split()
-        # libc6:amd64: /lib/x86_64-linux-gnu/libc.so.6
-        if len(chunks) == 2:
-            pkgName = chunks[0][:-1] # Strip ending colon
-            if pkgName not in packages:
-                packages += [pkgName]
-        else:
-            log.error('UNHANDLED dpkg --search LINE (len == %d): "%s"',len(chunks),line)
+    if stdout or stderr:
+        for line in (stdout + stderr).split('\n'):
+            line = line.strip()
+            if line == '': continue
+            
+            chunks = line.split()
+            # libc6:amd64: /lib/x86_64-linux-gnu/libc.so.6
+            if len(chunks) == 2:
+                pkgName = chunks[0][:-1]  # Strip ending colon
+                if pkgName not in packages:
+                    packages += [pkgName]
+            else:
+                log.error('UNHANDLED dpkg --search LINE (len == %d): "%s"', len(chunks), line)
     
-    return 
+    return packages
         
 class WindowsEnv:
     """Utility class to get/set windows environment variable"""
@@ -84,7 +85,7 @@ class WindowsEnv:
             import winreg
         else:
             import _winreg as winreg
-        self.winreg=winreg
+        self.winreg = winreg
         
         assert scope in ('user', 'system')
         self.scope = scope
