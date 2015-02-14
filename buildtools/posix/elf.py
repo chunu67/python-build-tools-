@@ -61,16 +61,19 @@ class ELFInfo:
         if self.LDPATHS is None:
             self.LDPATHS = ldpaths()
             log.info('Search ldpaths: ' + repr(self.LDPATHS))
+        myclass=self.getElfClass()
         for path in self.LDPATHS:
-            lib = p + os.sep + n
+            lib = path + os.sep + givenname
             if os.path.exists(lib):
                 e = ELFInfo(lib)
                 eclass = e.getElfClass()
                 e.Close()
-                log.info('Found {0}, using {1}'.format(lib, eclass))
-                if self.getElfClass() == eclass:
+                dbg='Found {0}, using {1}'.format(lib, eclass)
+                if myclass == eclass:
+                    log.info('%s (== %s)',dbg,myclass)
                     return lib
-        return 'UNABLE TO FIND ' + givenname
+                log.info('%s (!= %s), skipped',dbg,myclass)
+        return givenname
     
     def getElfClass(self):
         """ Return the ELF Class
