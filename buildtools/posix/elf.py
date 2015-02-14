@@ -40,9 +40,9 @@ class ELFInfo:
                 for tag in segment.iter_tags():
                     if tag.entry.d_tag == 'DT_NEEDED': 
                         libs += [tag.needed]
-                    #if tag.entry.d_tag == 'DT_RPATH': 
+                    # if tag.entry.d_tag == 'DT_RPATH': 
                     #    self.setRawRPath(tag.rpath)
-                    #if tag.entry.d_tag == 'DT_RUNPATH': 
+                    # if tag.entry.d_tag == 'DT_RUNPATH': 
                     #    self.setRawRunPath(tag.runpath)
         for lib in libs:
             self.needed += [self.findLib(lib)]
@@ -60,8 +60,8 @@ class ELFInfo:
     def findLib(self, givenname):
         if self.LDPATHS is None:
             self.LDPATHS = ldpaths()
-            log.info('Search ldpaths: '+repr(paths))
-        for path in paths:
+            log.info('Search ldpaths: ' + repr(self.LDPATHS))
+        for path in self.LDPATHS:
             lib = p + os.sep + n
             if os.path.exists(lib):
                 e = ELFInfo(lib)
@@ -108,11 +108,9 @@ def ldpaths(ld_so_conf='/etc/ld.so.conf'):
     for g in include_globs:
         include_files = include_files + glob.glob('/etc/' + g)
     for c in include_files:
-        paths = paths + ldpaths(os.path.realpath(c))
+        paths += ldpaths(os.path.realpath(c))
 
     paths = list(set(paths))
     paths.sort()
     return paths
-
-paths = ldpaths()
                 
