@@ -109,7 +109,7 @@ def ldpaths(ld_so_conf='/etc/ld.so.conf'):
     for g in include_globs:
         if not os.path.isabs(g):
             g = os.path.realpath(os.path.join('/etc/', g))
-        include_files += [glob.glob(g)]
+        include_files += glob.glob(g)
     for c in include_files:
         paths += ldpaths(os.path.realpath(c))
 
