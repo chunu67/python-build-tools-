@@ -3,6 +3,9 @@ import os, sys, glob, subprocess, shutil, platform, time
 from buildtools.bt_logging import log
 from compileall import expand_args
 
+buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+scripts_dir = os.path.join(buildtools_dir, 'scripts')
+
 def clock():
     if sys.platform == 'win32':
         return time.clock()
@@ -37,6 +40,29 @@ def InstallDpkgPackages(packages):
         
         cache.commit(apt.progress.text.AcquireProgress(),
             apt.progress.base.InstallProgress())
+        
+def GetDpkgShlibs(files):
+    deps = {}
+    stdout, stderr = cmd_output(['perl', os.path.join('dpkg-dump-shpkgs.pl')] + files, critical=True)
+    if stdout or stderr:
+        for line in (stdout + stderr).split('\n'):
+            line = line.strip()
+            if line == '': continue
+            # dpkg-dump-shpkgs.pl: warning: binaries to analyze should already be installed in their package's directory
+            if 'dpkg-dump-shpkgs.pl:' in line:
+                lc = line.split(':')
+                if lc[2].strip() == 'binaries to analyze should already be installed in their package\'s directory':
+                    continue
+                if lc[1].strip() == 'warning':
+                    log.warning(msg)
+                elif lc[1].strip() == 'error':
+                    log.warning(msg)
+                continue
+            elif line.startswith('shlib:'):
+                # shlibs:Depends=libboost-context1.55.0, libboost-filesystem1.55.0, libboost-program-options1.55.0, ...
+                lc = line.split('=',2)
+                deps[lc[0][6:]] = [x.strip() for x in line.split(',')]
+    return deps
         
 def DpkgSearchFiles(files):
     '''Find packages for a given set of files.'''

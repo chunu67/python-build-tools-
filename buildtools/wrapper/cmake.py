@@ -4,6 +4,12 @@ from buildtools.bt_logging import log
 from buildtools.os_utils import cmd, ENV, BuildEnv
 
 class CMake(object):
+    @classmethod
+    def GetVersion(cls):
+        rev = subprocess.Popen(['cmake', '--version'], stdout=subprocess.PIPE).communicate()[0][:-1]
+        if rev:
+            return rev.decode('utf-8').split()[2]
+    
     def __init__(self):
         self.flags = {}
         self.generator = None
