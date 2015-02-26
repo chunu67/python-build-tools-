@@ -44,12 +44,22 @@ class FPM(object):
                 
     def LoadDebianDirectory(self, dir):
         '''Loads DEBIAN/ directory.'''
-        self.configs.append(self._file2list(os.path.join(dir, 'conffiles')))
+        file_conf = os.path.join(dir, 'conffiles')
+        if os.path.isfile(file_conf):
+            newconfigs = self._file2list(file_conf)
+            if len(newconfigs) > 0:
+                self.configs += newconfigs
+                log.info('Added %r to configs', prop, filename)
         
-        self.afterInstall  = os.path.join(dir, 'postinst')
-        self.beforeInstall = os.path.join(dir, 'preinst')
-        self.afterRemove   = os.path.join(dir, 'postrm')
-        self.beforeRemove  = os.path.join(dir, 'prerm')
+        def setIfIsFile(prop, filename):
+             if os.path.isfile(filename):
+                 setattr(self, prop, filename)
+                 log.info('Set %r to %r', prop, filename)
+                 
+        setIfIsFile('afterInstall', os.path.join(dir, 'postinst'))
+        setIfIsFile('beforeInstall', os.path.join(dir, 'preinst'))
+        setIfIsFile('afterRemove', os.path.join(dir, 'postrm'))
+        setIfIsFile('beforeRemove', os.path.join(dir, 'prerm'))
     
     def _handle_package(self, content, line):
         self.name = content
