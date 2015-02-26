@@ -18,6 +18,12 @@ class FPM(object):
         self.inputs = []
         
         self.filebinds = []
+        self.configs = []
+        
+        self.afterInstall = None
+        self.beforeInstall = None
+        self.afterRemove = None
+        self.beforeRemove = None
     
     def LoadControl(self, filename):
         '''
@@ -28,6 +34,22 @@ class FPM(object):
                 directive, content = line.split(':', 1)
                 func = getattr(self, '_handle_' + directive.lower())
                 if func: func(content.strip(), line)
+                
+    def _file2list(self, filename):
+        o = []
+        with open(filename, 'r') as f:
+            for line in f:
+                o += [line.strip()]
+        return o
+                
+    def LoadDebianDirectory(self, dir):
+        '''Loads DEBIAN/ directory.'''
+        self.configs.append(self._file2list(os.path.join(dir, 'conffiles')))
+        
+        self.afterInstall  = os.path.join(dir, 'postinst')
+        self.beforeInstall = os.path.join(dir, 'preinst')
+        self.afterRemove   = os.path.join(dir, 'postrm')
+        self.beforeRemove  = os.path.join(dir, 'prerm')
     
     def _handle_package(self, content, line):
         self.name = content
@@ -59,6 +81,11 @@ class FPM(object):
     def AddDepend(self, depend):
         self.dependencies += [depend]
         
+    def _BuildIfNotNone(self, cmdline_opt, value):
+        if value is not None:
+            return [cmdline_opt, value]
+        return []
+    
     def Build(self, target_file, fpm='fpm'):
         cmdline = [fpm]
             
@@ -89,8 +116,16 @@ class FPM(object):
         for replacee in self.replaces:
             cmdline += ['--replaces', replacee]
             
+        for config in self.configs:
+            cmdline += ['--config-files', config]
+        
+        cmdline += self._BuildIfNotNone('--after-install', self.afterInstall)
+        cmdline += self._BuildIfNotNone('--before-install', self.beforeInstall)
+        cmdline += self._BuildIfNotNone('--after-remove', self.afterRemove)
+        cmdline += self._BuildIfNotNone('--before-remove', self.beforeRemove)
+            
         for inp in self.inputs:
             cmdline += [inp]
             
-        print(target_file,repr(cmdline))
+        print(target_file, repr(cmdline))
         return cmd(cmdline, critical=True, echo=True)
