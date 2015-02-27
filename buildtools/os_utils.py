@@ -62,7 +62,8 @@ def GetDpkgShlibs(files):
                 # shlibs:Depends=libboost-context1.55.0, libboost-filesystem1.55.0, libboost-program-options1.55.0, ...
                 lc = line.split('=',1)
                 assert len(lc) == 2
-                deps[lc[0][6:]] = [x.strip() for x in lc[1].split(',')]
+                assert not lc[0][7:].startswith(':')
+                deps[lc[0][7:]] = [x.strip() for x in lc[1].split(',')]
             else:
                 log.warning('UNHANDLED: %s', line)
     return deps
