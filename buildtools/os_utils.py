@@ -50,7 +50,7 @@ def GetDpkgShlibs(files):
             if line == '': continue
             # dpkg-dump-shpkgs.pl: warning: binaries to analyze should already be installed in their package's directory
             if 'dpkg-dump-shpkgs.pl:' in line:
-                (scriptname, msgtype, msg) = for[x.strip() for x in line.split(':')]
+                (scriptname, msgtype, msg) = [x.strip() for x in line.split(':')]
                 if msg == 'binaries to analyze should already be installed in their package\'s directory':
                     continue
                 if msgtype == 'warning':
