@@ -62,6 +62,8 @@ def GetDpkgShlibs(files):
                 # shlibs:Depends=libboost-context1.55.0, libboost-filesystem1.55.0, libboost-program-options1.55.0, ...
                 lc = line.split('=',2)
                 deps[lc[0][6:]] = [x.strip() for x in line.split(',')]
+            else:
+                log.warning('UNHANDLED: %s', line)
     return deps
         
 def DpkgSearchFiles(files):
