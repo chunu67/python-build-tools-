@@ -60,7 +60,7 @@ def GetDpkgShlibs(files):
                 continue
             elif line.startswith('shlibs:'):
                 # shlibs:Depends=libboost-context1.55.0, libboost-filesystem1.55.0, libboost-program-options1.55.0, ...
-                lc = line.split('=',2)
+                lc = line.split('=',1)
                 assert len(lc) == 2
                 deps[lc[0][6:]] = [x.strip() for x in lc[1].split(',')]
             else:
