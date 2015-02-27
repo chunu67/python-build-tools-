@@ -1,5 +1,6 @@
 import os
 
+from buildtools.bt_logging import log
 from buildtools.os_utils import cmd
     
 class FPM(object):
@@ -49,7 +50,7 @@ class FPM(object):
             newconfigs = self._file2list(file_conf)
             if len(newconfigs) > 0:
                 self.configs += newconfigs
-                log.info('Added %r to configs', prop, filename)
+                log.info('Added %r to configs', ', '.join(newconfigs))
         
         def setIfIsFile(prop, filename):
              if os.path.isfile(filename):
