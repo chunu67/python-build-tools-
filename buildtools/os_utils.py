@@ -50,18 +50,19 @@ def GetDpkgShlibs(files):
             if line == '': continue
             # dpkg-dump-shpkgs.pl: warning: binaries to analyze should already be installed in their package's directory
             if 'dpkg-dump-shpkgs.pl:' in line:
-                lc = line.split(':')
-                if lc[2].strip() == 'binaries to analyze should already be installed in their package\'s directory':
+                (scriptname, msgtype, msg) = for[x.strip() for x in line.split(':')]
+                if msg == 'binaries to analyze should already be installed in their package\'s directory':
                     continue
-                if lc[1].strip() == 'warning':
+                if msgtype == 'warning':
                     log.warning(msg)
-                elif lc[1].strip() == 'error':
-                    log.warning(msg)
+                elif msgtype == 'error':
+                    log.error(msg)
                 continue
-            elif line.startswith('shlib:'):
+            elif line.startswith('shlibs:'):
                 # shlibs:Depends=libboost-context1.55.0, libboost-filesystem1.55.0, libboost-program-options1.55.0, ...
                 lc = line.split('=',2)
-                deps[lc[0][6:]] = [x.strip() for x in line.split(',')]
+                assert len(lc) == 2
+                deps[lc[0][6:]] = [x.strip() for x in lc[1].split(',')]
             else:
                 log.warning('UNHANDLED: %s', line)
     return deps
