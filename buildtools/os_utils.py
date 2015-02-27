@@ -43,7 +43,7 @@ def InstallDpkgPackages(packages):
         
 def GetDpkgShlibs(files):
     deps = {}
-    stdout, stderr = cmd_output(['perl', os.path.join('dpkg-dump-shpkgs.pl')] + files, critical=True)
+    stdout, stderr = cmd_output(['perl', os.path.join(scripts_dir, 'dpkg-dump-shpkgs.pl')] + files, critical=True)
     if stdout or stderr:
         for line in (stdout + stderr).split('\n'):
             line = line.strip()
