@@ -1,4 +1,4 @@
-import os, yaml
+import os, yaml, glob
 
 from buildtools.bt_logging import log
     
@@ -10,6 +10,24 @@ def replace_vars(input, var_replacements):
         input = replace_var(input, key, val)
     return input
 
+def dict_merge(a, b, path=None):
+    "merges b into a"
+    if path is None: path = []
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                dict_merge(a[key], b[key], path + [str(key)])
+            elif a[key] == b[key]:
+                pass  # same leaf value
+            else:
+                # Old behavior: scream
+                # raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
+                # New behavior: Overwrite A with B.
+                a[key] = b[key]
+        else:
+            a[key] = b[key]
+    return a
+
 class Config(object):
     def __init__(self, filename, default={}):
         log.info("Loading {}...".format(filename))
@@ -18,10 +36,35 @@ class Config(object):
             if not os.path.isfile(filename):
                 log.warn('File not found, loading defaults.')
                 with open(filename, 'w') as f:
-                    yaml.dump(self.cfg, f, default_flow_style=False)
+                    yaml.dump(default, f, default_flow_style=False)
                 
             with open(filename, 'r') as f:
                 self.cfg = yaml.load(f)
+                
+    def Load(self, filename, merge=False, defaults=None):
+        with log.info("Loading {}...".format(filename)):
+            if not os.path.isfile(filename):
+                if defaults is None:
+                    log.error('Failed to load %s.', filename)
+                    return False
+                else:
+                    log.warn('File not found, loading defaults.')
+                    with open(filename, 'w') as f:
+                        yaml.dump(defaults, f, default_flow_style=False)
+            
+            newcfg = {}
+            with open(filename, 'r') as f:
+                newcfg = yaml.load(f)
+            if merge:
+                self.cfg = dict_merge(self.cfg, newcfg)
+            else:
+                self.cfg = merge
+        return True
+    
+    def LoadFromFolder(self, path, pattern='*.yml'):
+        'For conf.d/ stuff.'
+        for filename in glob.glob(os.path.join(path,pattern)):
+            self.Load(filename, merge=True)
         
     def __getitem__(self, key):
         return self.cfg.__getitem__(key)
@@ -40,6 +83,18 @@ class Config(object):
             return value
         except KeyError:
             return default
+    
+    def set(self, key, value):
+        parts = key.split('.')
+        try:
+            if len(parts) == 1:
+                self.cfg[parts[0]] = value
+            L = self.cfg[parts[0]]
+            for part in parts[1:-1]:
+                L = L[part]
+            L[parts[-1]] = value
+        except KeyError:
+            return
 
 class Properties(object):
     def __init__(self):
@@ -65,15 +120,15 @@ class Properties(object):
                     
                     key, value = line.strip().split('=', 1)
                     if key in self.properties:
-                        log.warn('Key "%s" already exists, overwriting!',key)
-                    value=replace_vars(value, expand_vars)
+                        log.warn('Key "%s" already exists, overwriting!', key)
+                    value = replace_vars(value, expand_vars)
                     self.properties[key] = value
                     
             if default is None: return
             for k, v in default.items():
                 if k not in self.properties:
                     self.properties[k] = v
-                    log.info('Added default property %s = %s',k,v)
+                    log.info('Added default property %s = %s', k, v)
                 
     def Save(self, filename):
         with log.info("Saving %s...", filename):
