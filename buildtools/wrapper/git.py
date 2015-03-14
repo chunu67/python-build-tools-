@@ -10,8 +10,8 @@ class Git(object):
         try:
             addtl_flags = []
             if short: addtl_flags.append('--short')
-            stdout,stderr = cmd_output(['git','rev-parse']+addtl_flags, echo=not quiet, critical=True)
-            return (stdout+stderr)
+            stdout, stderr = cmd_output(['git', 'rev-parse'] + addtl_flags + [ref], echo=not quiet, critical=True)
+            return (stdout + stderr)
             #rev = subprocess.Popen(['git', 'rev-parse'] + addtl_flags + [ref], stdout=subprocess.PIPE).communicate()[0][:-1]
             #if rev:
             #    return rev.decode('utf-8')
@@ -126,10 +126,10 @@ class GitRepository(object):
             self.GetRepoState()
             self.GetRemoteState(remote, branch)
             if self.current_branch != branch:
-                log.info('Branch is wrong! %s (L) != %s (R)',self.current_branch, branch)
+                log.info('Branch is wrong! %s (L) != %s (R)', self.current_branch, branch)
                 return True
             if self.current_commit != self.remote_commit:
-                log.info('Commit is out of date! %s (L) != %s (R)',self.current_commit, self.remote_commit)
+                log.info('Commit is out of date! %s (L) != %s (R)', self.current_commit, self.remote_commit)
                 return True
         return False
                     
