@@ -106,13 +106,13 @@ class GitRepository(object):
             self.remotes[line] = self._getRemoteInfo(line)
             
     def GetRepoState(self):
-        with Chdir(self.path, quiet=not self.quiet):
+        with Chdir(self.path, quiet=self.quiet):
             self.UpdateRemotes()
             self.current_branch = Git.GetBranch()
             self.current_commit = Git.GetCommit(short=False)
             
     def GetRemoteState(self, remote='origin', branch='master'):
-        with Chdir(self.path, quiet=not self.quiet):
+        with Chdir(self.path, quiet=self.quiet):
             cmd(['git', 'fetch', '-q'], critical=True, echo=True, show_output=True)
             remoteinfo = Git.LSRemote(remote, branch)
             self.remote_commit = remoteinfo['refs/heads/' + branch]
@@ -130,7 +130,7 @@ class GitRepository(object):
     def Pull(self, remote='origin', branch='master', cleanup=False):
         if not os.path.isdir(self.path):
             cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet, critical=True, show_output=not self.quiet)
-        with Chdir(self.path, quiet=True):
+        with Chdir(self.path, quiet=self.quiet):
             if Git.IsDirty() and cleanup:
                 cmd(['git', 'clean', '-fdx'], echo=not self.quiet, critical=True)
                 cmd(['git', 'reset', '--hard'], echo=not self.quiet, critical=True)
@@ -140,7 +140,7 @@ class GitRepository(object):
             
     def UpdateSubmodules(self, remote=False):
         with log.info('Updating submodules in %s...', self.path):
-            with Chdir(self.path, quiet=True):
+            with Chdir(self.path, quiet=self.quiet):
                 if os.path.isfile('.gitmodules'):
                     more_flags = []
                     if remote: more_flags.append('--remote')
