@@ -79,7 +79,7 @@ class GitRepository(object):
         for line in (stdout + stderr).split('\n'):
             components = line.strip().split()
             if len(components) != 1:
-                log.error('Invalid output: %s')
+                log.error('Invalid output: %s', line)
                 return False
             self.remotes[components[0]] = self._getRemoteInfo(components[0])
             
@@ -113,6 +113,7 @@ class GitRepository(object):
                 cmd(['git', 'reset', '--hard'], echo=True, critical=True)
             if self.current_branch != branch or self.current_commit != self.remote_commit:
                 cmd(['git', 'reset', '--hard', '{}/{}'.format(remote, branch)], echo=True, critical=True)
+        return True
             
     def UpdateSubmodules(self, remote=False):
         with log.info('Updating submodules in %s...', self.path):
