@@ -125,7 +125,11 @@ class GitRepository(object):
                 return True
             self.GetRepoState()
             self.GetRemoteState(remote, branch)
-            if self.current_branch != branch or self.current_commit != self.remote_commit:
+            if self.current_branch != branch:
+                log.info('Branch is wrong! %s (L) != %s (R)',self.current_branch, branch)
+                return True
+            if self.current_commit != self.remote_commit:
+                log.info('Commit is out of date! %s (L) != %s (R)',self.current_commit, self.remote_commit)
                 return True
         return False
                     
