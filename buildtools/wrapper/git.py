@@ -100,7 +100,7 @@ class GitRepository(object):
                 return True
         return False
                     
-    def Pull(self,cleanup=False):
+    def Pull(self, remote='origin', branch='master', cleanup=False):
         if not os.path.isdir(self.path):
             cmd(['git', 'clone', self.remotes[remote], self.path], echo=True, critical=True, show_output=True)
         with Chdir(self.path, quiet=True):
@@ -108,7 +108,7 @@ class GitRepository(object):
                 cmd(['git', 'clean', '-fdx'], echo=True, critical=True)
                 cmd(['git', 'reset', '--hard'], echo=True, critical=True)
             if self.current_branch != branch or self.current_commit != self.remote_commit:
-                cmd(['git', 'reset', '--hard', 'remote/{}/{}'.format(remote,branch)], echo=True, critical=True)
+                cmd(['git', 'reset', '--hard', 'remote/{}/{}'.format(remote, branch)], echo=True, critical=True)
             
     def UpdateSubmodules(self, remote=False):
         with log.info('Updating submodules in %s...', self.path):
