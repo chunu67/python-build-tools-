@@ -119,17 +119,18 @@ class GitRepository(object):
             remoteinfo = Git.LSRemote(remote, branch)
             self.remote_commit = remoteinfo['refs/heads/' + branch]
 
-    def CheckForUpdates(self, remote='origin', branch='master'):
-        with log.info('Checking %s for updates...', self.path):
+    def CheckForUpdates(self, remote='origin', branch='master', quiet=True):
+        if not quiet: log.info('Checking %s for updates...', self.path)
+        with log:
             if not os.path.isdir(self.path):
                 return True
             self.GetRepoState()
             self.GetRemoteState(remote, branch)
             if self.current_branch != branch:
-                log.info('Branch is wrong! %s (L) != %s (R)', self.current_branch, branch)
+                if not quiet: log.info('Branch is wrong! %s (L) != %s (R)', self.current_branch, branch)
                 return True
             if self.current_commit != self.remote_commit:
-                log.info('Commit is out of date! %s (L) != %s (R)', self.current_commit, self.remote_commit)
+                if not quiet: log.info('Commit is out of date! %s (L) != %s (R)', self.current_commit, self.remote_commit)
                 return True
         return False
                     
