@@ -1,7 +1,7 @@
 import os, sys, glob, subprocess
 
 from buildtools.bt_logging import log
-from buildtools.os_utils import cmd_output, Chdir
+from buildtools.os_utils import cmd_output, Chdir, cmd
 from logging import critical
 
 class Git(object):
