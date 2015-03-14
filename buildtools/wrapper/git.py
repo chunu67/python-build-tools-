@@ -17,6 +17,25 @@ class Git(object):
             print(e)
             pass
         return '[UNKNOWN]'
+    @classmethod
+    def LSRemote(cls, remote=None, ref=None):
+        args = []
+        if remote:
+            args.append(remote)
+        if ref:
+            args.append(ref)
+        try:
+            stderr,stdout = cmd_output(['git','ls-remote']+args, critical=True)
+            o={}
+            for line in stdout+stderr:
+                line=line.strip()
+                hashid, ref = line.split()
+                o[ref]=hashid
+            return o
+        except Exception as e:
+            print(e)
+            pass
+        return None
     
     @classmethod
     def GetBranch(cls):
@@ -89,10 +108,11 @@ class GitRepository(object):
     def GetRemoteState(self, remote='origin', branch='master'):
         with Chdir(self.path, quiet=True):
             cmd(['git', 'fetch', '-q'], critical=True, echo=True, show_output=True)
-            self.remote_commit = Git.GetCommit(ref='remotes/' + remote + '/' + branch, short=False)
+            remoteinfo = Git.LSRemote(remote, branch)
+            self.remote_commit = remoteinfo['refs/heads/'+branch]
 
     def CheckForUpdates(self, remote='origin', branch='master'):
-        with log.info('Checking %s...', self.path):
+        with log.info('Checking %s for updates...', self.path):
             if not os.path.isdir(self.path):
                 return True
             self.GetRepoState()
