@@ -29,7 +29,9 @@ class Git(object):
             o={}
             for line in (stdout+stderr).split('\n'):
                 line=line.strip()
-                hashid, ref = line.split()
+                lc = line.split()
+                print(repr(lc))
+                hashid, ref = lc
                 o[ref]=hashid
             return o
         except Exception as e:
