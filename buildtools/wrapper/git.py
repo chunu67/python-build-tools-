@@ -10,7 +10,7 @@ class Git(object):
         try:
             addtl_flags = []
             if short: addtl_flags.append('--short')
-            stdout,stderr = cmd_output(['git','rev-parse']+addtl_flags, echo=not self.quiet, critical=True)
+            stdout,stderr = cmd_output(['git','rev-parse']+addtl_flags, echo=not quiet, critical=True)
             return (stdout+stderr)
             #rev = subprocess.Popen(['git', 'rev-parse'] + addtl_flags + [ref], stdout=subprocess.PIPE).communicate()[0][:-1]
             #if rev:
