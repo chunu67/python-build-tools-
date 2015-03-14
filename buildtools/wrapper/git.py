@@ -6,7 +6,7 @@ from logging import critical
 
 class Git(object):
     @classmethod
-    def GetCommit(cls, ref='HEAD', short=True):
+    def GetCommit(cls, ref='HEAD', short=True, quiet=True):
         try:
             addtl_flags = []
             if short: addtl_flags.append('--short')
@@ -18,7 +18,7 @@ class Git(object):
             pass
         return '[UNKNOWN]'
     @classmethod
-    def LSRemote(cls, remote=None, ref=None):
+    def LSRemote(cls, remote=None, ref=None, quiet=True):
         args = []
         if remote:
             args.append(remote)
@@ -39,24 +39,27 @@ class Git(object):
         return None
     
     @classmethod
-    def GetBranch(cls):
+    def GetBranch(cls, quiet=True):
         try:
-            branch = subprocess.Popen(["git", "rev-parse", "--abbrev-ref", 'HEAD'], stdout=subprocess.PIPE).communicate()[0][:-1]
-            if branch:
-                return branch.decode('utf-8')
+            stderr, stdout = cmd_output(["git", "rev-parse", "--abbrev-ref", 'HEAD'], echo=not quiet, critical=True)
+            return (stderr + stdout).strip()
+            # branch = subprocess.Popen(["git", "rev-parse", "--abbrev-ref", 'HEAD'], stdout=subprocess.PIPE).communicate()[0][:-1]
+            # if branch:
+            #    return branch.decode('utf-8')
         except Exception as e:
             print(e)
             pass
         return '[UNKNOWN]'
     
     @classmethod
-    def IsDirty(cls):
+    def IsDirty(cls, quiet=True):
         try:
-            branch = subprocess.Popen(['git', 'ls-files', '-m', '-o', '-d', '--exclude-standard'], stdout=subprocess.PIPE).communicate()[0][:-1]
-            if branch:
-                for line in branch.decode('utf-8').split('\n'):
-                    line = line.strip()
-                    if line != '': return True
+            # branch = subprocess.Popen(['git', 'ls-files', '-m', '-o', '-d', '--exclude-standard'], stdout=subprocess.PIPE).communicate()[0][:-1]
+            # if branch:
+            stderr, stdout = cmd_output(['git', 'ls-files', '-m', '-o', '-d', '--exclude-standard'], echo=not quiet, critical=True)
+            for line in (stderr + stdout).split('\n'):
+                line = line.strip()
+                if line != '': return True
             return False
         except Exception as e:
             print(e)
@@ -67,9 +70,10 @@ class GitRepository(object):
     '''Logical representation of a git repository.
     '''
     
-    def __init__(self, path, origin_uri):
+    def __init__(self, path, origin_uri, quiet=True):
         self.path = path
         self.remotes = {'origin':origin_uri}
+        self.quiet = quiet
         
         self.current_branch = None
         self.current_commit = None
@@ -86,7 +90,7 @@ class GitRepository(object):
             Bleeding-Edge                                         tracked
         '''
         
-        stdout, stderr = cmd_output(['git', 'remote', 'show', remoteID], echo=True)
+        stdout, stderr = cmd_output(['git', 'remote', 'show', remoteID], echo=not self.quiet)
         for line in (stdout + stderr).split('\n'):
             line = line.strip()
             components = line.split()
@@ -95,19 +99,20 @@ class GitRepository(object):
                 return line[2]
             
     def UpdateRemotes(self):
-        stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=True)
+        stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=not self.quiet)
         for line in (stdout + stderr).split('\n'):
             line = line.strip()
+            if line == '': continue
             self.remotes[line] = self._getRemoteInfo(line)
             
     def GetRepoState(self):
-        with Chdir(self.path, quiet=True):
+        with Chdir(self.path, quiet=not self.quiet):
             self.UpdateRemotes()
             self.current_branch = Git.GetBranch()
             self.current_commit = Git.GetCommit(short=False)
             
     def GetRemoteState(self, remote='origin', branch='master'):
-        with Chdir(self.path, quiet=True):
+        with Chdir(self.path, quiet=not self.quiet):
             cmd(['git', 'fetch', '-q'], critical=True, echo=True, show_output=True)
             remoteinfo = Git.LSRemote(remote, branch)
             self.remote_commit = remoteinfo['refs/heads/' + branch]
@@ -124,13 +129,13 @@ class GitRepository(object):
                     
     def Pull(self, remote='origin', branch='master', cleanup=False):
         if not os.path.isdir(self.path):
-            cmd(['git', 'clone', self.remotes[remote], self.path], echo=True, critical=True, show_output=True)
+            cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet, critical=True, show_output=not self.quiet)
         with Chdir(self.path, quiet=True):
             if Git.IsDirty() and cleanup:
-                cmd(['git', 'clean', '-fdx'], echo=True, critical=True)
-                cmd(['git', 'reset', '--hard'], echo=True, critical=True)
+                cmd(['git', 'clean', '-fdx'], echo=not self.quiet, critical=True)
+                cmd(['git', 'reset', '--hard'], echo=not self.quiet, critical=True)
             if self.current_branch != branch or self.current_commit != self.remote_commit:
-                cmd(['git', 'reset', '--hard', '{}/{}'.format(remote, branch)], echo=True, critical=True)
+                cmd(['git', 'reset', '--hard', '{}/{}'.format(remote, branch)], echo=not self.quiet, critical=True)
         return True
             
     def UpdateSubmodules(self, remote=False):
@@ -139,4 +144,4 @@ class GitRepository(object):
                 if os.path.isfile('.gitmodules'):
                     more_flags = []
                     if remote: more_flags.append('--remote')
-                    cmd(['git', 'submodule', 'update', '--init', '--recursive'] + more_flags, echo=True, critical=True)
+                    cmd(['git', 'submodule', 'update', '--init', '--recursive'] + more_flags, echo=not self.quiet, critical=True)
