@@ -77,11 +77,8 @@ class GitRepository(object):
     def UpdateRemotes(self):
         stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=True)
         for line in (stdout + stderr).split('\n'):
-            components = line.strip().split()
-            if len(components) != 1:
-                log.error('Invalid output: %s', line)
-                return False
-            self.remotes[components[0]] = self._getRemoteInfo(components[0])
+            line = line.strip()
+            self.remotes[line] = self._getRemoteInfo(line)
             
     def GetRepoState(self):
         with Chdir(self.path, quiet=True):
