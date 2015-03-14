@@ -25,14 +25,13 @@ class Git(object):
         if ref:
             args.append(ref)
         try:
-            stderr,stdout = cmd_output(['git','ls-remote']+args, echo=True, critical=True)
-            o={}
-            for line in (stdout+stderr).split('\n'):
-                line=line.strip()
-                lc = line.split()
-                print(repr(lc))
-                hashid, ref = lc
-                o[ref]=hashid
+            stderr, stdout = cmd_output(['git', 'ls-remote'] + args, echo=True, critical=True)
+            o = {}
+            for line in (stdout + stderr).split('\n'):
+                line = line.strip()
+                if line == '': continue
+                hashid, ref = line.split()
+                o[ref] = hashid
             return o
         except Exception as e:
             print(e)
@@ -111,7 +110,7 @@ class GitRepository(object):
         with Chdir(self.path, quiet=True):
             cmd(['git', 'fetch', '-q'], critical=True, echo=True, show_output=True)
             remoteinfo = Git.LSRemote(remote, branch)
-            self.remote_commit = remoteinfo['refs/heads/'+branch]
+            self.remote_commit = remoteinfo['refs/heads/' + branch]
 
     def CheckForUpdates(self, remote='origin', branch='master'):
         with log.info('Checking %s for updates...', self.path):
