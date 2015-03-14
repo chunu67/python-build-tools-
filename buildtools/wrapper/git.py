@@ -51,6 +51,10 @@ class GitRepository(object):
         self.path = path
         self.remotes = {'origin':origin_uri}
         
+        self.current_branch = None
+        self.current_commit = None
+        self.remote_commit = None
+        
     def _getRemoteInfo(self, remoteID):
         '''
         $ git remote show origin
