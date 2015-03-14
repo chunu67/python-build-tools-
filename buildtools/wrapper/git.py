@@ -10,9 +10,11 @@ class Git(object):
         try:
             addtl_flags = []
             if short: addtl_flags.append('--short')
-            rev = subprocess.Popen(['git', 'rev-parse'] + addtl_flags + [ref], stdout=subprocess.PIPE).communicate()[0][:-1]
-            if rev:
-                return rev.decode('utf-8')
+            stdout,stderr = cmd_output(['git','rev-parse']+addtl_flags, echo=not self.quiet, critical=True)
+            return (stdout+stderr)
+            #rev = subprocess.Popen(['git', 'rev-parse'] + addtl_flags + [ref], stdout=subprocess.PIPE).communicate()[0][:-1]
+            #if rev:
+            #    return rev.decode('utf-8')
         except Exception as e:
             print(e)
             pass
@@ -25,7 +27,7 @@ class Git(object):
         if ref:
             args.append(ref)
         try:
-            stderr, stdout = cmd_output(['git', 'ls-remote'] + args, echo=True, critical=True)
+            stderr, stdout = cmd_output(['git', 'ls-remote'] + args, echo=not quiet, critical=True)
             o = {}
             for line in (stdout + stderr).split('\n'):
                 line = line.strip()
@@ -113,7 +115,7 @@ class GitRepository(object):
             
     def GetRemoteState(self, remote='origin', branch='master'):
         with Chdir(self.path, quiet=self.quiet):
-            cmd(['git', 'fetch', '-q'], critical=True, echo=True, show_output=True)
+            cmd(['git', 'fetch', '-q'], critical=True, echo=not self.quiet)
             remoteinfo = Git.LSRemote(remote, branch)
             self.remote_commit = remoteinfo['refs/heads/' + branch]
 
