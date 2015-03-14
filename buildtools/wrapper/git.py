@@ -25,9 +25,9 @@ class Git(object):
         if ref:
             args.append(ref)
         try:
-            stderr,stdout = cmd_output(['git','ls-remote']+args, critical=True)
+            stderr,stdout = cmd_output(['git','ls-remote']+args, echo=True, critical=True)
             o={}
-            for line in stdout+stderr:
+            for line in (stdout+stderr).split('\n'):
                 line=line.strip()
                 hashid, ref = line.split()
                 o[ref]=hashid
