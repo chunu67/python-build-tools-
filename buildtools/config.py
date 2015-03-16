@@ -30,16 +30,19 @@ def dict_merge(a, b, path=None):
 
 class Config(object):
     def __init__(self, filename, default={}):
-        log.info("Loading {}...".format(filename))
-        with log:
-            self.cfg = default
-            if not os.path.isfile(filename):
-                log.warn('File not found, loading defaults.')
-                with open(filename, 'w') as f:
-                    yaml.dump(default, f, default_flow_style=False)
-                
-            with open(filename, 'r') as f:
-                self.cfg = yaml.load(f)
+        if filename is None:
+            self.cfg=default
+        else:
+            log.info("Loading {}...".format(filename))
+            with log:
+                self.cfg = default
+                if not os.path.isfile(filename):
+                    log.warn('File not found, loading defaults.')
+                    with open(filename, 'w') as f:
+                        yaml.dump(default, f, default_flow_style=False)
+                    
+                with open(filename, 'r') as f:
+                    self.cfg = yaml.load(f)
                 
     def Load(self, filename, merge=False, defaults=None):
         with log.info("Loading {}...".format(filename)):
