@@ -1,6 +1,7 @@
 import os, yaml, glob
 
 from buildtools.bt_logging import log
+import fnmatch
     
 def replace_var(input, varname, replacement):
     return input.replace('%%' + varname + '%%', replacement)
@@ -45,7 +46,7 @@ class Config(object):
                     self.cfg = yaml.load(f)
                 
     def Load(self, filename, merge=False, defaults=None):
-        with log.info("Loading {}...".format(filename)):
+        with log.info("Loading %s...",filename):
             if not os.path.isfile(filename):
                 if defaults is None:
                     log.error('Failed to load %s.', filename)
@@ -66,8 +67,12 @@ class Config(object):
     
     def LoadFromFolder(self, path, pattern='*.yml'):
         'For conf.d/ stuff.'
-        for filename in glob.glob(os.path.join(path,pattern)):
-            self.Load(filename, merge=True)
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                if fnmatch.fnmatch(file, pattern):
+                    self.Load(file, merge=True)
+        #for filename in glob.glob(os.path.join(path,pattern)):
+        #    self.Load(filename, merge=True)
         
     def __getitem__(self, key):
         return self.cfg.__getitem__(key)
