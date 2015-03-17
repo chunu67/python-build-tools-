@@ -336,7 +336,7 @@ def old_copytree(src, dst, symlinks=False, ignore=None):
                 shutil.copy2(s, d)
                 
 def canCopy(src, dest, **op_args):
-    return not os.path.isfile(newfile) or op_args.get('ignore_mtime', False) or (os.stat(fromfile).st_mtime - os.stat(newfile).st_mtime > 1)
+    return not os.path.isfile(dest) or op_args.get('ignore_mtime', False) or (os.stat(src).st_mtime - os.stat(dest).st_mtime > 1)
     
 def _op_copy(fromfile, newroot, **op_args):
     newfile = os.path.join(newroot, os.path.basename(fromfile))
