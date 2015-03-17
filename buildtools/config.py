@@ -69,8 +69,9 @@ class Config(object):
         'For conf.d/ stuff.'
         for root, dirs, files in os.walk(path):
             for file in files:
-                if fnmatch.fnmatch(file, pattern):
-                    self.Load(file, merge=True)
+                filename = os.path.join(root,file)
+                if fnmatch.fnmatch(filename, pattern):
+                    self.Load(filename, merge=True)
         #for filename in glob.glob(os.path.join(path,pattern)):
         #    self.Load(filename, merge=True)
         
