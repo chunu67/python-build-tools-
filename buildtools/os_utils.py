@@ -173,6 +173,11 @@ class BuildEnv(object):
     def dump(cls, env):
         for key, value in sorted(env.iteritems()):
             log.info('+{0}="{1}"'.format(key, value))
+            
+def ensureDirExists(path, mode=0777, noisy=False):
+    if not os.path.isdir(path):
+        os.makedirs(path,mode)
+        if noisy: log.info('Created %s.',path)
         
 class TimeExecution(object):
     def __init__(self, label):
