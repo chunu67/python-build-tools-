@@ -72,10 +72,11 @@ class GitRepository(object):
     '''Logical representation of a git repository.
     '''
     
-    def __init__(self, path, origin_uri, quiet=True):
+    def __init__(self, path, origin_uri, quiet=True, noisy_clone=False):
         self.path = path
         self.remotes = {'origin':origin_uri}
         self.quiet = quiet
+        self.noisy_clone = noisy_clone
         
         self.current_branch = None
         self.current_commit = None
@@ -136,7 +137,7 @@ class GitRepository(object):
                     
     def Pull(self, remote='origin', branch='master', cleanup=False):
         if not os.path.isdir(self.path):
-            cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet, critical=True, show_output=not self.quiet)
+            cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone)
         with Chdir(self.path, quiet=self.quiet):
             if Git.IsDirty() and cleanup:
                 cmd(['git', 'clean', '-fdx'], echo=not self.quiet, critical=True)

@@ -60,7 +60,7 @@ def GetDpkgShlibs(files):
                 continue
             elif line.startswith('shlibs:'):
                 # shlibs:Depends=libboost-context1.55.0, libboost-filesystem1.55.0, libboost-program-options1.55.0, ...
-                lc = line.split('=',1)
+                lc = line.split('=', 1)
                 assert len(lc) == 2
                 assert not lc[0][7:].startswith(':')
                 deps[lc[0][7:]] = [x.strip() for x in lc[1].split(',')]
@@ -176,8 +176,8 @@ class BuildEnv(object):
             
 def ensureDirExists(path, mode=0777, noisy=False):
     if not os.path.isdir(path):
-        os.makedirs(path,mode)
-        if noisy: log.info('Created %s.',path)
+        os.makedirs(path, mode)
+        if noisy: log.info('Created %s.', path)
         
 class TimeExecution(object):
     def __init__(self, label):
@@ -334,10 +334,13 @@ def old_copytree(src, dst, symlinks=False, ignore=None):
         else:
             if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(dst).st_mtime > 1:
                 shutil.copy2(s, d)
+                
+def canCopy(src, dest, **op_args):
+    return not os.path.isfile(newfile) or op_args.get('ignore_mtime', False) or (os.stat(fromfile).st_mtime - os.stat(newfile).st_mtime > 1)
     
 def _op_copy(fromfile, newroot, **op_args):
     newfile = os.path.join(newroot, os.path.basename(fromfile))
-    if not os.path.isfile(newfile) or op_args.get('ignore_mtime', False) or (os.stat(fromfile).st_mtime - os.stat(newfile).st_mtime > 1):
+    if canCopy(fromfile, newfile, **op_args):
         if op_args.get('verbose', False):
             log.info('Copying {} -> {}'.format(fromfile, newfile))
         shutil.copy2(fromfile, newfile)
