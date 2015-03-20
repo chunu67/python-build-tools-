@@ -55,7 +55,7 @@ class Config(object):
             if merge:
                 self.cfg = dict_merge(self.cfg, newcfg)
             else:
-                self.cfg = merge
+                self.cfg = newcfg
         return True
     
     def LoadFromFolder(self, path, pattern='*.yml', variables={}):
