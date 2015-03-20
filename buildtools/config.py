@@ -1,4 +1,4 @@
-import os, yaml, glob
+import os, yaml, glob, jinja2
 
 from buildtools.bt_logging import log
 import fnmatch
@@ -30,22 +30,14 @@ def dict_merge(a, b, path=None):
     return a
 
 class Config(object):
-    def __init__(self, filename, default={}):
+    def __init__(self, filename, default={}, template_dir='.', variables={}):
+        self.environment = jinja2.Environment(loader=jinja2.loaders.FileSystemLoader(template_dir))
         if filename is None:
             self.cfg=default
         else:
-            log.info("Loading {}...".format(filename))
-            with log:
-                self.cfg = default
-                if not os.path.isfile(filename):
-                    log.warn('File not found, loading defaults.')
-                    with open(filename, 'w') as f:
-                        yaml.dump(default, f, default_flow_style=False)
-                    
-                with open(filename, 'r') as f:
-                    self.cfg = yaml.load(f)
+            self.Load(filename, merge=False, defaults=default, variables=variables)
                 
-    def Load(self, filename, merge=False, defaults=None):
+    def Load(self, filename, merge=False, defaults=None, variables={}):
         with log.info("Loading %s...",filename):
             if not os.path.isfile(filename):
                 if defaults is None:
@@ -55,23 +47,24 @@ class Config(object):
                     log.warn('File not found, loading defaults.')
                     with open(filename, 'w') as f:
                         yaml.dump(defaults, f, default_flow_style=False)
+
+            template = self.environment.get_template(filename)
+            rendered = template.render(variables)
             
-            newcfg = {}
-            with open(filename, 'r') as f:
-                newcfg = yaml.load(f)
+            newcfg = yaml.load(rendered)
             if merge:
                 self.cfg = dict_merge(self.cfg, newcfg)
             else:
                 self.cfg = merge
         return True
     
-    def LoadFromFolder(self, path, pattern='*.yml'):
+    def LoadFromFolder(self, path, pattern='*.yml', variables={}):
         'For conf.d/ stuff.'
         for root, dirs, files in os.walk(path):
             for file in files:
                 filename = os.path.join(root,file)
                 if fnmatch.fnmatch(filename, pattern):
-                    self.Load(filename, merge=True)
+                    self.Load(filename, merge=True, variables=variables)
         #for filename in glob.glob(os.path.join(path,pattern)):
         #    self.Load(filename, merge=True)
         
