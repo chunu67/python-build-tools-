@@ -12,8 +12,8 @@ class Git(object):
             if short: addtl_flags.append('--short')
             stdout, stderr = cmd_output(['git', 'rev-parse'] + addtl_flags + [ref], echo=not quiet, critical=True)
             return (stdout + stderr).strip()
-            #rev = subprocess.Popen(['git', 'rev-parse'] + addtl_flags + [ref], stdout=subprocess.PIPE).communicate()[0][:-1]
-            #if rev:
+            # rev = subprocess.Popen(['git', 'rev-parse'] + addtl_flags + [ref], stdout=subprocess.PIPE).communicate()[0][:-1]
+            # if rev:
             #    return rev.decode('utf-8')
         except Exception as e:
             print(e)
@@ -142,7 +142,9 @@ class GitRepository(object):
             if Git.IsDirty() and cleanup:
                 cmd(['git', 'clean', '-fdx'], echo=not self.quiet, critical=True)
                 cmd(['git', 'reset', '--hard'], echo=not self.quiet, critical=True)
-            if self.current_branch != branch or self.current_commit != self.remote_commit:
+            if self.current_branch != branch:
+                cmd(['git', 'checkout', '-B', '{}/{}'.format(remote, branch)], echo=not self.quiet, critical=True)
+            if self.current_commit != self.remote_commit:
                 cmd(['git', 'reset', '--hard', '{}/{}'.format(remote, branch)], echo=not self.quiet, critical=True)
         return True
             
