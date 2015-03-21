@@ -143,7 +143,8 @@ class GitRepository(object):
                 cmd(['git', 'clean', '-fdx'], echo=not self.quiet, critical=True)
                 cmd(['git', 'reset', '--hard'], echo=not self.quiet, critical=True)
             if self.current_branch != branch:
-                cmd(['git', 'checkout', '-B', '{}/{}'.format(remote, branch)], echo=not self.quiet, critical=True)
+                ref = 'remotes/{}/{}'.format(remote, branch)
+                cmd(['git', 'checkout', '-B', branch, ref, '--'], echo=not self.quiet, critical=True)
             if self.current_commit != self.remote_commit:
                 cmd(['git', 'reset', '--hard', '{}/{}'.format(remote, branch)], echo=not self.quiet, critical=True)
         return True
