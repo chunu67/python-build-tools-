@@ -1,4 +1,8 @@
-import httplib, logging, urlparse, urllib, urllib2
+import httplib
+import logging
+import urlparse
+import urllib
+import urllib2
 
 from .bt_logging import log
 
@@ -11,22 +15,26 @@ def DownloadFile(url, filename):
         meta = u.info()
         file_size = int(meta.getheaders("Content-Length")[0])
         print "Downloading: %s Bytes: %s" % (filename, file_size)
-        
+
         file_size_dl = 0
         block_sz = 8192
         while True:
-            buffer = u.read(block_sz)
+            buf = u.read(block_sz)
             if not buffer:
                 break
-        
-            file_size_dl += len(buffer)
-            f.write(buffer)
-            status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
+
+            file_size_dl += len(buf)
+            f.write(buf)
+            status = r"%10d  [%3.2f%%]" % (
+                file_size_dl, file_size_dl * 100. / file_size)
             status = status + chr(8) * (len(status) + 1)
             print status,
-        log.info('Downloaded {} to {} ({}B)'.format(url, filename, file_size_dl))
+        log.info('Downloaded {} to {} ({}B)'.format(
+            url, filename, file_size_dl))
+
 
 class HTTPFetcher(object):
+
     def __init__(self, url):
         self.url = url
         self.fields = {}
@@ -38,25 +46,25 @@ class HTTPFetcher(object):
         self.follow_redirects = False
         self.accept = ['text/plain', 'text/html', 'text/css']
         self.useragent = "pybuildtools/0.1"
-        self.debug=False
-        
+        self.debug = False
+
     def getFormData(self):
         return urllib.urlencode(self.fields)
         # o=[]
         # for key in self.fields:
         #    o+=['{0}={1}'.format(key,urllib2.quote(self.fields[key]))]
         # return '&'.join(o)
-        
+
     def SaveFile(self, filename, mode='wb'):
         with open(filename, mode) as f:
             f.write(self.GetString())
-    
+
     def GetString(self):
         formdata = self.getFormData()
-        self.log.debug("GetFormData() = " + formdata);
+        self.log.debug("GetFormData() = " + formdata)
         # if self.method == HTTP_METHOD_GET:
         #    self.url += "?" + formdata
-            
+
         # web = urllib2.urlopen(self.url)
         uri = urlparse.urlparse(self.url)
         port = ''
@@ -67,14 +75,14 @@ class HTTPFetcher(object):
             req = httplib.HTTPSConnection(uri.hostname + port)
         else:
             req = httplib.HTTPConnection(uri.hostname + port)
-        req.debuglevel=1 if self.debug else 0
+        req.debuglevel = 1 if self.debug else 0
         headers = {"Accept": ','.join(self.accept)}
         if self.method != HTTP_METHOD_GET:
             headers['Content-type'] = "application/x-www-form-urlencoded"
         headers['User-Agent'] = self.useragent
         if self.url != self.referer:
             headers['Referer'] = self.referer
-        
+
         req.request(self.method, uri.path, formdata, headers)
         response = req.getresponse()
 
@@ -95,23 +103,26 @@ class HTTPFetcher(object):
 
         self.log.debug("Downloading data from " + self.url + " to memory...")
         # if self.method != HTTP_METHOD_GET:
-        self.log.debug("HTTP %d: %s (%s)", response.status, response.reason, self.url);
+        self.log.debug(
+            "HTTP %d: %s (%s)", response.status, response.reason, self.url)
         if response.status == 302 or response.status == 301:
             # Location: http...
             newurl = response.getheader("Location", '???')
-            self.log.warning("Received %d redirect from %s to %s!", response.status, self.url, newurl)
+            self.log.warning(
+                "Received %d redirect from %s to %s!", response.status, self.url, newurl)
             if self.follow_redirects:
                 self.url = newurl
                 return self.GetString()
             # self.status=response.status
             # return None
-        
-        self.status = response.status 
+
+        self.status = response.status
         # Just in case we don't succeed...
-        self.log.debug("Content-Length: %s bytes", response.getheader('Content-Length', '???'));
+        self.log.debug(
+            "Content-Length: %s bytes", response.getheader('Content-Length', '???'))
         # expectedContentSize = response.info().getheader('Content-Length');
-        
-        return response.read()  # Not too complex. 
+
+        return response.read()  # Not too complex.
 
         """
             Cookies = httpWebResponse.Cookies;
