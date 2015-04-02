@@ -1,4 +1,4 @@
-import os, sys, glob, subprocess, shutil, platform, time, re
+import os, sys, glob, subprocess, shutil, platform, time, re, threading
 
 from buildtools.bt_logging import log
 from compileall import expand_args
