@@ -402,14 +402,14 @@ class AsyncCommand(object):
         if self.echo:
             self.log.info('(ASYNC) $ ' + ' '.join(self.command))
         self.child = subprocess.Popen(
-            self.command, shell=True, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.command, shell=True, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
         self.stdout_thread = _StreamReader(self, self.child.stdout, self.stdout_callback)
         self.stdout_thread.start()
-        self.stderr_thread = _StreamReader(self, self.child.stderr, self.stderr_callback)
-        self.stderr_thread.start()
+        #self.stderr_thread = _StreamReader(self, self.child.stderr, self.stderr_callback)
+        #self.stderr_thread.start()
         return True
 
     def WaitUntilDone(self):
