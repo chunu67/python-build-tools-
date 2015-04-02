@@ -5,11 +5,21 @@ Created on Mar 28, 2015
 '''
 import os, sys, glob, subprocess
 
-from mercurial import hg, node, ui
+from mercurial import hg, node, ui, commands
 
 from buildtools.bt_logging import log
 from buildtools.os_utils import cmd_output, Chdir, cmd
 from buildtools.repo.base import SCMRepository
+
+HG_VERSION=None
+
+def checkHg():
+    global HG_VERSION
+    if HG_VERSION is None:
+        '''Will raise CalledProcessError if something goes sideways.'''
+        stdout,stderr = cmd_output(['hg', '--version'], critical=True)
+        HG_VERSION=(stdout+stderr).strip()
+        log.info('mercurial version %s detected.',HG_VERSION)
 
 class HgRepository(SCMRepository):
     '''Logical representation of a mercurial repository.'''
@@ -19,9 +29,11 @@ class HgRepository(SCMRepository):
         
         self.remotes = {'default':origin_uri}
         self.remote = hg.peer(ui.ui(), {}, origin_uri)
-        self.repo = None
-        if os.path.isdir(self.path):
-            self.repo = hg.repository(ui.ui(), self.path)
+        self.repo=None
+        self.repoExists = False
+        
+        checkHg()
+        self._connectRepo()
         
         self.current_branch = None
         self.current_rev = None
@@ -30,6 +42,18 @@ class HgRepository(SCMRepository):
     def _hgcmd(self, args):
         stdout, stderr = cmd_output(['hg', '--cwd', self.path, '--encoding', 'UTF-8'] + args, echo=not self.quiet, critical=True)
         return (stdout + stderr)
+    
+    def _checkRepo(self):
+        if not os.path.isdir(self.path):
+            return False
+        if not os.path.isdir(os.path.join(self.path,'.hg')):
+            return False
+        return True
+        
+    def _connectRepo(self):
+        self.repo = None
+        if self._checkRepo():
+            self.repo = hg.repository(ui.ui(), self.path)
         
     def _getRemoteInfo(self, remoteID):
         for line in self._hgcmd(['paths', remoteID]).split('\n'):
@@ -120,8 +144,6 @@ class HgRepository(SCMRepository):
     def Pull(self, remote='default', branch='default', cleanup=False):
         if not os.path.isdir(self.path):
             cmd(['hg', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone)
-        if self.repo is None:
-            self.repo = hg.repository(ui.ui(), self.path)
         if self.IsDirty() and cleanup:
             self._hgcmd(['clean', '--all', '--dirs', '--files'])
             self._hgcmd(['revert', '-C', '--all'])

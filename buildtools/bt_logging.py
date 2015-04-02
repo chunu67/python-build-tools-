@@ -108,6 +108,24 @@ logging.basicConfig(
     level=logging.INFO)
     # filename='logs/main.log',
     # filemode='w')
+    
+def logToFile(logID, mode='w', level=logging.INFO, sub_dir=None, start_message='Logging started'):
+    basedir = 'logs'
+    if sub_dir is not None:
+        basedir = os.path.join(basedir, sub_dir)
+    if not os.path.isdir(basedir):
+        os.makedirs(basedir)
+    logfile = os.path.join(basedir, logID + '.log')
+    log = logging.getLogger(logID)
+    if len(log.handlers) == 0:
+        # if os.path.isfile(logfile):
+        #    os.remove(logfile)
+        console = logging.FileHandler(logfile, mode=mode)
+        console.setLevel(level)
+        log.addHandler(console)
+    if start_message is not None:
+        log.info(start_message)
+    return log
 
 # define a Handler which writes INFO messages or higher to the sys.stderr
 # console = logging.StreamHandler()

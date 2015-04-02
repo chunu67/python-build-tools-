@@ -2,6 +2,7 @@ import os, sys, glob, subprocess, shutil, platform, time
 
 from buildtools.bt_logging import log
 from compileall import expand_args
+from subprocess import CalledProcessError
 
 buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 scripts_dir = os.path.join(buildtools_dir, 'scripts')
@@ -264,6 +265,89 @@ def _cmd_handle_args(command):
         else:
             new_args += [arg]
     return new_args
+
+class AsyncCommand(object):
+    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, critical=False):
+        self.command = command
+        self.stdout_callback = stdout if stdout is not None else self.default_stdout
+        self.stderr_callback = stderr if stderr is not None else self.default_stderr
+        
+        new_env = _cmd_handle_env(env)
+        command = _cmd_handle_args(command)
+        
+        self.child = None
+        self.commandName = os.path.basename(self.command[0])
+        
+        self.exit_code = None
+        self.exit_code_handler = self.default_exit_handler
+        
+        self.log = log
+        
+    def default_exit_handler(self, buf):
+        if self.child.returncode != 0:
+            if self.child.returncode < 0:
+                strerr = 'Received signal %d' % (abs(self.child.returncode))
+                if self.child.returncode < -100:
+                    strerr += ' (?!)'
+                self.log.error(strerr)
+            else:
+                self.log.warning('%s exited with code %d: %s', self.commandName, self.exit_code, buf)
+        else:
+            self.log.info('%s process has exited normally.', self.commandName)
+            
+    def default_stdout(self, ascmd, buf):
+        self.log.info('[%s] %s', ascmd.commandName, buf)
+    def default_stderr(self, ascmd, buf):
+        self.log.error('[%s] %s', ascmd.commandName, buf)
+        
+    def Start(self):
+        if self.echo:
+            self.log.info('(ASYNC) $ ' + ' '.join(command))
+        self.child = subprocess.Popen(command, shell=True, env=new_env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if self.child is None:
+            self.log.error('Failed to start %r.', ' '.join(self.command))
+            return False
+        self.stderr_thread = threading.Thread(target=self._process_stream, args=(self.child.stderr, self.stderr_callback))
+        self.stderr_thread.start()
+        self.stdout_thread = threading.Thread(target=self._process_stdout, args=(self.child.stdout, self.stdout_callback))
+        self.stdout_thread.start()
+        return True
+        
+    def WaitUntilDone(self):
+        while(self.exit_code != None):
+            time.sleep(1)
+        self.stderr_thread.join()
+        self.stdout_thread.join()
+        return self.exit_code 
+    
+    def IsRunning(self):
+        return self.exit_code != None
+        
+    def _process_stream(self, stream, callback):
+        buf = ''
+        while True:
+            if self.exit_code is not None:
+                return
+            b = stream.read(1)
+            if b == '':
+                pollResult = self.child.poll()
+                if pollResult != None:
+                    self.exit_code = self.child.returncode
+                    self.exit_code_handler(buf)
+                    return
+                continue
+            if b != '\n' and b != '\r':
+                buf += b
+            else:
+                buf = buf.strip()
+                if buf != '':
+                    callback(self, buf)
+                    buf = ''
+
+def async_cmd(command, stdout=None, stderr=None, env=None, critical=False):
+    ascmd = AsyncCommand(command, stdout=stdout, stderr=stderr, env=env, critical=critical)
+    ascmd.Start()
+    return ascmd
     
 def cmd(command, echo=False, env=None, show_output=True, critical=False):
     new_env = _cmd_handle_env(env)
@@ -277,8 +361,14 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
     try:
         output = subprocess.check_output(command, env=new_env, stderr=subprocess.STDOUT)
         return True
+    except CalledProcessError as cpe:
+        log.error(cpe.output)
+        if critical:
+            raise e
+        log.error(cpe)
+        return False
     except Exception as e:
-        log.error(repr(command))
+        log.error(e)
         log.error(output)
         if critical:
             raise e
@@ -381,5 +471,22 @@ def safe_rmtree(dir):
             os.remove(os.path.join(root, name))
         for name in dirs:
             os.rmdir(os.path.join(root, name))
+
+REG_EXCESSIVE_WHITESPACE = re.compile('\s{2,}')    
+def RemoveExcessiveWhitespace(text):
+    return REG_EXCESSIVE_WHITESPACE.sub('', text)
+
+def sizeof_fmt(num):
+    for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
+        if num < 1024.0:
+            return "%3.1f %s" % (num, x)
+        num /= 1024.0
+        
+def standardize_path(path):
+    pathchunks = path.split('/')
+    path = pathchunks[0]
+    for chunk in pathchunks[1:]:
+        path = os.path.join(path, chunk)
+    return path
             
 ENV = BuildEnv()
