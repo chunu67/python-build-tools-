@@ -17,24 +17,24 @@ class HgRepository(SCMRepository):
     def __init__(self, path, origin_uri, quiet=True, noisy_clone=False):
         super(HgRepository, self).__init__(path, quiet=quiet, noisy_clone=noisy_clone)
         
-        self.remotes={'default':origin_uri}
+        self.remotes = {'default':origin_uri}
         self.remote = hg.peer(ui.ui(), {}, origin_uri)
         self.repo = None
         if os.path.isdir(self.path):
-            self.repo = hg.repository(ui.ui(),self.path)
+            self.repo = hg.repository(ui.ui(), self.path)
         
         self.current_branch = None
         self.current_rev = None
         self.remote_rev = None
         
-    def _hgcmd(self,args):
-        stdout,stderr = cmd_output(['hg','--cwd',self.path,'--encoding','UTF-8']+args, echo=not self.quiet, critical=True)
-        return (stdout+stderr)
+    def _hgcmd(self, args):
+        stdout, stderr = cmd_output(['hg', '--cwd', self.path, '--encoding', 'UTF-8'] + args, echo=not self.quiet, critical=True)
+        return (stdout + stderr)
         
     def _getRemoteInfo(self, remoteID):
-        for line in _hgcmd(['paths',remoteID]).split('\n'):
+        for line in self._hgcmd(['paths', remoteID]).split('\n'):
             # default = http://hg.limetech.org/projects/tf2items/tf2items_source/
-            line=line.strip()
+            line = line.strip()
             if line == '': continue
             return line
             
@@ -57,7 +57,7 @@ class HgRepository(SCMRepository):
             
     def getRevision(self):
         if self.repo is None: return None
-        for line in self._hgcmd(['identify','-n','-r','.']).split('\n'):
+        for line in self._hgcmd(['identify', '-n', '-r', '.']).split('\n'):
             line = line.strip()
             if line == '': continue
             return int(line)
@@ -88,7 +88,7 @@ class HgRepository(SCMRepository):
         summary:     Fix posix builds.
         '''
 
-        for line in self._hgcmd(['in','-b', branch,'-nv', remote]).split('\n'):
+        for line in self._hgcmd(['in', '-b', branch, '-nv', remote]).split('\n'):
             line = line.strip()
             if line == '': continue
             if line.startswith('changeset:'):
@@ -109,19 +109,26 @@ class HgRepository(SCMRepository):
                 if not quiet: log.info('Commit is out of date! %s (L) != %s (R)', self.current_commit, self.remote_commit)
                 return True
         return False
+    
+    def IsDirty(self):
+        if self.repo is None: return True
+        for line in self._hgcmd(['status']).split('\n'):
+            if line.strip() != '':
+                return True
+        return False
                     
     def Pull(self, remote='default', branch='default', cleanup=False):
         if not os.path.isdir(self.path):
             cmd(['hg', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone)
         if self.repo is None:
-            self.repo = hg.repository(ui.ui(),self.path)
+            self.repo = hg.repository(ui.ui(), self.path)
         if self.IsDirty() and cleanup:
             self._hgcmd(['clean', '--all', '--dirs', '--files'])
             self._hgcmd(['revert', '-C', '--all'])
         if self.current_branch != branch:
-            self._hgcmd(['checkout','-C', branch])
+            self._hgcmd(['checkout', '-C', branch])
         if self.current_rev != self.remote_rev:
-            self._hgcmd(['pull','-r',self.remote_rev])
+            self._hgcmd(['pull', '-r', self.remote_rev])
         return True
             
     def UpdateSubmodules(self, remote=False):
