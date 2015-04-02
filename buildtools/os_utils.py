@@ -306,24 +306,50 @@ def _cmd_handle_args(command):
             new_args += [arg]
     return new_args
 
+
 class _StreamReader(threading.Thread):
+
     def __init__(self, asc, fd, callback):
         assert callable(fd.readline)
         threading.Thread.__init__(self)
-        self._asyncCommand=asc
+        self._asyncCommand = asc
         self._fd = fd
         self._cb = callback
- 
+
+    def _getChild(self):
+        return self._asyncCommand.child
     def run(self):
         '''The body of the tread: read lines and put them on the queue.'''
-        for line in iter(self._fd.readline, ''):
-            self._cb(self._asyncCommand,line)
- 
+        #for line in iter(self._fd.readline, ''):
+        #    self._cb(self._asyncCommand, line.strip())
+        
+        buf = ''
+        while True:
+            if self._asyncCommand.exit_code is not None:
+                return
+            b = self._fd.read(1)
+            if b == '':
+                pollResult = self._getChild().poll()
+                if pollResult != None:
+                    self._asyncCommand.exit_code = self._getChild().returncode
+                    self._asyncCommand.exit_code_handler(buf)
+                    return
+                continue
+            if b != '\n' and b != '\r':
+                buf += b
+            else:
+                buf = buf.strip()
+                if buf != '':
+                    self._cb(self._asyncCommand, buf)
+                    buf = ''
+
     def eof(self):
         '''Check whether there is no more content to expect.'''
         return not self.is_alive()
 
+
 class AsyncCommand(object):
+
     def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, critical=False):
         self.echo = echo
         self.command = command
@@ -368,14 +394,14 @@ class AsyncCommand(object):
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
-        self.stderr_thread = _StreamReader(self, self.child.stderr, self.stderr_callback)
-        self.stderr_thread.start()
         self.stdout_thread = _StreamReader(self, self.child.stdout, self.stdout_callback)
         self.stdout_thread.start()
+        self.stderr_thread = _StreamReader(self, self.child.stderr, self.stderr_callback)
+        self.stderr_thread.start()
         return True
 
     def WaitUntilDone(self):
-        while(self.exit_code != None):
+        while not stdout_reader.eof() or not stderr_reader.eof():
             time.sleep(1)
         self.stderr_thread.join()
         self.stdout_thread.join()
