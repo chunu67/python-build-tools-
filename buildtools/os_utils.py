@@ -8,6 +8,9 @@ import time
 import re
 import threading
 
+if sys.platform.startswith('linux'):
+    import fcntl
+
 from buildtools.bt_logging import log
 from compileall import expand_args
 from subprocess import CalledProcessError
@@ -315,6 +318,12 @@ class _StreamReader(threading.Thread):
         self._asyncCommand = asc
         self._fd = fd
         self._cb = callback
+        
+        if sys.platform.startswith('linux'):
+            # Disable buffering
+            fd = self._fd.fileno()
+            fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+            fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
     def _getChild(self):
         return self._asyncCommand.child
