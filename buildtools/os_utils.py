@@ -319,11 +319,11 @@ class _StreamReader(threading.Thread):
         self._fd = fd
         self._cb = callback
         
-        if sys.platform.startswith('linux'):
-            # Disable buffering
-            fd = self._fd.fileno()
-            fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-            fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+        #if sys.platform.startswith('linux'):
+        #    # Disable buffering
+        #    fd = self._fd.fileno()
+        #    fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+        #    fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
     def _getChild(self):
         return self._asyncCommand.child
@@ -375,6 +375,9 @@ class AsyncCommand(object):
         self.exit_code_handler = self.default_exit_handler
 
         self.log = log
+        
+        self.stdout_thread=None
+        self.stderr_thread=None
 
     def default_exit_handler(self, buf):
         if self.child.returncode != 0:
@@ -390,10 +393,10 @@ class AsyncCommand(object):
             self.log.info('%s process has exited normally.', self.commandName)
 
     def default_stdout(self, ascmd, buf):
-        self.log.info('[%s] %s', ascmd.commandName, buf)
+        ascmd.log.info('[%s] %s', ascmd.commandName, buf)
 
     def default_stderr(self, ascmd, buf):
-        self.log.error('[%s] %s', ascmd.commandName, buf)
+        ascmd.log.error('[%s] %s', ascmd.commandName, buf)
 
     def Start(self):
         if self.echo:
@@ -410,7 +413,7 @@ class AsyncCommand(object):
         return True
 
     def WaitUntilDone(self):
-        while not stdout_reader.eof() or not stderr_reader.eof():
+        while not self.stdout_thread.eof() or not self.stderr_thread.eof():
             time.sleep(1)
         self.stderr_thread.join()
         self.stdout_thread.join()
