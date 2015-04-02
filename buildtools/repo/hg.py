@@ -17,6 +17,7 @@ class HgRepository(SCMRepository):
     def __init__(self, path, origin_uri, quiet=True, noisy_clone=False):
         super(HgRepository, self).__init__(path, quiet=quiet, noisy_clone=noisy_clone)
         
+        self.remotes={'default':origin_uri}
         self.remote = hg.peer(ui.ui(), {}, origin_uri)
         self.repo = None
         if os.path.isdir(self.path):
