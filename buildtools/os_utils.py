@@ -306,9 +306,24 @@ def _cmd_handle_args(command):
             new_args += [arg]
     return new_args
 
+class _StreamReader(threading.Thread):
+    def __init__(self, asc, fd, callback):
+        assert callable(fd.readline)
+        threading.Thread.__init__(self)
+        self._asyncCommand=asc
+        self._fd = fd
+        self._cb = callback
+ 
+    def run(self):
+        '''The body of the tread: read lines and put them on the queue.'''
+        for line in iter(self._fd.readline, ''):
+            self._cb(self._asyncCommand,line)
+ 
+    def eof(self):
+        '''Check whether there is no more content to expect.'''
+        return not self.is_alive()
 
 class AsyncCommand(object):
-
     def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, critical=False):
         self.echo = echo
         self.command = command
@@ -353,11 +368,9 @@ class AsyncCommand(object):
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
-        self.stderr_thread = threading.Thread(
-            target=self._process_stream, args=(self.child.stderr, self.stderr_callback))
+        self.stderr_thread = _StreamReader(self, self.child.stderr, self.stderr_callback)
         self.stderr_thread.start()
-        self.stdout_thread = threading.Thread(
-            target=self._process_stream, args=(self.child.stdout, self.stdout_callback))
+        self.stdout_thread = _StreamReader(self, self.child.stdout, self.stdout_callback)
         self.stdout_thread.start()
         return True
 
