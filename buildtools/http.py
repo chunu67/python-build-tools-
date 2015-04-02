@@ -38,6 +38,7 @@ class HTTPFetcher(object):
         self.follow_redirects = False
         self.accept = ['text/plain', 'text/html', 'text/css']
         self.useragent = "pybuildtools/0.1"
+        self.debug=False
         
     def getFormData(self):
         return urllib.urlencode(self.fields)
@@ -66,6 +67,7 @@ class HTTPFetcher(object):
             req = httplib.HTTPSConnection(uri.hostname + port)
         else:
             req = httplib.HTTPConnection(uri.hostname + port)
+        req.debuglevel=1 if self.debug else 0
         headers = {"Accept": ','.join(self.accept)}
         if self.method != HTTP_METHOD_GET:
             headers['Content-type'] = "application/x-www-form-urlencoded"
