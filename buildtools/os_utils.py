@@ -174,7 +174,7 @@ class BuildEnv(object):
         for key, value in sorted(env.iteritems()):
             log.info('+{0}="{1}"'.format(key, value))
             
-def ensureDirExists(path, mode=0777, noisy=False):
+def ensureDirExists(path, mode=0o777, noisy=False):
     if not os.path.isdir(path):
         os.makedirs(path, mode)
         if noisy: log.info('Created %s.', path)

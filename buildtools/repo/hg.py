@@ -18,7 +18,9 @@ class HgRepository(SCMRepository):
         super(HgRepository, self).__init__(path, quiet=quiet, noisy_clone=noisy_clone)
         
         self.remote = hg.peer(ui.ui(), {}, origin_uri)
-        self.repo = hg.repository(ui.ui(),self.path)
+        self.repo = None
+        if os.path.isdir(self.path):
+            self.repo = hg.repository(ui.ui(),self.path)
         
         self.current_branch = None
         self.current_rev = None
@@ -36,6 +38,7 @@ class HgRepository(SCMRepository):
             return line
             
     def UpdateRemotes(self):
+        if self.repo is None: return
         '''
         comparing with http://hg.limetech.org/projects/tf2items/tf2items_source/
         searching for changes
@@ -52,6 +55,7 @@ class HgRepository(SCMRepository):
             self.remotes[line] = self._getRemoteInfo(line)
             
     def getRevision(self):
+        if self.repo is None: return None
         for line in self._hgcmd(['identify','-n','-r','.']).split('\n'):
             line = line.strip()
             if line == '': continue
@@ -59,6 +63,7 @@ class HgRepository(SCMRepository):
         return None
             
     def getBranch(self):
+        if self.repo is None: return None
         for line in self._hgcmd(['identify', '-b', '-r', '.']).split('\n'):
             line = line.strip()
             if line == '': continue
@@ -71,6 +76,7 @@ class HgRepository(SCMRepository):
         self.current_rev = self.getRevision()
             
     def GetRemoteState(self, remote='default', branch='default'):
+        if self.repo is None: return None
         '''
         comparing with http://hg.limetech.org/projects/tf2items/tf2items_source/
         searching for changes
@@ -88,6 +94,7 @@ class HgRepository(SCMRepository):
                 self.remote_rev = int(line.split(':')[1].strip())
 
     def CheckForUpdates(self, remote='default', branch='default', quiet=True):
+        if self.repo is None: return True
         if not quiet: log.info('Checking %s for updates...', self.path)
         with log:
             if not os.path.isdir(self.path):
@@ -105,7 +112,8 @@ class HgRepository(SCMRepository):
     def Pull(self, remote='default', branch='default', cleanup=False):
         if not os.path.isdir(self.path):
             cmd(['hg', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone)
-        
+        if self.repo is None:
+            self.repo = hg.repository(ui.ui(),self.path)
         if self.IsDirty() and cleanup:
             self._hgcmd(['clean', '--all', '--dirs', '--files'])
             self._hgcmd(['revert', '-C', '--all'])
