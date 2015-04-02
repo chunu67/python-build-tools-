@@ -268,6 +268,7 @@ def _cmd_handle_args(command):
 
 class AsyncCommand(object):
     def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, critical=False):
+        self.echo=echo
         self.command = command
         self.stdout_callback = stdout if stdout is not None else self.default_stdout
         self.stderr_callback = stderr if stderr is not None else self.default_stderr
@@ -297,6 +298,7 @@ class AsyncCommand(object):
             
     def default_stdout(self, ascmd, buf):
         self.log.info('[%s] %s', ascmd.commandName, buf)
+        
     def default_stderr(self, ascmd, buf):
         self.log.error('[%s] %s', ascmd.commandName, buf)
         
