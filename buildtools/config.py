@@ -83,7 +83,7 @@ class Config(object):
             for part in parts[1:]:
                 value = value[part]
             return value
-        except KeyError:
+        except KeyError, TypeError:
             return default
     
     def set(self, key, value):
@@ -95,7 +95,7 @@ class Config(object):
             for part in parts[1:-1]:
                 L = L[part]
             L[parts[-1]] = value
-        except KeyError:
+        except KeyError, TypeError:
             return
 
 class Properties(object):
