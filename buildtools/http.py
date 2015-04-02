@@ -24,7 +24,7 @@ def DownloadFile(url, filename):
             status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
             status = status + chr(8) * (len(status) + 1)
             print status,
-        log.info('Downloaded {} to {} ({}B)'.format(url,filename,file_size_dl))
+        log.info('Downloaded {} to {} ({}B)'.format(url, filename, file_size_dl))
 
 class HTTPFetcher(object):
     def __init__(self, url):
@@ -37,6 +37,7 @@ class HTTPFetcher(object):
         self.status = -1  # HTTP status code (e.g. 200 for OK)
         self.follow_redirects = False
         self.accept = ['text/plain', 'text/html', 'text/css']
+        self.useragent = "pybuildtools/0.1"
         
     def getFormData(self):
         return urllib.urlencode(self.fields)
@@ -68,7 +69,7 @@ class HTTPFetcher(object):
         headers = {"Accept": ','.join(self.accept)}
         if self.method != HTTP_METHOD_GET:
             headers['Content-type'] = "application/x-www-form-urlencoded"
-        headers['User-Agent'] = "pybuildtools/0.1"
+        headers['User-Agent'] = self.useragent
         if self.url != self.referer:
             headers['Referer'] = self.referer
         
