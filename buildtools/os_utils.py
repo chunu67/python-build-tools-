@@ -273,8 +273,8 @@ class AsyncCommand(object):
         self.stdout_callback = stdout if stdout is not None else self.default_stdout
         self.stderr_callback = stderr if stderr is not None else self.default_stderr
         
-        new_env = _cmd_handle_env(env)
-        command = _cmd_handle_args(command)
+        self.env = _cmd_handle_env(env)
+        self.command = _cmd_handle_args(command)
         
         self.child = None
         self.commandName = os.path.basename(self.command[0])
@@ -304,8 +304,8 @@ class AsyncCommand(object):
         
     def Start(self):
         if self.echo:
-            self.log.info('(ASYNC) $ ' + ' '.join(command))
-        self.child = subprocess.Popen(command, shell=True, env=new_env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.log.info('(ASYNC) $ ' + ' '.join(self.command))
+        self.child = subprocess.Popen(self.command, shell=True, env=self.env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
