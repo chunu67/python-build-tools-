@@ -316,6 +316,8 @@ class _PipeReader(threading.Thread):
         self._cb_stderr = stderr_callback
         self.process = process
         
+        self.setDaemon(True)
+        
         self._poller=None
 
     def run(self):
@@ -384,7 +386,6 @@ class _PipeReader(threading.Thread):
 
 
 class AsyncCommand(object):
-
     def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, critical=False):
         self.echo = echo
         self.command = command
@@ -439,6 +440,7 @@ class AsyncCommand(object):
     
     def Stop(self):
         self.child.kill()
+        self.pipe_reader.join(10)
 
     def WaitUntilDone(self):
         while not self.pipe_reader.eof():
@@ -448,27 +450,6 @@ class AsyncCommand(object):
 
     def IsRunning(self):
         return self.exit_code != None
-
-    def _process_stream(self, stream, callback):
-        buf = ''
-        while True:
-            if self.exit_code is not None:
-                return
-            b = stream.read(1)
-            if b == '':
-                pollResult = self.child.poll()
-                if pollResult != None:
-                    self.exit_code = self.child.returncode
-                    self.exit_code_handler(buf)
-                    return
-                continue
-            if b != '\n' and b != '\r':
-                buf += b
-            else:
-                buf = buf.strip()
-                if buf != '':
-                    callback(self, buf)
-                    buf = ''
 
 
 def async_cmd(command, stdout=None, stderr=None, env=None, critical=False):
