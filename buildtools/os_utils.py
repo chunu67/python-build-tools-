@@ -436,6 +436,9 @@ class AsyncCommand(object):
         self.pipe_reader = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback)
         self.pipe_reader.start()
         return True
+    
+    def Stop(self):
+        self.child.kill()
 
     def WaitUntilDone(self):
         while not self.pipe_reader.eof():
