@@ -429,7 +429,7 @@ class AsyncCommand(object):
         if self.echo:
             self.log.info('(ASYNC) $ "%s"','" "'.join(self.command))
         stdin = subprocess.PIPE if self.enable_stdin else None
-        self.child = subprocess.Popen(self.command, shell=True, env=self.env, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.child = subprocess.Popen(self.command, shell=False, env=self.env, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
