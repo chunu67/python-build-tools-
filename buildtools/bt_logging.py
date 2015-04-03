@@ -109,7 +109,7 @@ logging.basicConfig(
     # filename='logs/main.log',
     # filemode='w')
     
-def logToFile(logID, mode='w', level=logging.INFO, sub_dir=None, start_message='Logging started'):
+def logToFile(logID, mode='w', level=logging.INFO, sub_dir=None, start_message='Logging started', formatter=None):
     basedir = 'logs'
     if sub_dir is not None:
         basedir = os.path.join(basedir, sub_dir)
@@ -122,6 +122,8 @@ def logToFile(logID, mode='w', level=logging.INFO, sub_dir=None, start_message='
         #    os.remove(logfile)
         console = logging.FileHandler(logfile, mode=mode)
         console.setLevel(level)
+        if formatter:
+            console.setFormatter(formatter)
         log.addHandler(console)
     if start_message is not None:
         log.info(start_message)
