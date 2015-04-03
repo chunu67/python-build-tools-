@@ -427,7 +427,7 @@ class AsyncCommand(object):
 
     def Start(self):
         if self.echo:
-            self.log.info('(ASYNC) $ ' + ' '.join(self.command))
+            self.log.info('(ASYNC) $ "%s"','" "'.join(self.command))
         stdin = subprocess.PIPE if self.enable_stdin else None
         self.child = subprocess.Popen(self.command, shell=True, env=self.env, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if self.child is None:
