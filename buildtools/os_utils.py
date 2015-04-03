@@ -349,7 +349,7 @@ class _PipeReader(threading.Thread):
                 # Retrieve the actual socket from its file descriptor
                 f = fdn2fd[fd]
                 
-                if flag & select.POLLIN:
+                if flag & (select.POLLIN | select.POLLPRI):
                     if self._asyncCommand.exit_code is not None:
                         return
                     b = f.read(1)
@@ -370,6 +370,13 @@ class _PipeReader(threading.Thread):
                             if f is stderr: cb=self._cb_stderr
                             cb(self._asyncCommand, buf[fd])
                             buf[fd] = ''
+                elif flag & (select.POLLHUP|select.POLLERR):
+                    self._poller.unregister(f)
+                    pollResult = self.process.poll()
+                    if pollResult != None:
+                        self._asyncCommand.exit_code = self.process.returncode
+                        self._asyncCommand.exit_code_handler(buf[fd])
+                        return
 
     def eof(self):
         '''Check whether there is no more content to expect.'''
