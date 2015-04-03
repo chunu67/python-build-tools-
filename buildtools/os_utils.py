@@ -7,12 +7,9 @@ import platform
 import time
 import re
 import threading
-
-if sys.platform.startswith('linux'):
-    import fcntl
+import select
 
 from buildtools.bt_logging import log
-from compileall import expand_args
 from subprocess import CalledProcessError
 
 buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -310,47 +307,69 @@ def _cmd_handle_args(command):
     return new_args
 
 
-class _StreamReader(threading.Thread):
+class _PipeReader(threading.Thread):
 
-    def __init__(self, asc, fd, callback):
-        assert callable(fd.readline)
+    def __init__(self, asc, process, stdout_callback,stderr_callback):
         threading.Thread.__init__(self)
         self._asyncCommand = asc
-        self._fd = fd
-        self._cb = callback
+        self._cb_stdout = stdout_callback
+        self._cb_stderr = stderr_callback
+        self.process = process
         
-        #if sys.platform.startswith('linux'):
-        #    # Disable buffering
-        #    fd = self._fd.fileno()
-        #    fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-        #    fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+        self._poller=None
 
-    def _getChild(self):
-        return self._asyncCommand.child
     def run(self):
         '''The body of the tread: read lines and put them on the queue.'''
         #for line in iter(self._fd.readline, ''):
         #    self._cb(self._asyncCommand, line.strip())
         
-        buf = ''
+        stdout=self.process.stdout
+        stderr=self.process.stderr
+        
+        READ_ONLY = select.POLLIN | select.POLLPRI | select.POLLHUP | select.POLLERR
+        READ_WRITE = READ_ONLY | select.POLLOUT
+        
+        self._poller = select.poll()
+        self._poller.register(stdout,READ_ONLY)
+        self._poller.register(stderr,READ_ONLY)
+        
+        # Map file descriptors to socket objects
+        fdn2fd = { 
+               stdout.fileno(): stdout,
+               stderr.fileno(): stderr
+        }
+        
+        buf = {
+               stdout.fileno(): '',
+               stderr.fileno(): ''
+        }
         while True:
-            if self._asyncCommand.exit_code is not None:
-                return
-            b = self._fd.read(1)
-            if b == '':
-                pollResult = self._getChild().poll()
-                if pollResult != None:
-                    self._asyncCommand.exit_code = self._getChild().returncode
-                    self._asyncCommand.exit_code_handler(buf)
-                    return
-                continue
-            if b != '\n' and b != '\r':
-                buf += b
-            else:
-                buf = buf.strip()
-                if buf != '':
-                    self._cb(self._asyncCommand, buf)
-                    buf = ''
+            events = self._poller.poll(30)
+            for fd, flag in events:
+                # Retrieve the actual socket from its file descriptor
+                f = fdn2fd[fd]
+                
+                if flag & select.POLLIN:
+                    if self._asyncCommand.exit_code is not None:
+                        return
+                    b = f.read(1)
+                    if b == '':
+                        pollResult = self.process.poll()
+                        if pollResult != None:
+                            self._asyncCommand.exit_code = self.process.returncode
+                            self._asyncCommand.exit_code_handler(buf[fd])
+                            return
+                        continue
+                    if b != '\n' and b != '\r':
+                        buf[fd] += b
+                    else:
+                        buf[fd] = buf[fd].strip()
+                        if buf[fd] != '':
+                            cb=None
+                            if f is stdout: cb=self._cb_stdout
+                            if f is stderr: cb=self._cb_stderr
+                            cb(self._asyncCommand, buf[fd])
+                            buf[fd] = ''
 
     def eof(self):
         '''Check whether there is no more content to expect.'''
@@ -376,8 +395,7 @@ class AsyncCommand(object):
 
         self.log = log
         
-        self.stdout_thread=None
-        self.stderr_thread=None
+        self.pipe_reader=None
         
         self.enable_stdin=True
 
@@ -408,17 +426,14 @@ class AsyncCommand(object):
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
-        self.stdout_thread = _StreamReader(self, self.child.stdout, self.stdout_callback)
-        self.stdout_thread.start()
-        self.stderr_thread = _StreamReader(self, self.child.stderr, self.stderr_callback)
-        self.stderr_thread.start()
+        self.pipe_reader = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback)
+        self.pipe_reader.start()
         return True
 
     def WaitUntilDone(self):
-        while not self.stdout_thread.eof() or not self.stderr_thread.eof():
+        while not self.pipe_reader.eof():
             time.sleep(1)
-        self.stderr_thread.join()
-        self.stdout_thread.join()
+        self.pipe_reader.join()
         return self.exit_code
 
     def IsRunning(self):
