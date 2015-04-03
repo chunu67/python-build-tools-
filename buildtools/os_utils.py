@@ -11,6 +11,8 @@ import select
 
 from buildtools.bt_logging import log
 from subprocess import CalledProcessError
+import psutil
+from functools import reduce
 
 buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 scripts_dir = os.path.join(buildtools_dir, 'scripts')
@@ -40,7 +42,7 @@ def InstallDpkgPackages(packages):
         num_changes = 0
         with cache.actiongroup():
             for pkg in packages:
-                if not cache.has_key(pkg):
+                if pkg not in cache:
                     log.critical('UNKNOWN APT PACKAGE {}!'.format(pkg))
                     sys.exit(1)
                 package = cache[pkg]
@@ -307,57 +309,73 @@ def _cmd_handle_args(command):
     return new_args
 
 
+def find_process(pid):
+    for proc in psutil.process_iter():
+        try:
+            if proc.pid == pid:
+                if proc.status() == psutil.STATUS_ZOMBIE:
+                    log.warn('Detected zombie process #%s, skipping.', self.process.pid)
+                    continue
+                self.process = proc
+                break
+        except psutil.AccessDenied:
+            continue
+    return None
+
+
 class _PipeReader(threading.Thread):
 
-    def __init__(self, asc, process, stdout_callback,stderr_callback):
+    def __init__(self, asc, process, stdout_callback, stderr_callback):
         threading.Thread.__init__(self)
         self._asyncCommand = asc
         self._cb_stdout = stdout_callback
         self._cb_stderr = stderr_callback
         self.process = process
-        
+
         self.setDaemon(True)
-        
-        self._poller=None
+
+        self._poller = None
+
+        self.stop = False
 
     def run(self):
         '''The body of the tread: read lines and put them on the queue.'''
-        #for line in iter(self._fd.readline, ''):
+        # for line in iter(self._fd.readline, ''):
         #    self._cb(self._asyncCommand, line.strip())
-        
-        stdout=self.process.stdout
-        stderr=self.process.stderr
-        
+
+        stdout = self.process.stdout
+        stderr = self.process.stderr
+
         READ_ONLY = select.POLLIN | select.POLLPRI | select.POLLHUP | select.POLLERR
         READ_WRITE = READ_ONLY | select.POLLOUT
-        
+
         self._poller = select.poll()
-        self._poller.register(stdout,READ_ONLY)
-        self._poller.register(stderr,READ_ONLY)
-        
+        self._poller.register(stdout, READ_ONLY)
+        self._poller.register(stderr, READ_ONLY)
+
         # Map file descriptors to socket objects
-        fdn2fd = { 
-               stdout.fileno(): stdout,
-               stderr.fileno(): stderr
+        fdn2fd = {
+            stdout.fileno(): stdout,
+            stderr.fileno(): stderr
         }
-        
+
         buf = {
-               stdout.fileno(): '',
-               stderr.fileno(): ''
+            stdout.fileno(): '',
+            stderr.fileno(): ''
         }
-        while True:
+        while not self.stop:
             events = self._poller.poll(30)
             for fd, flag in events:
                 # Retrieve the actual socket from its file descriptor
                 f = fdn2fd[fd]
-                
+
                 if flag & (select.POLLIN | select.POLLPRI):
                     if self._asyncCommand.exit_code is not None:
                         return
                     b = f.read(1)
                     if b == '':
                         pollResult = self.process.poll()
-                        if pollResult != None:
+                        if pollResult is not None:
                             self._asyncCommand.exit_code = self.process.returncode
                             self._asyncCommand.exit_code_handler(buf[fd])
                             return
@@ -367,15 +385,17 @@ class _PipeReader(threading.Thread):
                     else:
                         buf[fd] = buf[fd].strip()
                         if buf[fd] != '':
-                            cb=None
-                            if f is stdout: cb=self._cb_stdout
-                            if f is stderr: cb=self._cb_stderr
+                            cb = None
+                            if f is stdout:
+                                cb = self._cb_stdout
+                            if f is stderr:
+                                cb = self._cb_stderr
                             cb(self._asyncCommand, buf[fd])
                             buf[fd] = ''
-                elif flag & (select.POLLHUP|select.POLLERR):
+                elif flag & (select.POLLHUP | select.POLLERR):
                     self._poller.unregister(f)
                     pollResult = self.process.poll()
-                    if pollResult != None:
+                    if pollResult is not None:
                         self._asyncCommand.exit_code = self.process.returncode
                         self._asyncCommand.exit_code_handler(buf[fd])
                         return
@@ -386,6 +406,7 @@ class _PipeReader(threading.Thread):
 
 
 class AsyncCommand(object):
+
     def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, critical=False):
         self.echo = echo
         self.command = command
@@ -402,10 +423,10 @@ class AsyncCommand(object):
         self.exit_code_handler = self.default_exit_handler
 
         self.log = log
-        
-        self.pipe_reader=None
-        
-        self.enable_stdin=True
+
+        self.pipe_reader = None
+
+        self.enable_stdin = True
 
     def default_exit_handler(self, buf):
         if self.child.returncode != 0:
@@ -428,7 +449,7 @@ class AsyncCommand(object):
 
     def Start(self):
         if self.echo:
-            self.log.info('(ASYNC) $ "%s"','" "'.join(self.command))
+            self.log.info('(ASYNC) $ "%s"', '" "'.join(self.command))
         stdin = subprocess.PIPE if self.enable_stdin else None
         self.child = subprocess.Popen(self.command, shell=False, env=self.env, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if self.child is None:
@@ -437,9 +458,11 @@ class AsyncCommand(object):
         self.pipe_reader = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback)
         self.pipe_reader.start()
         return True
-    
+
     def Stop(self):
-        self.child.kill()
+        if find_process(self.child.pid):
+            self.child.kill()
+        self.pipe_reader.stop = True
         self.pipe_reader.join(10)
 
     def WaitUntilDone(self):
@@ -449,7 +472,7 @@ class AsyncCommand(object):
         return self.exit_code
 
     def IsRunning(self):
-        return self.exit_code != None
+        return self.exit_code is not None
 
 
 def async_cmd(command, stdout=None, stderr=None, env=None, critical=False):
