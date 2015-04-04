@@ -12,11 +12,11 @@ import select
 from buildtools.bt_logging import log
 from subprocess import CalledProcessError
 import psutil
-from functools import reduce
 
 buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 scripts_dir = os.path.join(buildtools_dir, 'scripts')
 
+REG_EXCESSIVE_WHITESPACE = re.compile('\s{2,}')
 
 def clock():
     if sys.platform == 'win32':
@@ -36,7 +36,7 @@ def secondsToStr(t):
 
 
 def InstallDpkgPackages(packages):
-    import apt
+    import apt #IGNORE:import-error
     with log.info('Checking dpkg packages...'):
         cache = apt.Cache()
         num_changes = 0
@@ -59,8 +59,7 @@ def InstallDpkgPackages(packages):
 
 def GetDpkgShlibs(files):
     deps = {}
-    stdout, stderr = cmd_output(
-        ['perl', os.path.join(scripts_dir, 'dpkg-dump-shpkgs.pl')] + files, critical=True)
+    stdout, stderr = cmd_output(['perl', os.path.join(scripts_dir, 'dpkg-dump-shpkgs.pl')] + files, critical=True)
     if stdout or stderr:
         for line in (stdout + stderr).split('\n'):
             line = line.strip()
@@ -69,8 +68,7 @@ def GetDpkgShlibs(files):
             # dpkg-dump-shpkgs.pl: warning: binaries to analyze should already
             # be installed in their package's directory
             if 'dpkg-dump-shpkgs.pl:' in line:
-                (scriptname, msgtype, msg) = [x.strip()
-                                              for x in line.split(':')]
+                (_, msgtype, msg) = [x.strip() for x in line.split(':')]
                 if msg == 'binaries to analyze should already be installed in their package\'s directory':
                     continue
                 if msgtype == 'warning':
@@ -132,11 +130,8 @@ def DpkgSearchFiles(files):
 
 
 class WindowsEnv:
-
     """Utility class to get/set windows environment variable"""
-
     def __init__(self, scope):
-        from subprocess import check_call
         log.info('Python version: 0x%0.8X' % sys.hexversion)
         if sys.hexversion > 0x03000000:
             import winreg
@@ -169,15 +164,13 @@ class WindowsEnv:
 
         import win32api
         import win32con
-        assert win32api.SendMessage(
-            win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')
+        assert win32api.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')
 
         """
         # For some strange reason, calling SendMessage from the current process
         # doesn't propagate environment changes at all.
         # TODO: handle CalledProcessError (for assert)
-        subprocess.check_call('''\
-"%s" -c "import win32api, win32con; assert win32api.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')"''' % sys.executable)
+        subprocess.check_call('''\"%s" -c "import win32api, win32con; assert win32api.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')"''' % sys.executable)
         """
 
 
@@ -214,19 +207,32 @@ def ensureDirExists(path, mode=0o777, noisy=False):
             log.info('Created %s.', path)
 
 
+class DeferredLogEntry(object):
+    def __init__(self, label):
+        self.label=label
+        
+    def toStr(self, entryVars):
+        return self.label.format(**entryVars)
+
 class TimeExecution(object):
 
     def __init__(self, label):
         self.start_time = None
-        self.label = label
+        self.vars={}
+        if label is str:
+            self.label = DeferredLogEntry('Completed in {elapsed}s - {label}')
+            self.vars['label']=label
+        elif isinstance(label, DeferredLogEntry):
+            self.label = label
 
     def __enter__(self):
         self.start_time = clock()
         return self
 
-    def __exit__(self, type, value, traceback):
-        log.info(
-            '  Completed in {1}s - {0}'.format(self.label, secondsToStr(clock() - self.start_time)))
+    def __exit__(self, typeName, value, traceback):
+        self.vars['elapsed']=secondsToStr(clock() - self.start_time)
+        with log:
+            log.info(self.label.toStr(self.vars))
         return False
 
 
@@ -247,7 +253,7 @@ class Chdir(object):
             sys.exit(1)
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, typeName, value, traceback):
         try:
             os.chdir(self.pwd)
             if not self.quiet:
@@ -257,25 +263,22 @@ class Chdir(object):
             sys.exit(1)
         return False
 
+def is_executable(fpath):
+    if sys.platform == 'win32':
+        if not fpath.endswith('.exe'):
+            fpath += '.exe'
+    return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
 def which(program):
-    import os
-
-    def is_exe(fpath):
-        if sys.platform == 'win32':
-            if not fpath.endswith('.exe'):
-                fpath += '.exe'
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
-    fpath, fname = os.path.split(program)
+    fpath, _ = os.path.split(program)
     if fpath:
-        if is_exe(program):
+        if is_executable(program):
             return program
     else:
         for path in os.environ["PATH"].split(os.pathsep):
             path = path.strip('"')
             exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
+            if is_executable(exe_file):
                 return exe_file
 
     return None
@@ -283,7 +286,6 @@ def which(program):
 
 def _cmd_handle_env(env):
     if env is None:
-        global ENV
         env = ENV.env
 
     # Fix a bug where env vars get some weird types.
@@ -314,10 +316,9 @@ def find_process(pid):
         try:
             if proc.pid == pid:
                 if proc.status() == psutil.STATUS_ZOMBIE:
-                    log.warn('Detected zombie process #%s, skipping.', self.process.pid)
+                    log.warn('Detected zombie process #%s, skipping.', proc.pid)
                     continue
-                self.process = proc
-                break
+                return proc
         except psutil.AccessDenied:
             continue
     return None
@@ -406,8 +407,7 @@ class _PipeReader(threading.Thread):
 
 
 class AsyncCommand(object):
-
-    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, critical=False):
+    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None):
         self.echo = echo
         self.command = command
         self.stdout_callback = stdout if stdout is not None else self.default_stdout
@@ -475,9 +475,8 @@ class AsyncCommand(object):
         return self.exit_code is not None
 
 
-def async_cmd(command, stdout=None, stderr=None, env=None, critical=False):
-    ascmd = AsyncCommand(
-        command, stdout=stdout, stderr=stderr, env=env, critical=critical)
+def async_cmd(command, stdout=None, stderr=None, env=None):
+    ascmd = AsyncCommand(command, stdout=stdout, stderr=stderr, env=env)
     ascmd.Start()
     return ascmd
 
@@ -492,8 +491,7 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
         return subprocess.call(command, env=new_env, shell=False) == 0
     output = ''
     try:
-        output = subprocess.check_output(
-            command, env=new_env, stderr=subprocess.STDOUT)
+        output = subprocess.check_output(command, env=new_env, stderr=subprocess.STDOUT)
         return True
     except CalledProcessError as cpe:
         log.error(cpe.output)
@@ -511,6 +509,9 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
 
 
 def cmd_output(command, echo=False, env=None, critical=False):
+    '''
+    :returns (stdout,stderr)
+    '''
     new_env = _cmd_handle_env(env)
     command = _cmd_handle_args(command)
     if echo:
@@ -523,10 +524,10 @@ def cmd_output(command, echo=False, env=None, critical=False):
         if critical:
             raise e
         log.error(e)
-        return False
+    return False
 
 
-def cmd_daemonize(command, echo=False, env=None, show_output=True, critical=False):
+def cmd_daemonize(command, echo=False, env=None, critical=False):
     new_env = _cmd_handle_env(env)
     command = _cmd_handle_args(command)
     if echo:
@@ -574,14 +575,16 @@ def _op_copy(fromfile, newroot, **op_args):
         shutil.copy2(fromfile, newfile)
 
 
-def copytree(fromdir, todir, ignore=[], verbose=False, ignore_mtime=False):
+def copytree(fromdir, todir, ignore=None, verbose=False, ignore_mtime=False):
     optree(fromdir, todir, _op_copy, ignore,
            verbose=verbose, ignore_mtime=ignore_mtime)
 
 
-def optree(fromdir, todir, op, ignore=[], **op_args):
+def optree(fromdir, todir, op, ignore=None, **op_args):
+    if ignore is None:
+        ignore=[]
     # print('ignore=' + repr(ignore))
-    for root, dirs, files in os.walk(fromdir):
+    for root, _, files in os.walk(fromdir):
         path = root.split(os.sep)
         start = len(fromdir)
         if root[start:].startswith(os.sep):
@@ -597,29 +600,24 @@ def optree(fromdir, todir, op, ignore=[], **op_args):
             if op_args.get('verbose', False):
                 log.info('mkdir {}'.format(newroot))
             os.makedirs(newroot)
-        for file in files:
-            fromfile = os.path.join(root, file)
-            title, ext = os.path.splitext(os.path.basename(fromfile))
+        for filename in files:
+            fromfile = os.path.join(root, filename)
+            _, ext = os.path.splitext(os.path.basename(fromfile))
             if ext in ignore:
                 if op_args.get('verbose', False):
                     log.info(u'Skipping {} ({})'.format(fromfile, ext))
                 continue
             op(fromfile, newroot, **op_args)
 
-
-def safe_rmtree(dir):
-    for root, dirs, files in os.walk(dir, topdown=False):
+def safe_rmtree(dirpath):
+    for root, dirs, files in os.walk(dirpath, topdown=False):
         for name in files:
             os.remove(os.path.join(root, name))
         for name in dirs:
             os.rmdir(os.path.join(root, name))
 
-REG_EXCESSIVE_WHITESPACE = re.compile('\s{2,}')
-
-
 def RemoveExcessiveWhitespace(text):
     return REG_EXCESSIVE_WHITESPACE.sub('', text)
-
 
 def sizeof_fmt(num):
     for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
