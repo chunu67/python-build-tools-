@@ -219,7 +219,7 @@ class TimeExecution(object):
     def __init__(self, label):
         self.start_time = None
         self.vars={}
-        if label is str:
+        if isinstance(label, str):
             self.label = DeferredLogEntry('Completed in {elapsed}s - {label}')
             self.vars['label']=label
         elif isinstance(label, DeferredLogEntry):
