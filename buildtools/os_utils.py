@@ -381,8 +381,8 @@ class _PipeReader(threading.Thread):
                         return
                     continue
                 if b != '\n' and b != '\r':
-                    c='E' if stderr_enabled and f is stderr else 'o'
-                    buf[fd] += b+c
+                    #c='E' if stderr_enabled and f is stderr else 'o'
+                    buf[fd] += b#+c
                 else:
                     sendBuf(f, fd)
             for f in exceptional:
