@@ -340,66 +340,52 @@ class _PipeReader(threading.Thread):
         self.stop = False
 
     def run(self):
-        '''The body of the tread: read lines and put them on the queue.'''
-        # for line in iter(self._fd.readline, ''):
-        #    self._cb(self._asyncCommand, line.strip())
-
         stdout = self.process.stdout
         stderr = self.process.stderr
 
-        READ_ONLY = select.POLLIN | select.POLLPRI | select.POLLHUP | select.POLLERR
-        READ_WRITE = READ_ONLY | select.POLLOUT
-
-        self._poller = select.poll()
-        self._poller.register(stdout, READ_ONLY)
-        self._poller.register(stderr, READ_ONLY)
-
-        # Map file descriptors to socket objects
-        fdn2fd = {
-            stdout.fileno(): stdout,
-            stderr.fileno(): stderr
-        }
+        inputs = [stdout, stderr]
+        outputs = []
 
         buf = {
             stdout.fileno(): '',
             stderr.fileno(): ''
         }
+        
+        def sendBuf(f,fd):
+            buf[fd] = buf[fd].strip()
+            if buf[fd] != '':
+                cb = None
+                if f is stdout:
+                    cb = self._cb_stdout
+                if f is stderr:
+                    cb = self._cb_stderr
+                cb(self._asyncCommand, buf[fd])
+                buf[fd] = ''    # Handle "exceptional conditions"
         while not self.stop:
-            events = self._poller.poll(30)
-            for fd, flag in events:
-                # Retrieve the actual socket from its file descriptor
-                f = fdn2fd[fd]
-
-                if flag & (select.POLLIN | select.POLLPRI):
-                    if self._asyncCommand.exit_code is not None:
-                        return
-                    b = f.read(1)
-                    if b == '':
-                        pollResult = self.process.poll()
-                        if pollResult is not None:
-                            self._asyncCommand.exit_code = self.process.returncode
-                            self._asyncCommand.exit_code_handler(buf[fd])
-                            return
-                        continue
-                    if b != '\n' and b != '\r':
-                        buf[fd] += b
-                    else:
-                        buf[fd] = buf[fd].strip()
-                        if buf[fd] != '':
-                            cb = None
-                            if f is stdout:
-                                cb = self._cb_stdout
-                            if f is stderr:
-                                cb = self._cb_stderr
-                            cb(self._asyncCommand, buf[fd])
-                            buf[fd] = ''
-                elif flag & (select.POLLHUP | select.POLLERR):
-                    self._poller.unregister(f)
+            readable, _, exceptional = select.select(inputs, outputs, inputs)
+            for f in readable:
+                if self._asyncCommand.exit_code is not None:
+                    return
+                fd = f.fileno()
+                b = f.read(1)
+                if b == '':
                     pollResult = self.process.poll()
                     if pollResult is not None:
                         self._asyncCommand.exit_code = self.process.returncode
                         self._asyncCommand.exit_code_handler(buf[fd])
                         return
+                    continue
+                if b != '\n' and b != '\r':
+                    buf[fd] += b
+                else:
+                    sendBuf(f, fd)
+            for f in exceptional:
+                if f in inputs: 
+                    inputs.remove(f)
+                label = 'stdout' if f is stdout else 'stderr' 
+                log.error('WAT: Closing fd#%d (%s) due to error',f.fileno(),label)
+                sendBuf(f, fd)
+                f.close() # This should never happen
 
     def eof(self):
         '''Check whether there is no more content to expect.'''

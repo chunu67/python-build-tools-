@@ -16,7 +16,6 @@ from buildtools.repo.base import SCMRepository
 
 HG_VERSION = None
 
-
 def checkHg():
     '''Will raise CalledProcessError if something goes sideways.'''
     global HG_VERSION
@@ -24,7 +23,6 @@ def checkHg():
         stdout, stderr = cmd_output(['hg', '--version'], critical=True)
         HG_VERSION = (stdout + stderr).strip()
         log.info('mercurial version %s detected.', HG_VERSION)
-
 
 class HgRepository(SCMRepository):
 
