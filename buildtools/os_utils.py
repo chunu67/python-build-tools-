@@ -325,7 +325,6 @@ def find_process(pid):
 
 
 class _PipeReader(threading.Thread):
-
     def __init__(self, asc, process, stdout_callback, stderr_callback):
         threading.Thread.__init__(self)
         self._asyncCommand = asc
@@ -376,7 +375,8 @@ class _PipeReader(threading.Thread):
                         return
                     continue
                 if b != '\n' and b != '\r':
-                    buf[fd] += b
+                    c='E' if f is stderr else 'o'
+                    buf[fd] += b+c
                 else:
                     sendBuf(f, fd)
             for f in exceptional:
@@ -413,6 +413,7 @@ class AsyncCommand(object):
         self.pipe_reader = None
 
         self.enable_stdin = True
+        self.enable_stderr = False
 
     def default_exit_handler(self, buf):
         if self.child.returncode != 0:
@@ -437,7 +438,8 @@ class AsyncCommand(object):
         if self.echo:
             self.log.info('(ASYNC) $ "%s"', '" "'.join(self.command))
         stdin = subprocess.PIPE if self.enable_stdin else None
-        self.child = subprocess.Popen(self.command, shell=False, env=self.env, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stderr = subprocess.PIPE if self.enable_stderr else subprocess.STDOUT
+        self.child = subprocess.Popen(self.command, shell=False, env=self.env, stdin=stdin, stdout=subprocess.PIPE, stderr=stderr)
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
