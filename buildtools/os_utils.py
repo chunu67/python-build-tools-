@@ -341,14 +341,20 @@ class _PipeReader(threading.Thread):
     def run(self):
         stdout = self.process.stdout
         stderr = self.process.stderr
+        
+        stderr_enabled=stderr is not None
 
-        inputs = [stdout, stderr]
+        inputs = [stdout]
+        if stderr_enabled:
+            inputs.append(stderr)
         outputs = []
 
         buf = {
             stdout.fileno(): '',
-            stderr.fileno(): ''
         }
+        
+        if stderr_enabled:
+            buf[stderr.fileno()]= ''
         
         def sendBuf(f,fd):
             buf[fd] = buf[fd].strip()
@@ -356,7 +362,7 @@ class _PipeReader(threading.Thread):
                 cb = None
                 if f is stdout:
                     cb = self._cb_stdout
-                if f is stderr:
+                if stderr_enabled and f is stderr:
                     cb = self._cb_stderr
                 cb(self._asyncCommand, buf[fd])
                 buf[fd] = ''    # Handle "exceptional conditions"
@@ -375,7 +381,7 @@ class _PipeReader(threading.Thread):
                         return
                     continue
                 if b != '\n' and b != '\r':
-                    c='E' if f is stderr else 'o'
+                    c='E' if stderr_enabled and f is stderr else 'o'
                     buf[fd] += b+c
                 else:
                     sendBuf(f, fd)
@@ -436,7 +442,7 @@ class AsyncCommand(object):
 
     def Start(self):
         if self.echo:
-            self.log.info('(ASYNC) $ "%s"', '" "'.join(self.command))
+            self.log.info('[ASYNC] $ "%s"', '" "'.join(self.command))
         stdin = subprocess.PIPE if self.enable_stdin else None
         stderr = subprocess.PIPE if self.enable_stderr else subprocess.STDOUT
         self.child = subprocess.Popen(self.command, shell=False, env=self.env, stdin=stdin, stdout=subprocess.PIPE, stderr=stderr)
