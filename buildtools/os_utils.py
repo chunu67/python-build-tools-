@@ -8,10 +8,12 @@ import time
 import re
 import threading
 import select
+from twisted.internet import reactor
 
 from buildtools.bt_logging import log
 from subprocess import CalledProcessError
 import psutil
+from twisted.internet.protocol import ProcessProtocol
 
 buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 scripts_dir = os.path.join(buildtools_dir, 'scripts')
@@ -324,84 +326,53 @@ def find_process(pid):
     return None
 
 
-class _PipeReader(threading.Thread):
-    def __init__(self, asc, process, stdout_callback, stderr_callback):
-        threading.Thread.__init__(self)
+class _PipeReader(ProcessProtocol):
+    def __init__(self, asc, process, stdout_callback, stderr_callback, exit_callback):
         self._asyncCommand = asc
         self._cb_stdout = stdout_callback
         self._cb_stderr = stderr_callback
+        self._cb_exit = exit_callback
         self.process = process
-
-        self.setDaemon(True)
-
-        self._poller = None
-
-        self.stop = False
-
-    def run(self):
-        stdout = self.process.stdout
-        stderr = self.process.stderr
         
-        stderr_enabled=stderr is not None
-
-        inputs = [stdout]
-        if stderr_enabled:
-            inputs.append(stderr)
-        outputs = []
-
-        buf = {
-            stdout.fileno(): '',
+        self.buf={
+            'stdout':'',
+            'stderr':''
         }
+    def _processData(self,bid,cb,data):
+        log.debug('%s: Received %d bytes',bid,len(data))
+        for b in data:
+            if b != '\n' and b != '\r' and b != '':
+                self.buf[bid] += b
+            else:
+                buf =self.buf[bid].strip()
+                cb(self._asyncCommand,buf)
+                self.buf[bid]=''
+                
+    def _getRemainingBuf(self):
+        return self.buf['stdout']+self.buf['stderr']
+                
+    def outReceived(self, data):
+        self._processData('stdout',self._cb_stdout,data)
+                
+    def errReceived(self, data):
+        self._processData('stderr',self._cb_stderr,data)
         
-        if stderr_enabled:
-            buf[stderr.fileno()]= ''
+    def inConnectionLost(self):
+        log.warn('[%s#%d] Lost connection to stdin.',self._asyncCommand.commandName, self.transport.pid)
         
-        def sendBuf(f,fd):
-            buf[fd] = buf[fd].strip()
-            if buf[fd] != '':
-                cb = None
-                if f is stdout:
-                    cb = self._cb_stdout
-                if stderr_enabled and f is stderr:
-                    cb = self._cb_stderr
-                cb(self._asyncCommand, buf[fd])
-                buf[fd] = ''    # Handle "exceptional conditions"
-        while not self.stop:
-            readable, _, exceptional = select.select(inputs, outputs, inputs)
-            for f in readable:
-                if self._asyncCommand.exit_code is not None:
-                    return
-                fd = f.fileno()
-                b = f.read(1)
-                if b == '':
-                    pollResult = self.process.poll()
-                    if pollResult is not None:
-                        self._asyncCommand.exit_code = self.process.returncode
-                        self._asyncCommand.exit_code_handler(buf[fd])
-                        return
-                    continue
-                if b != '\n' and b != '\r':
-                    #c='E' if stderr_enabled and f is stderr else 'o'
-                    buf[fd] += b#+c
-                else:
-                    sendBuf(f, fd)
-            for f in exceptional:
-                if f in inputs: 
-                    inputs.remove(f)
-                label = 'stdout' if f is stdout else 'stderr' 
-                log.error('WAT: Closing fd#%d (%s) due to error',f.fileno(),label)
-                sendBuf(f, fd)
-                f.close() # This should never happen
-
-    def eof(self):
-        '''Check whether there is no more content to expect.'''
-        return not self.is_alive()
+    def errConnectionLost(self):
+        log.warn('[%s#%d] Lost connection to stderr.',self._asyncCommand.commandName, self.transport.pid)
+        
+    def processEnded(self, code):
+        self._asyncCommand.exit_code=code
+        self._cb_exit(code, self._getRemainingBuf())
 
 
 class AsyncCommand(object):
-    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None):
+    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None):
         self.echo = echo
         self.command = command
+        self.PTY=PTY
         self.stdout_callback = stdout if stdout is not None else self.default_stdout
         self.stderr_callback = stderr if stderr is not None else self.default_stderr
 
@@ -409,7 +380,9 @@ class AsyncCommand(object):
         self.command = _cmd_handle_args(command)
 
         self.child = None
-        self.commandName = os.path.basename(self.command[0])
+        self.refName = self.commandName = os.path.basename(self.command[0])
+        if refName:
+            self.refName=refName
 
         self.exit_code = None
         self.exit_code_handler = self.default_exit_handler
@@ -418,56 +391,43 @@ class AsyncCommand(object):
 
         self.pipe_reader = None
 
-        self.enable_stdin = True
-        self.enable_stderr = False
-
-    def default_exit_handler(self, buf):
-        if self.child.returncode != 0:
-            if self.child.returncode < 0:
-                strerr = 'Received signal %d' % (abs(self.child.returncode))
-                if self.child.returncode < -100:
+    def default_exit_handler(self, code, remainingBuf):
+        if code != 0:
+            if code < 0:
+                strerr = '%s: Received signal %d' % (abs(self.child.returncode))
+                if code < -100:
                     strerr += ' (?!)'
-                self.log.error(strerr)
+                self.log.error(strerr,self.refName)
             else:
-                self.log.warning(
-                    '%s exited with code %d: %s', self.commandName, self.exit_code, buf)
+                self.log.warning('%s exited with code %d: %s', self.refName, remainingBuf)
         else:
-            self.log.info('%s process has exited normally.', self.commandName)
+            self.log.info('%s has exited normally.', self.refName)
 
     def default_stdout(self, ascmd, buf):
-        ascmd.log.info('[%s] %s', ascmd.commandName, buf)
+        ascmd.log.info('[%s] %s', ascmd.refName, buf)
 
     def default_stderr(self, ascmd, buf):
-        ascmd.log.error('[%s] %s', ascmd.commandName, buf)
+        ascmd.log.error('[%s] %s', ascmd.refName, buf)
 
     def Start(self):
         if self.echo:
             self.log.info('[ASYNC] $ "%s"', '" "'.join(self.command))
-        stdin = subprocess.PIPE if self.enable_stdin else None
-        stderr = subprocess.PIPE if self.enable_stderr else subprocess.STDOUT
-        self.child = subprocess.Popen(self.command, shell=False, env=self.env, stdin=stdin, stdout=subprocess.PIPE, stderr=stderr)
+        pr = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback,self.exit_code_handler)
+        self.child = reactor.spawnProcess(pr, self.command[0], self.command[1:], env=self.env)
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
-        self.pipe_reader = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback)
-        self.pipe_reader.start()
         return True
 
     def Stop(self):
         if find_process(self.child.pid):
             self.child.kill()
-        self.pipe_reader.stop = True
-        self.pipe_reader.join(10)
 
     def WaitUntilDone(self):
-        while not self.pipe_reader.eof():
-            time.sleep(1)
-        self.pipe_reader.join()
         return self.exit_code
 
     def IsRunning(self):
         return self.exit_code is not None
-
 
 def async_cmd(command, stdout=None, stderr=None, env=None):
     ascmd = AsyncCommand(command, stdout=stdout, stderr=stderr, env=env)
