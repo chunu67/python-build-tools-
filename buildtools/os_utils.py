@@ -344,7 +344,7 @@ class _PipeReader(ProcessProtocol):
             if b != '\n' and b != '\r' and b != '':
                 self.buf[bid] += b
             else:
-                buf =self.buf[bid].strip()
+                buf = self.buf[bid].strip()
                 cb(self._asyncCommand,buf)
                 self.buf[bid]=''
                 
@@ -417,13 +417,16 @@ class AsyncCommand(object):
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
+        reactor.run()
         return True
 
     def Stop(self):
         if find_process(self.child.pid):
-            self.child.kill()
+            os.kill(self.child.pid)
 
     def WaitUntilDone(self):
+        while self.IsRunning():
+            time.sleep(1)
         return self.exit_code
 
     def IsRunning(self):
