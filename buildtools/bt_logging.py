@@ -109,7 +109,7 @@ logging.basicConfig(
     # filename='logs/main.log',
     # filemode='w')
     
-def logToFile(logID, mode='w', level=logging.INFO, sub_dir=None, start_message='Logging started', formatter=None):
+def logToFile(logID, mode='w', level=logging.INFO, sub_dir=None, start_message='Logging started', announce_location=False, formatter=None):
     basedir = 'logs'
     if sub_dir is not None:
         basedir = os.path.join(basedir, sub_dir)
@@ -117,6 +117,7 @@ def logToFile(logID, mode='w', level=logging.INFO, sub_dir=None, start_message='
         os.makedirs(basedir)
     logfile = os.path.join(basedir, logID + '.log')
     log = logging.getLogger(logID)
+    logging.info('Opening %s log at %s (mode: %s)...',logID,logfile,mode)
     if len(log.handlers) == 0:
         # if os.path.isfile(logfile):
         #    os.remove(logfile)
