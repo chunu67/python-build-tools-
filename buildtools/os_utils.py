@@ -339,14 +339,18 @@ class _PipeReader(ProcessProtocol):
             'stderr':''
         }
         self.debug=False
+        
     def _processData(self,bid,cb,data):
-        if self.debug: log.info('%s - %s: Received %d bytes',self._logPrefix(),bid,len(data))
+        if self.debug: 
+            log.info('%s %s: Received %d bytes',self._logPrefix(),bid,len(data))
         for b in data:
             if b != '\n' and b != '\r' and b != '':
                 self.buf[bid] += b
             else:
                 buf = self.buf[bid].strip()
-                cb(self._asyncCommand,buf)
+                if self.debug: log.info('buf = %r',buf)
+                if buf != '':
+                    cb(self._asyncCommand,buf)
                 self.buf[bid]=''
                 
     def _getRemainingBuf(self):
