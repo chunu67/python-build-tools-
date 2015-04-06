@@ -338,8 +338,9 @@ class _PipeReader(ProcessProtocol):
             'stdout':'',
             'stderr':''
         }
+        self.debug=False
     def _processData(self,bid,cb,data):
-        log.debug('%s: Received %d bytes',bid,len(data))
+        if self.debug: log.info('%s - %s: Received %d bytes',self._logPrefix(),bid,len(data))
         for b in data:
             if b != '\n' and b != '\r' and b != '':
                 self.buf[bid] += b
@@ -357,11 +358,14 @@ class _PipeReader(ProcessProtocol):
     def errReceived(self, data):
         self._processData('stderr',self._cb_stderr,data)
         
+    def _logPrefix(self):
+        return '[{}#{}]'.format(self._asyncCommand.refName,self.transport.pid)
+        
     def inConnectionLost(self):
-        log.warn('[%s#%d] Lost connection to stdin.',self._asyncCommand.commandName, self.transport.pid)
+        log.warn('%s Lost connection to stdin.',self._logPrefix())
         
     def errConnectionLost(self):
-        log.warn('[%s#%d] Lost connection to stderr.',self._asyncCommand.commandName, self.transport.pid)
+        log.warn('%s Lost connection to stderr.',self._logPrefix())
         
     def processEnded(self, code):
         self._asyncCommand.exit_code=code
@@ -385,7 +389,7 @@ class ReactorManager:
         
 
 class AsyncCommand(object):
-    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None):
+    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None, debug=False):
         self.echo = echo
         self.command = command
         self.PTY=PTY
@@ -406,6 +410,7 @@ class AsyncCommand(object):
         self.log = log
 
         self.pipe_reader = None
+        self.debug=debug
 
     def default_exit_handler(self, code, remainingBuf):
         if code != 0:
@@ -429,6 +434,7 @@ class AsyncCommand(object):
         if self.echo:
             self.log.info('[ASYNC] $ "%s"', '" "'.join(self.command))
         pr = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback,self.exit_code_handler)
+        pr.debug=self.debug
         self.child = reactor.spawnProcess(pr, self.command[0], self.command[1:], env=self.env,usePTY=self.PTY)
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
