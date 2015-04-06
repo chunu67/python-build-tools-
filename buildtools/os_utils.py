@@ -417,7 +417,9 @@ class AsyncCommand(object):
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
-        threading.Thread(target=reactor.run, args=(False,)).start()
+        reactorThread = threading.Thread(target=reactor.run, args=(False,))
+        reactorThread.daemon(True)
+        reactorThread.start()
         return True
 
     def Stop(self):
