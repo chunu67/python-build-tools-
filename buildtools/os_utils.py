@@ -413,7 +413,7 @@ class AsyncCommand(object):
         if self.echo:
             self.log.info('[ASYNC] $ "%s"', '" "'.join(self.command))
         pr = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback,self.exit_code_handler)
-        self.child = reactor.spawnProcess(pr, self.command[0], self.command[1:], env=self.env)
+        self.child = reactor.spawnProcess(pr, self.command[0], self.command[1:], env=self.env,usePTY=self.PTY)
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
