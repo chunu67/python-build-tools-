@@ -367,6 +367,22 @@ class _PipeReader(ProcessProtocol):
         self._asyncCommand.exit_code=code
         self._cb_exit(code, self._getRemainingBuf())
 
+class ReactorManager:
+    instance = None
+    
+    @classmethod
+    def Start(cls):
+        if cls.instance is None:
+            cls.instance = threading.Thread(target=reactor.run, args=(False,))
+            cls.instance.daemon = True
+            cls.instance.start()
+            log.info('Twisted Reactor started.')
+            
+    @classmethod
+    def Stop(cls):
+        reactor.stop()
+        log.info('Twisted Reactor stopped.')
+        
 
 class AsyncCommand(object):
     def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None):
@@ -417,9 +433,7 @@ class AsyncCommand(object):
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
-        reactorThread = threading.Thread(target=reactor.run, args=(False,))
-        reactorThread.daemon = True
-        reactorThread.start()
+        ReactorManager.Start()
         return True
 
     def Stop(self):
