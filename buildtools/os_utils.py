@@ -447,8 +447,9 @@ class AsyncCommand(object):
         return True
 
     def Stop(self):
-        if find_process(self.child.pid):
-            os.kill(self.child.pid)
+        process = find_process(self.child.pid)
+        if process:
+            process.terminate()
 
     def WaitUntilDone(self):
         while self.IsRunning():
