@@ -72,6 +72,8 @@ class GitRepository(SCMRepository):
                     log.error('[git] '+line)
                     return False
             remoteinfo = Git.LSRemote(remote, branch)
+            if remoteinfo is None:
+                return False
             ref = 'refs/heads/' + branch
             if ref in remoteinfo:
                 self.remote_commit = remoteinfo[ref]

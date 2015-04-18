@@ -27,7 +27,9 @@ class Git(object):
         if ref:
             args.append(ref)
         try:
-            stderr, stdout = cmd_output(['git', 'ls-remote'] + args, echo=not quiet, critical=True)
+            ret = cmd_output(['git', 'ls-remote'] + args, echo=not quiet, critical=True)
+            if not ret: return None 
+            stderr, stdout = ret
             o = {}
             for line in (stdout + stderr).split('\n'):
                 line = line.strip()
