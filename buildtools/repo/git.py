@@ -62,7 +62,9 @@ class GitRepository(SCMRepository):
             
     def GetRemoteState(self, remote='origin', branch='master'):
         with Chdir(self.path, quiet=self.quiet):
-            stdout,stderr = cmd_output(['git', 'fetch', '-q'], echo=not self.quiet)
+            ret = cmd_output(['git', 'fetch', '-q'], echo=not self.quiet)
+            if not ret: return False
+            stdout,stderr = ret
             for line in (stdout + stderr).split('\n'):
                 line = line.strip()
                 if line == '': continue
@@ -70,7 +72,9 @@ class GitRepository(SCMRepository):
                     log.error('[git] '+line)
                     return False
             remoteinfo = Git.LSRemote(remote, branch)
-            self.remote_commit = remoteinfo['refs/heads/' + branch]
+            ref = 'refs/heads/' + branch
+            if ref in remoteinfo:
+                self.remote_commit = remoteinfo[ref]
         return True
 
     def CheckForUpdates(self, remote='origin', branch='master', quiet=True):
