@@ -56,9 +56,9 @@ class GitRepository(SCMRepository):
             
     def GetRepoState(self):
         with Chdir(self.path, quiet=self.quiet):
-            self.UpdateRemotes()
-            self.current_branch = Git.GetBranch()
-            self.current_commit = Git.GetCommit(short=False)
+            if self.UpdateRemotes():
+                self.current_branch = Git.GetBranch()
+                self.current_commit = Git.GetCommit(short=False)
             
     def GetRemoteState(self, remote='origin', branch='master'):
         with Chdir(self.path, quiet=self.quiet):
@@ -78,7 +78,7 @@ class GitRepository(SCMRepository):
         with log:
             if not os.path.isdir(self.path):
                 return True
-            if not self.GetRepoState(): return False
+            self.GetRepoState()
             if not self.GetRemoteState(remote, branch): return False
             if self.current_branch != branch:
                 if not quiet: log.info('Branch is wrong! %s (L) != %s (R)', self.current_branch, branch)
