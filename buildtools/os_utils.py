@@ -7,7 +7,6 @@ import platform
 import time
 import re
 import threading
-import select
 from twisted.internet import reactor
 
 from buildtools.bt_logging import log
@@ -18,7 +17,7 @@ from twisted.internet.protocol import ProcessProtocol
 buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 scripts_dir = os.path.join(buildtools_dir, 'scripts')
 
-REG_EXCESSIVE_WHITESPACE = re.compile('\s{2,}')
+REG_EXCESSIVE_WHITESPACE = re.compile(r'\s{2,}')
 
 def clock():
     if sys.platform == 'win32':
@@ -494,7 +493,7 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
 
 def cmd_output(command, echo=False, env=None, critical=False):
     '''
-    :returns (stdout,stderr)
+    :returns List[2]: (stdout,stderr)
     '''
     new_env = _cmd_handle_env(env)
     command = _cmd_handle_args(command)

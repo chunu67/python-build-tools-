@@ -16,7 +16,7 @@ class GitRepository(SCMRepository):
     
     def __init__(self, path, origin_uri, quiet=True, noisy_clone=False):
         super(GitRepository, self).__init__(path, quiet=quiet, noisy_clone=noisy_clone)
-        self.remotes = {'origin':origin_uri}
+        self.remotes = self.orig_remotes = {'origin':origin_uri}
         
         self.current_branch = None
         self.current_commit = None
@@ -48,7 +48,11 @@ class GitRepository(SCMRepository):
         for line in (stdout + stderr).split('\n'):
             line = line.strip()
             if line == '': continue
+            if line.startswith('fatal:'):
+                log.error('[git] '+line)
+                return False
             self.remotes[line] = self._getRemoteInfo(line)
+        return True
             
     def GetRepoState(self):
         with Chdir(self.path, quiet=self.quiet):
@@ -58,17 +62,24 @@ class GitRepository(SCMRepository):
             
     def GetRemoteState(self, remote='origin', branch='master'):
         with Chdir(self.path, quiet=self.quiet):
-            cmd(['git', 'fetch', '-q'], critical=True, echo=not self.quiet)
+            stdout,stderr = cmd_output(['git', 'fetch', '-q'], echo=not self.quiet)
+            for line in (stdout + stderr).split('\n'):
+                line = line.strip()
+                if line == '': continue
+                if line.startswith('fatal:'):
+                    log.error('[git] '+line)
+                    return False
             remoteinfo = Git.LSRemote(remote, branch)
             self.remote_commit = remoteinfo['refs/heads/' + branch]
+        return True
 
     def CheckForUpdates(self, remote='origin', branch='master', quiet=True):
         if not quiet: log.info('Checking %s for updates...', self.path)
         with log:
             if not os.path.isdir(self.path):
                 return True
-            self.GetRepoState()
-            self.GetRemoteState(remote, branch)
+            if not self.GetRepoState(): return False
+            if not self.GetRemoteState(remote, branch): return False
             if self.current_branch != branch:
                 if not quiet: log.info('Branch is wrong! %s (L) != %s (R)', self.current_branch, branch)
                 return True
