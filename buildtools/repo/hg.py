@@ -58,6 +58,8 @@ class HgRepository(SCMRepository):
         if self.show_output:
             with log:
                 for line in (stdout + stderr).split('\n'):
+                    if line.strip() == '':
+                        continue
                     log.info('-> %s', line)
         return (stdout + stderr)
 
@@ -130,13 +132,18 @@ class HgRepository(SCMRepository):
         date:        Fri Nov 07 18:11:43 2014 +0000
         summary:     Fix posix builds.
         '''
-
+        candidate_rev = None
         for line in self._hgcmd(['in', '-b', branch, '-nv', remote]).split('\n'):
             line = line.strip()
             if line == '':
                 continue
             if line.startswith('changeset:'):
-                self.remote_rev = int(line.split(':')[1].strip())
+                candidate_rev = int(line.split(':')[1].strip())
+                break
+        if candidate_rev:
+            self.remote_rev = candidate_rev
+        else:
+            self.remote_rev = self.current_rev
 
     def CheckForUpdates(self, remote='default', branch='default', quiet=True):
         if self.repo is None:
@@ -150,13 +157,11 @@ class HgRepository(SCMRepository):
             self.GetRemoteState(remote, branch)
             if self.current_branch != branch:
                 if not quiet:
-                    log.info(
-                        'Branch is wrong! %s (L) != %s (R)', self.current_branch, branch)
+                    log.info('Branch is wrong! %s (L) != %s (R)', self.current_branch, branch)
                 return True
             if self.current_rev != self.remote_rev:
                 if not quiet:
-                    log.info(
-                        'Revision is out of date! %s (L) != %s (R)', self.current_rev, self.remote_rev)
+                    log.info('Revision is out of date! %s (L) != %s (R)', self.current_rev, self.remote_rev)
                 return True
         return False
 
