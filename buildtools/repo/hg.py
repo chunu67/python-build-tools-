@@ -3,7 +3,7 @@ Created on Mar 28, 2015
 
 @author: Rob
 '''
-import os
+import os, re
 #import sys
 #import glob
 #import subprocess
@@ -15,22 +15,29 @@ from buildtools.os_utils import cmd_output, cmd
 from buildtools.repo.base import SCMRepository
 
 HG_VERSION = None
+REG_VERSION = re.compile(r'version ([0-9\.]+)')
 
 def checkHg():
     '''Will raise CalledProcessError if something goes sideways.'''
     global HG_VERSION
     if HG_VERSION is None:
         stdout, stderr = cmd_output(['hg', '--version'], critical=True)
-        HG_VERSION = (stdout + stderr).strip()
+        for line in (stdout + stderr).split('\n'):
+            m = REG_VERSION.search(line)
+            if m:
+                HG_VERSION = m.group(1)
+                break
+        
         log.info('mercurial version %s detected.', HG_VERSION)
+
 
 class HgRepository(SCMRepository):
 
     '''Logical representation of a mercurial repository.'''
 
-    def __init__(self, path, origin_uri, quiet=True, noisy_clone=False):
-        super(HgRepository, self).__init__(
-            path, quiet=quiet, noisy_clone=noisy_clone)
+    def __init__(self, path, origin_uri, quiet=True, noisy_clone=False, show_output=False):
+        super(HgRepository, self).__init__(path, quiet=quiet, noisy_clone=noisy_clone)
+        self.show_output = show_output
 
         self.remotes = {'default': origin_uri}
         self.remote = hg.peer(ui.ui(), {}, origin_uri)
@@ -45,8 +52,11 @@ class HgRepository(SCMRepository):
         self.remote_rev = None
 
     def _hgcmd(self, args):
-        stdout, stderr = cmd_output(
-            ['hg', '--cwd', self.path, '--encoding', 'UTF-8'] + args, echo=not self.quiet, critical=True)
+        stdout, stderr = cmd_output(['hg', '--cwd', self.path, '--encoding', 'UTF-8'] + args, echo=not self.quiet, critical=True)
+        if self.show_output:
+            with log:
+                for line in (stdout + stderr).split('\n'):
+                    log.info('-> %s', line)
         return (stdout + stderr)
 
     def _checkRepo(self):
