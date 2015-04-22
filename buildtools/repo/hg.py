@@ -3,7 +3,8 @@ Created on Mar 28, 2015
 
 @author: Rob
 '''
-import os, re
+import os
+import re
 #import sys
 #import glob
 #import subprocess
@@ -17,6 +18,7 @@ from buildtools.repo.base import SCMRepository
 HG_VERSION = None
 REG_VERSION = re.compile(r'version ([0-9\.]+)')
 
+
 def checkHg():
     '''Will raise CalledProcessError if something goes sideways.'''
     global HG_VERSION
@@ -27,7 +29,7 @@ def checkHg():
             if m:
                 HG_VERSION = m.group(1)
                 break
-        
+
         log.info('mercurial version %s detected.', HG_VERSION)
 
 
@@ -71,15 +73,6 @@ class HgRepository(SCMRepository):
         if self._checkRepo():
             self.repo = hg.repository(ui.ui(), self.path)
 
-    def _getRemoteInfo(self, remoteID):
-        for line in self._hgcmd(['paths', remoteID]).split('\n'):
-            # default =
-            # http://hg.limetech.org/projects/tf2items/tf2items_source/
-            line = line.strip()
-            if line == '':
-                continue
-            return line
-
     def UpdateRemotes(self):
         if self.repo is None:
             return
@@ -92,12 +85,13 @@ class HgRepository(SCMRepository):
         date:        Fri Nov 07 18:11:43 2014 +0000
         summary:     Fix posix builds.
         '''
-        stdout, stderr = cmd_output(['hg', 'in', '-ny'], echo=not self.quiet)
-        for line in (stdout + stderr).split('\n'):
+        for line in self._hgcmd(['paths']).split('\n'):
             line = line.strip()
-            if line == '':
+            if line == '' or '=' not in line:
                 continue
-            self.remotes[line] = self._getRemoteInfo(line)
+            # default = http://hg.limetech.org/projects/tf2items/tf2items_source/
+            linep = line.split('=')
+            self.remotes[linep[0].strip()] = linep[1].strip()
 
     def getRevision(self):
         if self.repo is None:
