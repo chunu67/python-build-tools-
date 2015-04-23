@@ -1,7 +1,8 @@
-import os, yaml, glob, jinja2
+import os, yaml, glob, jinja2, sys
 
 from buildtools.bt_logging import log
 import fnmatch
+from buildtools.ext.salt.jinja_ext import salty_jinja_envs
     
 def replace_var(input, varname, replacement):
     return input.replace('%%' + varname + '%%', replacement)
@@ -31,7 +32,9 @@ def dict_merge(a, b, path=None):
 
 class Config(object):
     def __init__(self, filename, default={}, template_dir='.', variables={}):
-        self.environment = jinja2.Environment(loader=jinja2.loaders.FileSystemLoader(template_dir))
+        env_vars = salty_jinja_envs()
+        env_vars['loader']=jinja2.loaders.FileSystemLoader(template_dir)
+        self.environment = jinja2.Environment(**env_vars)
         if filename is None:
             self.cfg=default
         else:

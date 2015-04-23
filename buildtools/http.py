@@ -86,25 +86,9 @@ class HTTPFetcher(object):
         req.request(self.method, uri.path, formdata, headers)
         response = req.getresponse()
 
-        # form.CookieContainer = new CookieContainer();
-        # form.CookieContainer.Add(Cookies);
-
-        # form.Timeout = this.Timeout;
-        # form.KeepAlive = false;//KeepAlive;
-        # form.Pipelined = false;
-        # form.Connection = null;
-        # form.AllowAutoRedirect = AutoFollowRedirects;
-        # System.Net.ServicePointManager.Expect100Continue = false;
-        # Log.Debug("Request data set");
-
-        # tmpPath = path+".tmp"
-        # if path.endswith(".tmp"):
-        #    tmpPath = path
-
         self.log.debug("Downloading data from " + self.url + " to memory...")
         # if self.method != HTTP_METHOD_GET:
-        self.log.debug(
-            "HTTP %d: %s (%s)", response.status, response.reason, self.url)
+        self.log.debug("HTTP %d: %s (%s)", response.status, response.reason, self.url)
         if response.status == 302 or response.status == 301:
             # Location: http...
             newurl = response.getheader("Location", '???')
