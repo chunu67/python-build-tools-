@@ -479,7 +479,7 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
     except CalledProcessError as cpe:
         log.error(cpe.output)
         if critical:
-            raise e
+            raise cpe
         log.error(cpe)
         return False
     except Exception as e:
