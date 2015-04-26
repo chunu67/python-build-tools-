@@ -45,6 +45,7 @@ class Config(object):
         env_vars = salty_jinja_envs()
         env_vars['loader'] = jinja2.loaders.FileSystemLoader(template_dir)
         self.environment = jinja2.Environment(**env_vars)
+        self.cfg={}
         if filename is None:
             self.cfg = default
         else:

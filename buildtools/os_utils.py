@@ -616,4 +616,27 @@ def standardize_path(path):
         path = os.path.join(path, chunk)
     return path
 
+def decompressFile(path):
+    '''
+    Decompresses the file to the current working directory.
+    '''
+    if path.endswith('.tar.gz'):
+        cmd(['tar', 'xzf', path], echo=True, critical=True)
+        return True
+    elif path.endswith('.tar.bz'):
+        cmd(['tar', 'xjf', path], echo=True, critical=True)
+        return True
+    elif path.endswith('.tar.xz'):
+        cmd(['tar', 'xJf', path], echo=True, critical=True)
+        return True
+    elif path.endswith('.tar.7z'):
+        cmd(['7za', 'x', path], echo=True, critical=True)
+        cmd(['tar', 'xf', path[:-3]], echo=True, critical=True)
+        os.remove(path[-3])
+        return True
+    elif path.endswith('.zip'):
+        cmd(['unzip', path[:-3]], echo=True, critical=True)
+        return True
+    return False
+
 ENV = BuildEnv()
