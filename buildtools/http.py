@@ -9,6 +9,7 @@ from .bt_logging import log
 HTTP_METHOD_GET = 'GET'
 HTTP_METHOD_POST = 'POST'
 
+
 def DownloadFile(url, filename):
     u = urllib2.urlopen(url)
     with open(filename, 'wb') as f:
@@ -20,17 +21,15 @@ def DownloadFile(url, filename):
         block_sz = 8192
         while True:
             buf = u.read(block_sz)
-            if not buffer:
+            if not buffer or file_size == file_size_dl:
                 break
 
             file_size_dl += len(buf)
             f.write(buf)
-            status = r"%10d  [%3.2f%%]" % (
-                file_size_dl, file_size_dl * 100. / file_size)
+            status = r"%10d/%10d  [%3.2f%%]" % (file_size_dl, file_size, file_size_dl * 100. / file_size)
             status = status + chr(8) * (len(status) + 1)
             print status,
-        log.info('Downloaded {} to {} ({}B)'.format(
-            url, filename, file_size_dl))
+        log.info('Downloaded {} to {} ({}B)'.format(url, filename, file_size_dl))
 
 
 class HTTPFetcher(object):

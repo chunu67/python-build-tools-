@@ -13,11 +13,13 @@ from buildtools.bt_logging import log
 from subprocess import CalledProcessError
 import psutil
 from twisted.internet.protocol import ProcessProtocol
+from functools import reduce
 
 buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 scripts_dir = os.path.join(buildtools_dir, 'scripts')
 
 REG_EXCESSIVE_WHITESPACE = re.compile(r'\s{2,}')
+
 
 def clock():
     if sys.platform == 'win32':
@@ -37,7 +39,7 @@ def secondsToStr(t):
 
 
 def InstallDpkgPackages(packages):
-    import apt #IGNORE:import-error
+    import apt  # IGNORE:import-error
     with log.info('Checking dpkg packages...'):
         cache = apt.Cache()
         num_changes = 0
@@ -132,6 +134,7 @@ def DpkgSearchFiles(files):
 
 class WindowsEnv:
     """Utility class to get/set windows environment variable"""
+
     def __init__(self, scope):
         log.info('Python version: 0x%0.8X' % sys.hexversion)
         if sys.hexversion > 0x03000000:
@@ -209,20 +212,22 @@ def ensureDirExists(path, mode=0o777, noisy=False):
 
 
 class DeferredLogEntry(object):
+
     def __init__(self, label):
-        self.label=label
-        
+        self.label = label
+
     def toStr(self, entryVars):
         return self.label.format(**entryVars)
+
 
 class TimeExecution(object):
 
     def __init__(self, label):
         self.start_time = None
-        self.vars={}
+        self.vars = {}
         if isinstance(label, str):
             self.label = DeferredLogEntry('Completed in {elapsed}s - {label}')
-            self.vars['label']=label
+            self.vars['label'] = label
         elif isinstance(label, DeferredLogEntry):
             self.label = label
 
@@ -231,7 +236,7 @@ class TimeExecution(object):
         return self
 
     def __exit__(self, typeName, value, traceback):
-        self.vars['elapsed']=secondsToStr(clock() - self.start_time)
+        self.vars['elapsed'] = secondsToStr(clock() - self.start_time)
         with log:
             log.info(self.label.toStr(self.vars))
         return False
@@ -264,11 +269,13 @@ class Chdir(object):
             sys.exit(1)
         return False
 
+
 def is_executable(fpath):
     if sys.platform == 'win32':
         if not fpath.endswith('.exe'):
             fpath += '.exe'
     return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
 
 def which(program):
     fpath, _ = os.path.split(program)
@@ -326,57 +333,60 @@ def find_process(pid):
 
 
 class _PipeReader(ProcessProtocol):
+
     def __init__(self, asc, process, stdout_callback, stderr_callback, exit_callback):
         self._asyncCommand = asc
         self._cb_stdout = stdout_callback
         self._cb_stderr = stderr_callback
         self._cb_exit = exit_callback
         self.process = process
-        
-        self.buf={
-            'stdout':'',
-            'stderr':''
+
+        self.buf = {
+            'stdout': '',
+            'stderr': ''
         }
-        self.debug=False
-        
-    def _processData(self,bid,cb,data):
-        if self.debug: 
-            log.info('%s %s: Received %d bytes',self._logPrefix(),bid,len(data))
+        self.debug = False
+
+    def _processData(self, bid, cb, data):
+        if self.debug:
+            log.info('%s %s: Received %d bytes', self._logPrefix(), bid, len(data))
         for b in data:
             if b != '\n' and b != '\r' and b != '':
                 self.buf[bid] += b
             else:
                 buf = self.buf[bid].strip()
-                if self.debug: log.info('buf = %r',buf)
+                if self.debug:
+                    log.info('buf = %r', buf)
                 if buf != '':
-                    cb(self._asyncCommand,buf)
-                self.buf[bid]=''
-                
+                    cb(self._asyncCommand, buf)
+                self.buf[bid] = ''
+
     def _getRemainingBuf(self):
-        return self.buf['stdout']+self.buf['stderr']
-                
+        return self.buf['stdout'] + self.buf['stderr']
+
     def outReceived(self, data):
-        self._processData('stdout',self._cb_stdout,data)
-                
+        self._processData('stdout', self._cb_stdout, data)
+
     def errReceived(self, data):
-        self._processData('stderr',self._cb_stderr,data)
-        
+        self._processData('stderr', self._cb_stderr, data)
+
     def _logPrefix(self):
-        return '[{}#{}]'.format(self._asyncCommand.refName,self.transport.pid)
-        
+        return '[{}#{}]'.format(self._asyncCommand.refName, self.transport.pid)
+
     def inConnectionLost(self):
-        log.warn('%s Lost connection to stdin.',self._logPrefix())
-        
+        log.warn('%s Lost connection to stdin.', self._logPrefix())
+
     def errConnectionLost(self):
-        log.warn('%s Lost connection to stderr.',self._logPrefix())
-        
+        log.warn('%s Lost connection to stderr.', self._logPrefix())
+
     def processEnded(self, code):
-        self._asyncCommand.exit_code=code
+        self._asyncCommand.exit_code = code
         self._cb_exit(code, self._getRemainingBuf())
+
 
 class ReactorManager:
     instance = None
-    
+
     @classmethod
     def Start(cls):
         if cls.instance is None:
@@ -384,18 +394,19 @@ class ReactorManager:
             cls.instance.daemon = True
             cls.instance.start()
             log.info('Twisted Reactor started.')
-            
+
     @classmethod
     def Stop(cls):
         reactor.stop()
         log.info('Twisted Reactor stopped.')
-        
+
 
 class AsyncCommand(object):
+
     def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None, debug=False):
         self.echo = echo
         self.command = command
-        self.PTY=PTY
+        self.PTY = PTY
         self.stdout_callback = stdout if stdout is not None else self.default_stdout
         self.stderr_callback = stderr if stderr is not None else self.default_stderr
 
@@ -405,7 +416,7 @@ class AsyncCommand(object):
         self.child = None
         self.refName = self.commandName = os.path.basename(self.command[0])
         if refName:
-            self.refName=refName
+            self.refName = refName
 
         self.exit_code = None
         self.exit_code_handler = self.default_exit_handler
@@ -413,7 +424,7 @@ class AsyncCommand(object):
         self.log = log
 
         self.pipe_reader = None
-        self.debug=debug
+        self.debug = debug
 
     def default_exit_handler(self, code, remainingBuf):
         if code != 0:
@@ -421,7 +432,7 @@ class AsyncCommand(object):
                 strerr = '%s: Received signal %d' % (abs(self.child.returncode))
                 if code < -100:
                     strerr += ' (?!)'
-                self.log.error(strerr,self.refName)
+                self.log.error(strerr, self.refName)
             else:
                 self.log.warning('%s exited with code %d: %s', self.refName, remainingBuf)
         else:
@@ -436,9 +447,9 @@ class AsyncCommand(object):
     def Start(self):
         if self.echo:
             self.log.info('[ASYNC] $ "%s"', '" "'.join(self.command))
-        pr = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback,self.exit_code_handler)
-        pr.debug=self.debug
-        self.child = reactor.spawnProcess(pr, self.command[0], self.command[1:], env=self.env,usePTY=self.PTY)
+        pr = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback, self.exit_code_handler)
+        pr.debug = self.debug
+        self.child = reactor.spawnProcess(pr, self.command[0], self.command[1:], env=self.env, usePTY=self.PTY)
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
             return False
@@ -457,6 +468,7 @@ class AsyncCommand(object):
 
     def IsRunning(self):
         return self.exit_code is not None
+
 
 def async_cmd(command, stdout=None, stderr=None, env=None):
     ascmd = AsyncCommand(command, stdout=stdout, stderr=stderr, env=env)
@@ -565,7 +577,7 @@ def copytree(fromdir, todir, ignore=None, verbose=False, ignore_mtime=False):
 
 def optree(fromdir, todir, op, ignore=None, **op_args):
     if ignore is None:
-        ignore=[]
+        ignore = []
     # print('ignore=' + repr(ignore))
     for root, _, files in os.walk(fromdir):
         path = root.split(os.sep)
@@ -592,6 +604,7 @@ def optree(fromdir, todir, op, ignore=None, **op_args):
                 continue
             op(fromfile, newroot, **op_args)
 
+
 def safe_rmtree(dirpath):
     for root, dirs, files in os.walk(dirpath, topdown=False):
         for name in files:
@@ -599,8 +612,10 @@ def safe_rmtree(dirpath):
         for name in dirs:
             os.rmdir(os.path.join(root, name))
 
+
 def RemoveExcessiveWhitespace(text):
     return REG_EXCESSIVE_WHITESPACE.sub('', text)
+
 
 def sizeof_fmt(num):
     for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
@@ -615,6 +630,7 @@ def standardize_path(path):
     for chunk in pathchunks[1:]:
         path = os.path.join(path, chunk)
     return path
+
 
 def decompressFile(path):
     '''
