@@ -275,9 +275,10 @@ class Chdir(object):
 
     def __enter__(self):
         try:
-            os.chdir(self.chdir)
-            if not self.quiet:
-                log.info('cd ' + self.chdir)
+            if os.getcwdu() != self.chdir:
+                os.chdir(self.chdir)
+                if not self.quiet:
+                    log.info('cd ' + self.chdir)
         except:
             log.critical('Failed to chdir to {}.'.format(self.chdir))
             sys.exit(1)
@@ -285,9 +286,10 @@ class Chdir(object):
 
     def __exit__(self, typeName, value, traceback):
         try:
-            os.chdir(self.pwd)
-            if not self.quiet:
-                log.info('cd ' + self.pwd)
+            if os.getcwdu() != self.pwd:
+                os.chdir(self.pwd)
+                if not self.quiet:
+                    log.info('cd ' + self.pwd)
         except:
             log.critical('Failed to chdir to {}.'.format(self.pwd))
             sys.exit(1)
