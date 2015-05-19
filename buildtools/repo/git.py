@@ -116,7 +116,7 @@ class GitRepository(SCMRepository):
         if not os.path.isdir(self.path):
             cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone)
         with Chdir(self.path, quiet=self.quiet):
-            if Git.IsDirty() and cleanup:
+            if cleanup:
                 cmd(['git', 'clean', '-fdx'], echo=not self.quiet, critical=True)
                 cmd(['git', 'reset', '--hard'], echo=not self.quiet, critical=True)
             if self.current_branch != branch:
