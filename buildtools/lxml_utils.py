@@ -1,5 +1,6 @@
+
 '''
-Main Module.
+lxml Utility Functions
 
 Copyright (c) 2015 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
@@ -22,8 +23,35 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-__all__ = ['Config', 'Chdir', 'cmd', 'log','Properties','replace_vars','cmd','ENV','BuildEnv', 'cmd_output','cmd_daemonize']
+from lxml import etree
 
-from buildtools.config import Config, Properties, replace_vars
-from buildtools.os_utils import Chdir, cmd, ENV, BuildEnv, cmd_daemonize, cmd_output
-from buildtools.bt_logging import log
+
+def stripNS(tagName):
+    i = tagName.find('}')
+    if i >= 0:
+        tagName = tagName[i + 1:]
+    return tagName
+
+
+def getText(element):
+    if element is None:
+        return None
+    return element.text
+
+
+def copyAttribute(kwargs, argname, element, default=None):
+    value = kwargs.get(argname, default)
+    if value is not None:
+        element.set(argname, value)
+
+
+def e(name, attr={}, children=[]):
+    el = etree.Element(name)
+    for k, v in attr.items():
+        el[k] = v
+    for c in children:
+        if isinstance(c, str):
+            el.text = c
+            break
+        el.append(c)
+    return el

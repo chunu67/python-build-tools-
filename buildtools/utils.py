@@ -1,5 +1,5 @@
 '''
-Main Module.
+General-Purpose Utilities.
 
 Copyright (c) 2015 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
@@ -22,8 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-__all__ = ['Config', 'Chdir', 'cmd', 'log','Properties','replace_vars','cmd','ENV','BuildEnv', 'cmd_output','cmd_daemonize']
+def getClass(thing):
+    return thing.__class__
 
-from buildtools.config import Config, Properties, replace_vars
-from buildtools.os_utils import Chdir, cmd, ENV, BuildEnv, cmd_daemonize, cmd_output
-from buildtools.bt_logging import log
+def getClassName(thing):
+    return getClass(thing).name
