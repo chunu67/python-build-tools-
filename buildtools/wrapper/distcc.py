@@ -63,14 +63,19 @@ def configure_distcc(cfg, cmake):
                     log.info(hostline)
             log.info('Max jobs    : {0}'.format(maxjobs))
             cfg['env']['make']['jobs'] = maxjobs
-            
-            pump_enabled = maxjobs > 0 and canpump
+
+            pump_enabled = maxjobs > 0 and canpump and cfg.get('env.distcc.pump.enabled', False)
             with log.info('Pump enabled: {0}'.format(bool2yn(pump_enabled))):
                 if pump_enabled:
                     pump = cfg.get('bin.pump', which('distcc-pump'))
                     make = cfg.get('bin.make', which('make'))
                     cfg['bin']['make'] = '{pump} {make}'.format(pump=pump, make=make)
-                    log.info('DistCC Pump : '+pump)
-                    log.info('Make        : '+make)
+                    log.info('DistCC Pump : ' + pump)
+                    log.info('Make        : ' + make)
 
             ENV.set('DISTCC_HOSTS', ' '.join(distcc_hosts))
+            #if not cfg.get('env.ccache.enabled', False):
+            DISTCC = cfg.get('bin.distcc', which('distcc'))
+
+            ENV.set('CC', DISTCC + ' ' + ENV.get('CC', 'gcc'))
+            ENV.set('CXX', DISTCC + ' ' + ENV.get('CXX', 'g++'))
