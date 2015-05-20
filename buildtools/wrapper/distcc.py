@@ -24,7 +24,9 @@ SOFTWARE.
 '''
 import os
 from buildtools.bt_logging import log
-from buildtools.os_utils import cmd, ENV
+from buildtools.os_utils import cmd, ENV, which
+from buildtools.utils import bool2yn
+
 
 def configure_distcc(cfg, cmake):
     global ENV
@@ -53,16 +55,22 @@ def configure_distcc(cfg, cmake):
                     canpump = True
             if len(info_e) > 0:
                 english_hosts += ['* {}: {}'.format(hostname, ', '.join(info_e))]
-                
+
             distcc_hosts += [h]
         if len(distcc_hosts) > 0:
             with log.info('Compiling with {} hosts:'.format(len(distcc_hosts))):
                 for hostline in english_hosts:
                     log.info(hostline)
-            log.info('Max jobs....: {0}'.format(maxjobs))
+            log.info('Max jobs    : {0}'.format(maxjobs))
             cfg['env']['make']['jobs'] = maxjobs
-            log.info('Pump enabled: {0}'.format(bool2yn(maxjobs > 0 and canpump)))
-            if maxjobs > 0 and canpump:
-                cfg['bin']['make'] = '{pump} {make}'.format(pump=cfg.get('bin.pump', 'distcc-pump'), make=cfg.get('bin.make', 'make'))
-                
+            
+            pump_enabled = maxjobs > 0 and canpump
+            with log.info('Pump enabled: {0}'.format(bool2yn(pump_enabled))):
+                if pump_enabled:
+                    pump = cfg.get('bin.pump', which('distcc-pump'))
+                    make = cfg.get('bin.make', which('make'))
+                    cfg['bin']['make'] = '{pump} {make}'.format(pump=pump, make=make)
+                    log.info('DistCC Pump : '+pump)
+                    log.info('Make        : '+make)
+
             ENV.set('DISTCC_HOSTS', ' '.join(distcc_hosts))

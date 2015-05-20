@@ -27,3 +27,6 @@ def getClass(thing):
 
 def getClassName(thing):
     return getClass(thing).name
+
+def bool2yn(b):
+  return 'Y' if b else 'N'
