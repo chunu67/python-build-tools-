@@ -25,7 +25,11 @@ SOFTWARE.
 import os
 
 from buildtools.bt_logging import log
-from buildtools.os_utils import cmd, ENV
+from buildtools.os_utils import cmd, ENV, which
+
+def _which_if_basename(subject):
+    if '/' in subject or ' ' in subject: return subject
+    return which(subject)
 
 def configure_ccache(cfg, cmake):
     global ENV
@@ -34,11 +38,11 @@ def configure_ccache(cfg, cmake):
             log.info('ccache disabled, skipping.')
         
             # Otherwise, strange things happen.
-            ENV.set('CC', ENV.get('CC','gcc') + '.real')
-            ENV.set('CXX', ENV.get('CXX','g++') + '.real')
+            ENV.set('CC', _which_if_basename(ENV.get('CC','gcc') + '.real'))
+            ENV.set('CXX', _which_if_basename(ENV.get('CXX','g++') + '.real'))
         else:
-            CCACHE = cfg.get('bin.ccache', 'ccache')
-            DISTCC = cfg.get('bin.distcc', 'distcc')
+            CCACHE = _which_if_basename(cfg.get('bin.ccache', 'ccache'))
+            DISTCC = _which_if_basename(cfg.get('bin.distcc', 'distcc'))
             
             if cfg.get('env.distcc.enabled', False):
                 ENV.set('CCACHE_PREFIX', DISTCC)
