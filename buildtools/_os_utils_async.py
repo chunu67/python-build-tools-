@@ -1,9 +1,15 @@
 
+# package twisted
+from twisted.internet import reactor
+from twisted.internet.protocol import ProcessProtocol
+    
 import sys
 import os
+import threading 
+import time
 from buildtools.bt_logging import log
 
-cmd_output = None
+os_utils = None
 
 class _PipeReader(ProcessProtocol):
 
@@ -84,8 +90,8 @@ class AsyncCommand(object):
         self.stdout_callback = stdout if stdout is not None else self.default_stdout
         self.stderr_callback = stderr if stderr is not None else self.default_stderr
 
-        self.env = _cmd_handle_env(env)
-        self.command = _cmd_handle_args(command)
+        self.env = os_utils._cmd_handle_env(env)
+        self.command = os_utils._cmd_handle_args(command)
 
         self.child = None
         self.refName = self.commandName = os.path.basename(self.command[0])
@@ -131,7 +137,7 @@ class AsyncCommand(object):
         return True
 
     def Stop(self):
-        process = find_process(self.child.pid)
+        process = os_utils.find_process(self.child.pid)
         if process:
             process.terminate()
 
@@ -143,13 +149,7 @@ class AsyncCommand(object):
     def IsRunning(self):
         return self.exit_code is not None
 
-
 def async_cmd(command, stdout=None, stderr=None, env=None):
-    # Lazy-load Twisted.
-    # package twisted
-    from twisted.internet import reactor
-    from twisted.internet.protocol import ProcessProtocol
-    
     ascmd = AsyncCommand(command, stdout=stdout, stderr=stderr, env=env)
     ascmd.Start()
     return ascmd

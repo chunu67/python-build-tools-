@@ -411,5 +411,28 @@ else:
     buildtools._os_utils_linux.cmd_output = cmd_output
     from buildtools._os_utils_linux import GetDpkgShlibs, InstallDpkgPackages, DpkgSearchFiles
     
-from buildtools._os_utils_async import async_cmd
+# Stubs for lazy-loading twisted shit.
+def init_async():
+    # Lazy-load Twisted.
+    import buildtools._os_utils_async as asynclib
+    asynclib.os_utils=sys.modules[__name__]
+    return asynclib
+
+def async_cmd(command, stdout=None, stderr=None, env=None):
+    return init_async().async_cmd(command, stdout, stderr, env)
+
+def AsyncCommand(command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None, debug=False):
+    return init_async().AsyncCommand(command, stdout, stderr, env)
+
+
+class ReactorManager:
+    instance = None
+
+    @classmethod
+    def Start(cls):
+        init_async().ReactorManager.Start()
+
+    @classmethod
+    def Stop(cls):
+        init_async().ReactorManager.Stop()
 
