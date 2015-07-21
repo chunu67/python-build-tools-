@@ -8,8 +8,7 @@ import os
 import threading 
 import time
 from buildtools.bt_logging import log
-
-os_utils = None
+import buildtools.os_utils as os_utils
 
 class _PipeReader(ProcessProtocol):
 
