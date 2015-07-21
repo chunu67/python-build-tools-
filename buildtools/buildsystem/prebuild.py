@@ -24,6 +24,7 @@ SOFTWARE.
 @author: Rob
 Created on May 14, 2015
 '''
+
 import os
 
 from buildtools.lxml_utils import *
@@ -32,7 +33,6 @@ from buildtools.utils import getClassName
 
 
 class BaseNode:
-
     def setAttr(self, element, name, skip_when_default=True, default=None, required=False):
         value = getattr(self, name, default)
         if value == default:

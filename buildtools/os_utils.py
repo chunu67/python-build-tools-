@@ -31,13 +31,15 @@ import platform
 import time
 import re
 import threading
-from twisted.internet import reactor
+
+from subprocess import CalledProcessError
+from functools import reduce
+
+# package psutil
+import psutil 
+
 
 from buildtools.bt_logging import log
-from subprocess import CalledProcessError
-import psutil
-from twisted.internet.protocol import ProcessProtocol
-from functools import reduce
 
 buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 scripts_dir = os.path.join(buildtools_dir, 'scripts')
@@ -60,146 +62,6 @@ def secondsToStr(t):
     return "%d:%02d:%02d.%03d" % \
         reduce(lambda ll, b: divmod(ll[0], b) + ll[1:],
                [(t * 1000,), 1000, 60, 60])
-
-
-def InstallDpkgPackages(packages):
-    import apt  # IGNORE:import-error
-    with log.info('Checking dpkg packages...'):
-        cache = apt.Cache()
-        num_changes = 0
-        with cache.actiongroup():
-            for pkg in packages:
-                if pkg not in cache:
-                    log.critical('UNKNOWN APT PACKAGE {}!'.format(pkg))
-                    sys.exit(1)
-                package = cache[pkg]
-                if not package.is_installed:
-                    package.mark_install()
-                    num_changes += 1
-        if num_changes == 0:
-            log.info('No changes required, skipping.')
-            return
-
-        cache.commit(apt.progress.text.AcquireProgress(),
-                     apt.progress.base.InstallProgress())
-
-
-def GetDpkgShlibs(files):
-    deps = {}
-    stdout, stderr = cmd_output(['perl', os.path.join(scripts_dir, 'dpkg-dump-shpkgs.pl')] + files, critical=True)
-    if stdout or stderr:
-        for line in (stdout + stderr).split('\n'):
-            line = line.strip()
-            if line == '':
-                continue
-            # dpkg-dump-shpkgs.pl: warning: binaries to analyze should already
-            # be installed in their package's directory
-            if 'dpkg-dump-shpkgs.pl:' in line:
-                (_, msgtype, msg) = [x.strip() for x in line.split(':')]
-                if msg == 'binaries to analyze should already be installed in their package\'s directory':
-                    continue
-                if msgtype == 'warning':
-                    log.warning(msg)
-                elif msgtype == 'error':
-                    log.error(msg)
-                continue
-            elif line.startswith('shlibs:'):
-                # shlibs:Depends=libboost-context1.55.0,
-                # libboost-filesystem1.55.0, libboost-program-options1.55.0,
-                # ...
-                lc = line.split('=', 1)
-                assert len(lc) == 2
-                assert not lc[0][7:].startswith(':')
-                deps[lc[0][7:]] = [x.strip() for x in lc[1].split(',')]
-            else:
-                log.warning('UNHANDLED: %s', line)
-    return deps
-
-
-def DpkgSearchFiles(files):
-    '''Find packages for a given set of files.'''
-
-    stdout, stderr = cmd_output(['dpkg', '--search'] + files, critical=True)
-
-    '''
-    libc6:amd64: /lib/x86_64-linux-gnu/libc-2.19.so
-    libcap2:amd64: /lib/x86_64-linux-gnu/libcap.so.2
-    libcap2:amd64: /lib/x86_64-linux-gnu/libcap.so.2.24
-    libc6:amd64: /lib/x86_64-linux-gnu/libcidn-2.19.so
-    libc6:amd64: /lib/x86_64-linux-gnu/libcidn.so.1
-    libcomerr2:amd64: /lib/x86_64-linux-gnu/libcom_err.so.2
-    libcomerr2:amd64: /lib/x86_64-linux-gnu/libcom_err.so.2.1
-    libc6:amd64: /lib/x86_64-linux-gnu/libcrypt-2.19.so
-    libcryptsetup4:amd64: /lib/x86_64-linux-gnu/libcryptsetup.so.4
-    libcryptsetup4:amd64: /lib/x86_64-linux-gnu/libcryptsetup.so.4.6.0
-    libc6:amd64: /lib/x86_64-linux-gnu/libcrypt.so.1
-    libc6:amd64: /lib/x86_64-linux-gnu/libc.so.6
-    '''
-
-    packages = []
-    if stdout or stderr:
-        for line in (stdout + stderr).split('\n'):
-            line = line.strip()
-            if line == '':
-                continue
-
-            chunks = line.split()
-            # libc6:amd64: /lib/x86_64-linux-gnu/libc.so.6
-            if len(chunks) == 2:
-                pkgName = chunks[0][:-1]  # Strip ending colon
-                if pkgName not in packages:
-                    packages += [pkgName]
-            else:
-                log.error(
-                    'UNHANDLED dpkg --search LINE (len == %d): "%s"', len(chunks), line)
-
-    return packages
-
-
-class WindowsEnv:
-    """Utility class to get/set windows environment variable"""
-
-    def __init__(self, scope):
-        log.info('Python version: 0x%0.8X' % sys.hexversion)
-        if sys.hexversion > 0x03000000:
-            import winreg
-        else:
-            import _winreg as winreg
-        self.winreg = winreg
-
-        assert scope in ('user', 'system')
-        self.scope = scope
-        if scope == 'user':
-            self.root = winreg.HKEY_CURRENT_USER
-            self.subkey = 'Environment'
-        else:
-            self.root = winreg.HKEY_LOCAL_MACHINE
-            self.subkey = r'SYSTEM\CurrentControlSet\Control\Session Manager\Environment'
-
-    def get(self, name, default=None):
-        with self.winreg.OpenKey(self.root, self.subkey, 0, self.winreg.KEY_READ) as key:
-            try:
-                value, _ = self.winreg.QueryValueEx(key, name)
-            except WindowsError:
-                value = default
-            return value
-
-    def set(self, name, value):
-        # Note: for 'system' scope, you must run this as Administrator
-        with self.winreg.OpenKey(self.root, self.subkey, 0, self.winreg.KEY_ALL_ACCESS) as key:
-            self.winreg.SetValueEx(
-                key, name, 0, self.winreg.REG_EXPAND_SZ, value)
-
-        import win32api
-        import win32con
-        assert win32api.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')
-
-        """
-        # For some strange reason, calling SendMessage from the current process
-        # doesn't propagate environment changes at all.
-        # TODO: handle CalledProcessError (for assert)
-        subprocess.check_call('''\"%s" -c "import win32api, win32con; assert win32api.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')"''' % sys.executable)
-        """
 
 
 class BuildEnv(object):
@@ -358,149 +220,6 @@ def find_process(pid):
     return None
 
 
-class _PipeReader(ProcessProtocol):
-
-    def __init__(self, asc, process, stdout_callback, stderr_callback, exit_callback):
-        self._asyncCommand = asc
-        self._cb_stdout = stdout_callback
-        self._cb_stderr = stderr_callback
-        self._cb_exit = exit_callback
-        self.process = process
-
-        self.buf = {
-            'stdout': '',
-            'stderr': ''
-        }
-        self.debug = False
-
-    def _processData(self, bid, cb, data):
-        if self.debug:
-            log.info('%s %s: Received %d bytes', self._logPrefix(), bid, len(data))
-        for b in data:
-            if b != '\n' and b != '\r' and b != '':
-                self.buf[bid] += b
-            else:
-                buf = self.buf[bid].strip()
-                if self.debug:
-                    log.info('buf = %r', buf)
-                if buf != '':
-                    cb(self._asyncCommand, buf)
-                self.buf[bid] = ''
-
-    def _getRemainingBuf(self):
-        return self.buf['stdout'] + self.buf['stderr']
-
-    def outReceived(self, data):
-        self._processData('stdout', self._cb_stdout, data)
-
-    def errReceived(self, data):
-        self._processData('stderr', self._cb_stderr, data)
-
-    def _logPrefix(self):
-        return '[{}#{}]'.format(self._asyncCommand.refName, self.transport.pid)
-
-    def inConnectionLost(self):
-        log.warn('%s Lost connection to stdin.', self._logPrefix())
-
-    def errConnectionLost(self):
-        log.warn('%s Lost connection to stderr.', self._logPrefix())
-
-    def processEnded(self, code):
-        self._asyncCommand.exit_code = code
-        self._cb_exit(code, self._getRemainingBuf())
-
-
-class ReactorManager:
-    instance = None
-
-    @classmethod
-    def Start(cls):
-        if cls.instance is None:
-            cls.instance = threading.Thread(target=reactor.run, args=(False,))
-            cls.instance.daemon = True
-            cls.instance.start()
-            log.info('Twisted Reactor started.')
-
-    @classmethod
-    def Stop(cls):
-        reactor.stop()
-        log.info('Twisted Reactor stopped.')
-
-
-class AsyncCommand(object):
-
-    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None, debug=False):
-        self.echo = echo
-        self.command = command
-        self.PTY = PTY
-        self.stdout_callback = stdout if stdout is not None else self.default_stdout
-        self.stderr_callback = stderr if stderr is not None else self.default_stderr
-
-        self.env = _cmd_handle_env(env)
-        self.command = _cmd_handle_args(command)
-
-        self.child = None
-        self.refName = self.commandName = os.path.basename(self.command[0])
-        if refName:
-            self.refName = refName
-
-        self.exit_code = None
-        self.exit_code_handler = self.default_exit_handler
-
-        self.log = log
-
-        self.pipe_reader = None
-        self.debug = debug
-
-    def default_exit_handler(self, code, remainingBuf):
-        if code != 0:
-            if code < 0:
-                strerr = '%s: Received signal %d' % (abs(self.child.returncode))
-                if code < -100:
-                    strerr += ' (?!)'
-                self.log.error(strerr, self.refName)
-            else:
-                self.log.warning('%s exited with code %d: %s', self.refName, remainingBuf)
-        else:
-            self.log.info('%s has exited normally.', self.refName)
-
-    def default_stdout(self, ascmd, buf):
-        ascmd.log.info('[%s] %s', ascmd.refName, buf)
-
-    def default_stderr(self, ascmd, buf):
-        ascmd.log.error('[%s] %s', ascmd.refName, buf)
-
-    def Start(self):
-        if self.echo:
-            self.log.info('[ASYNC] $ "%s"', '" "'.join(self.command))
-        pr = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback, self.exit_code_handler)
-        pr.debug = self.debug
-        self.child = reactor.spawnProcess(pr, self.command[0], self.command[1:], env=self.env, usePTY=self.PTY)
-        if self.child is None:
-            self.log.error('Failed to start %r.', ' '.join(self.command))
-            return False
-        ReactorManager.Start()
-        return True
-
-    def Stop(self):
-        process = find_process(self.child.pid)
-        if process:
-            process.terminate()
-
-    def WaitUntilDone(self):
-        while self.IsRunning():
-            time.sleep(1)
-        return self.exit_code
-
-    def IsRunning(self):
-        return self.exit_code is not None
-
-
-def async_cmd(command, stdout=None, stderr=None, env=None):
-    ascmd = AsyncCommand(command, stdout=stdout, stderr=stderr, env=env)
-    ascmd.Start()
-    return ascmd
-
 
 def cmd(command, echo=False, env=None, show_output=True, critical=False):
     new_env = _cmd_handle_env(env)
@@ -556,6 +275,7 @@ def cmd_daemonize(command, echo=False, env=None, critical=False):
 
     try:
         if platform.system() == 'Windows':
+            # HACK
             batch = os.tmpnam() + '.bat'
             with open(batch, 'w') as b:
                 b.write(' '.join(command))
@@ -619,7 +339,7 @@ def optree(fromdir, todir, op, ignore=None, **op_args):
             continue
         if not os.path.isdir(newroot):
             if op_args.get('verbose', False):
-                log.info('mkdir {}'.format(newroot))
+                log.info(u'mkdir {}'.format(newroot))
             os.makedirs(newroot)
         for filename in files:
             fromfile = os.path.join(root, filename)
@@ -682,3 +402,14 @@ def decompressFile(path):
     return False
 
 ENV = BuildEnv()
+
+# Platform-specific extensions
+if platform.system() == 'Windows':
+    from buildtools._os_utils_win32 import WindowsEnv
+else:
+    import buildtools._os_utils_linux
+    buildtools._os_utils_linux.cmd_output = cmd_output
+    from buildtools._os_utils_linux import GetDpkgShlibs, InstallDpkgPackages, DpkgSearchFiles
+    
+from buildtools._os_utils_async import async_cmd
+

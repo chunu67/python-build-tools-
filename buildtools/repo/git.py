@@ -13,25 +13,24 @@ from buildtools.os_utils import cmd_output, Chdir, cmd
 from buildtools.wrapper.git import Git
 from buildtools.repo.base import SCMRepository
 
-class GitRepository(SCMRepository):
 
-    '''Logical representation of a git repository.
-    '''
+class GitRepository(SCMRepository):
+    '''Logical representation of a git repository.'''
 
     def __init__(self, path, origin_uri, quiet=True, noisy_clone=False):
         super(GitRepository, self).__init__(path, quiet=quiet, noisy_clone=noisy_clone)
-        
+
         # Known remotes.
         self.remotes = self.orig_remotes = {'origin': origin_uri}
         # Git configuration variables.
-        self.config_vars={}
+        self.config_vars = {}
 
         self.current_branch = None
         self.current_commit = None
         self.remote_commit = None
-        
-    def _git(self,args, echo=False):
-        ret = cmd_output(['git']+args, echo=echo)
+
+    def _git(self, args, echo=False):
+        ret = cmd_output(['git'] + args, echo=echo)
 
     def _getRemoteInfo(self, remoteID):
         '''
