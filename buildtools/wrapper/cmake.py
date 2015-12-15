@@ -33,41 +33,41 @@ class CMake(object):
         rev = subprocess.Popen(['cmake', '--version'], stdout=subprocess.PIPE).communicate()[0][:-1]
         if rev:
             return rev.decode('utf-8').split()[2]
-    
+
     def __init__(self):
         self.flags = {}
         self.generator = None
-        
+
     def setFlag(self, key, val):
         log.info('CMake: {} = {}'.format(key, val))
         self.flags[key] = val
-        
-    def build(self, CMAKE, dir='.', env=None, target=None, moreflags=[]):
+
+    def build(self, CMAKE='cmake', dir='.', env=None, target=None, moreflags=[]):
         if env is None:
             env = ENV.env
         flags = ['--build', dir]
         if target is not None:
             moreflags += ['--target', target]
-        
+
         flags += moreflags
-        
+
         with log.info('Running CMake --build:'):
             BuildEnv.dump(env)
             return cmd([CMAKE] + flags, env=env, critical=True, echo=True)
-        
-    def run(self, CMAKE, env=None, dir='.', moreflags=[]):
+
+    def run(self, CMAKE='cmake', env=None, dir='.', moreflags=[]):
         if env is None:
             env = ENV.env
         flags = []
-        
+
         if self.generator is not None:
             flags += ['-G', self.generator]
-        
+
         for key, value in self.flags.items():
             flags += ['-D{0}={1}'.format(key, value)]
-        
+
         flags += moreflags
-        
+
         with log.info('Running CMake:'):
             BuildEnv.dump(env)
             return cmd([CMAKE] + flags + [dir], env=env, critical=True, echo=True)

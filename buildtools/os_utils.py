@@ -36,7 +36,7 @@ from subprocess import CalledProcessError
 from functools import reduce
 
 # package psutil
-import psutil 
+import psutil
 
 
 from buildtools.bt_logging import log
@@ -71,18 +71,37 @@ class BuildEnv(object):
             self.env = initial
         else:
             self.env = os.environ
+        self.keycapmap = {k.upper():k for k in self.env}
+        self.noisy=True
+
+    def getKey(self,key):
+        okey=key
+        key=key.upper()
+        if key not in self.keycapmap:
+            self.keycapmap[key]=okey
+        return self.keycapmap[key]
 
     def set(self, key, val):
+        key=self.getKey(key)
         log.info('Build env: {} = {}'.format(key, val))
         self.env[key] = val
 
     def get(self, key, default=None):
+        key=self.getKey(key)
         if key not in self.env:
             return default
         return self.env[key]
 
     def merge(self, newvars):
         self.env = dict(self.env, **newvars)
+
+    def prependTo(self,key,value,delim=';'):
+        key=self.getKey(key)
+        self.env[key]=delim.join([value]+ENV.env[key].split(delim))
+
+    def appendTo(self,key,value,delim=';'):
+        key=self.getKey(key)
+        self.env[key]=delim.join(ENV.env[key].split(delim)+[value])
 
     @classmethod
     def dump(cls, env):
@@ -176,8 +195,22 @@ def which(program):
             exe_file = os.path.join(path, program)
             if is_executable(exe_file):
                 return exe_file
-
     return None
+
+
+def assertWhich(program, fail_raise=False):
+    fullpath = which(program)
+    with log.info('Checking if %s exists...', program):
+        if fullpath is None:
+            errmsg = '{executable} is not in PATH!'.format(executable=program)
+            if fail_raise:
+                raise RuntimeError(errmsg)
+            else:
+                log.critical(errmsg)
+                sys.exit(1)
+        else:
+            log.info('Found: %s', fullpath)
+    return fullpath
 
 
 def _cmd_handle_env(env):
@@ -218,7 +251,6 @@ def find_process(pid):
         except psutil.AccessDenied:
             continue
     return None
-
 
 
 def cmd(command, echo=False, env=None, show_output=True, critical=False):
@@ -377,28 +409,39 @@ def standardize_path(path):
         path = os.path.join(path, chunk)
     return path
 
+REG_DRIVELETTER = re.compile(r'^([A-Z]):\\')
 
-def decompressFile(path):
+
+def cygpath(inpath):
+    chunks = inpath.split('\\')
+    chunks[0] = chunks[0].lower()[:-1]
+    return '/cygdrive/' + '/'.join(chunks)
+
+
+def decompressFile(archive):
     '''
     Decompresses the file to the current working directory.
     '''
-    if path.endswith('.tar.gz'):
-        cmd(['tar', 'xzf', path], echo=True, critical=True)
+    print('Trying to decompress ' + archive)
+    if archive.endswith('.tar.gz') or archive.endswith('.tgz'):
+        cmd(['tar', 'xzf', archive], echo=True, show_output=False, critical=True)
         return True
-    elif path.endswith('.tar.bz'):
-        cmd(['tar', 'xjf', path], echo=True, critical=True)
+    elif archive.endswith('.tar.bz') or archive.endswith('.tbz'):
+        cmd(['tar', 'xjf', archive], echo=True, show_output=False, critical=True)
         return True
-    elif path.endswith('.tar.xz'):
-        cmd(['tar', 'xJf', path], echo=True, critical=True)
+    elif archive.endswith('.tar.xz'):
+        cmd(['tar', 'xJf', archive], echo=True, show_output=False, critical=True)
         return True
-    elif path.endswith('.tar.7z'):
-        cmd(['7za', 'x', path], echo=True, critical=True)
-        cmd(['tar', 'xf', path[:-3]], echo=True, critical=True)
+    elif archive.endswith('.tar.7z'):
+        cmd(['7za', 'x', archive], echo=True, show_output=False, critical=True)
+        cmd(['tar', 'xf', archive[:-3]], echo=Tru, show_output=False, critical=True)
         os.remove(path[-3])
         return True
-    elif path.endswith('.zip'):
-        cmd(['unzip', path[:-3]], echo=True, critical=True)
+    elif archive.endswith('.zip'):
+        cmd(['unzip', archive[:-3]], echo=True, show_output=False, critical=True)
         return True
+    else:
+        log.critical(u'Unknown file extension: %s', archive)
     return False
 
 ENV = BuildEnv()
@@ -410,4 +453,3 @@ else:
     import buildtools._os_utils_linux
     buildtools._os_utils_linux.cmd_output = cmd_output
     from buildtools._os_utils_linux import GetDpkgShlibs, InstallDpkgPackages, DpkgSearchFiles
-
