@@ -33,6 +33,8 @@ import fnmatch
 from buildtools.ext.salt.jinja_ext import salty_jinja_envs
 
 # Old variables.
+
+
 def replace_var(input, varname, replacement):
     return input.replace('%%' + varname + '%%', replacement)
 
@@ -63,54 +65,16 @@ def dict_merge(a, b, path=None):
     return a
 
 
-class Config(object):
+class BaseConfig(object):
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}):
-        env_vars = salty_jinja_envs()
-        env_vars['loader'] = jinja2.loaders.FileSystemLoader(template_dir)
-        self.environment = jinja2.Environment(**env_vars)
-        self.cfg={}
-        if filename is None:
-            self.cfg = default
-        else:
-            self.Load(filename, merge=False, defaults=default, variables=variables)
-
-    def Load(self, filename, merge=False, defaults=None, variables={}):
-        with log.info("Loading %s...", filename):
-            if not os.path.isfile(filename):
-                if defaults is None:
-                    log.error('Failed to load %s.', filename)
-                    return False
-                else:
-                    log.warn('File not found, loading defaults.')
-                    with open(filename, 'w') as f:
-                        yaml.dump(defaults, f, default_flow_style=False)
-
-            template = self.environment.get_template(filename)
-            rendered = template.render(variables)
-
-            newcfg = yaml.load(rendered)
-            if merge:
-                self.cfg = dict_merge(self.cfg, newcfg)
-            else:
-                self.cfg = newcfg
-        return True
-
-    def LoadFromFolder(self, path, pattern='*.yml', variables={}):
-        'For conf.d/ stuff.'
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                filename = os.path.join(root, file)
-                if fnmatch.fnmatch(filename, pattern):
-                    self.Load(filename, merge=True, variables=variables)
-        # for filename in glob.glob(os.path.join(path,pattern)):
-        #    self.Load(filename, merge=True)
+    def __init__(self):
+        self.cfg = {}
 
     def __getitem__(self, key):
         return self.cfg.__getitem__(key)
 
     def __setitem__(self, key, value):
-        return self.cfg.__setitem__(key)
+        return self.cfg.__setitem__(key, value)
 
     def get(self, key, default=None):
         parts = key.split('.')
@@ -135,6 +99,90 @@ class Config(object):
             L[parts[-1]] = value
         except (KeyError, TypeError):
             return
+
+
+class _ConfigFile(BaseConfig):
+
+    def __init__(self, filename, default={}, template_dir='.', variables={}):
+        env_vars = salty_jinja_envs()
+        env_vars['loader'] = jinja2.loaders.FileSystemLoader(template_dir)
+        self.environment = jinja2.Environment(**env_vars)
+        self.cfg = {}
+        if filename is None:
+            self.cfg = default
+        else:
+            self.Load(filename, merge=False, defaults=default, variables=variables)
+
+    def Load(self, filename, merge=False, defaults=None, variables={}):
+        with log.info("Loading %s...", filename):
+            if not os.path.isfile(filename):
+                if defaults is None:
+                    log.error('Failed to load %s.', filename)
+                    return False
+                else:
+                    log.warn('File not found, loading defaults.')
+                    self.dump_to_file(filename, defaults)
+
+            template = self.environment.get_template(filename)
+            rendered = template.render(variables)
+
+            newcfg = self.load_from_file(rendered)
+            if merge:
+                self.cfg = dict_merge(self.cfg, newcfg)
+            else:
+                self.cfg = newcfg
+        return True
+
+    def LoadFromFolder(self, path, pattern='*.yml', variables={}):
+        'For conf.d/ stuff.'
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                filename = os.path.join(root, file)
+                if fnmatch.fnmatch(filename, pattern):
+                    self.Load(filename, merge=True, variables=variables)
+        # for filename in glob.glob(os.path.join(path,pattern)):
+        #    self.Load(filename, merge=True)
+
+    def dump_to_file(self, filename, cfg):
+        pass
+
+    def load_from_string(self, string):
+        return {}
+
+
+class YAMLConfig(_ConfigFile):
+
+    def __init__(self, filename, default={}, template_dir='.', variables={}):
+        super(YAMLConfig, self).__init__(filename, default, template_dir, variables)
+
+    def dump_to_file(self, filename, data):
+        with open(filename, 'w') as f:
+            yaml.dump(data, f, default_flow_style=False)
+
+    def load_from_string(self, string):
+        return yaml.load(string)
+
+
+class Config(YAMLConfig):
+
+    '''DEPRECATED: Use YAMLConfig instead.'''
+
+    def __init__(self, filename, default={}, template_dir='.', variables={}):
+        log.warn('Config class is deprecated.  Use YAMLConfig instead.')
+        super(Config, self).__init__(filename, default, template_dir, variables)
+
+
+class TOMLConfig(_ConfigFile):
+
+    def __init__(self, filename, default={}, template_dir='.', variables={}):
+        super(TOMLConfig, self).__init__(filename, default, template_dir, variables)
+
+    def dump_to_file(self, filename, data):
+        with open(filename, 'w') as f:
+            f.write(toml.dumps(data))
+
+    def load_from_string(self, string):
+        return toml.loads(string)
 
 
 class Properties(object):
