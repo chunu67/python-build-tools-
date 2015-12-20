@@ -19,7 +19,7 @@ def getInputChar(prompt, valid, default):
     while True:
         print(prompt)
         print(' > ')
-        inp = sys.stdin.read(1)
+        inp = sys.stdin.read(1).lower()
         print()
         if inp == '' and default is not None:
             return default

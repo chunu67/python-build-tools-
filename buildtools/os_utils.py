@@ -456,6 +456,10 @@ def decompressFile(archive):
         with zipfile.ZipFile(archive) as arch:
             arch.extractall('.')
         return True
+    elif archive.endswith('.rar'):
+        #if PLATFORM == 'Windows':
+        #    archive = cygpath(archive)
+        cmd(['7z', 'x', '-aoa', archive], echo=True, show_output=False, critical=True)
     else:
         log.critical(u'Unknown file extension: %s', archive)
     return False

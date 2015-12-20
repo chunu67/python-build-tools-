@@ -126,7 +126,7 @@ class _ConfigFile(BaseConfig):
             template = self.environment.get_template(filename)
             rendered = template.render(variables)
 
-            newcfg = self.load_from_file(rendered)
+            newcfg = self.load_from_string(rendered)
             if merge:
                 self.cfg = dict_merge(self.cfg, newcfg)
             else:
