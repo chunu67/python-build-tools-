@@ -23,7 +23,14 @@ SOFTWARE.
 
 '''
 import logging, os
-        
+
+class NullIndenter(object):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        return False
+
 class IndentLogger(object):
     '''
     Indents stuff.
@@ -33,15 +40,15 @@ class IndentLogger(object):
         self.log = logger
         if self.log is None:
             self.log = logging.getLogger()
-        
+
     def __enter__(self):
         self.indent += 1
         return self
-    
+
     def __exit__(self, type, value, traceback):
         self.indent -= 1
         return False
-    
+
     def debug(self, msg, *args, **kwargs):
         """
         Log 'msg % args' with severity 'DEBUG'.
@@ -116,23 +123,23 @@ class IndentLogger(object):
         if self.log.isEnabledFor(logging.CRITICAL):
             self._log(logging.CRITICAL, msg, args, **kwargs)
         return self
-            
+
     def _log(self, level, msg, args, exc_info=None, extra=None):
-        if isinstance(msg, str): 
+        if isinstance(msg, str):
             indent = self.indent * '  '
             self.log._log(level, indent + msg, args, exc_info, extra)
         else:
             self.log._log(level, msg, args, exc_info, extra)
-        
 
-        
+
+
 logging.basicConfig(
     format='%(asctime)s [%(levelname)-8s]: %(message)s',
     datefmt='%m/%d/%Y %I:%M:%S %p',
     level=logging.INFO)
     # filename='logs/main.log',
     # filemode='w')
-    
+
 def logToFile(logID, mode='w', level=logging.INFO, sub_dir=None, start_message='Logging started', announce_location=False, formatter=None):
     basedir = 'logs'
     if sub_dir is not None:
