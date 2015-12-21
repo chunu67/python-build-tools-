@@ -133,6 +133,9 @@ class _ConfigFile(BaseConfig):
                 self.cfg = newcfg
         return True
 
+    def Save(self, filename):
+        self.dump_to_file(filename, self.cfg)
+
     def LoadFromFolder(self, path, pattern='*.yml', variables={}):
         'For conf.d/ stuff.'
         for root, dirs, files in os.walk(path):
