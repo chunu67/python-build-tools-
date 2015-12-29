@@ -30,7 +30,7 @@ import jinja2
 from datetime import date
 import argparse
 
-REG_COPYHOLDER = re.compile('copyright \(c\)\s*(?P<years>[0-9\-]+) (?P<holder>.*)$', re.IGNORECASE)
+REG_COPYHOLDER = re.compile('copyright \(c\)\s*(?P<years>[0-9\- ]+) (?P<holder>.*)$', re.IGNORECASE)
 
 
 class CopyrightChecker(object):
@@ -158,5 +158,5 @@ if __name__ == '__main__':
     for path in args.path:
         if os.path.isdir(path):
             legal.scanFiles(path)
-        else:
+        elif os.path.isfile(path):
             legal.scanFile(path, path + '.fixed')
