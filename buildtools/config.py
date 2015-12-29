@@ -76,8 +76,8 @@ class BaseConfig(object):
     def __setitem__(self, key, value):
         return self.cfg.__setitem__(key, value)
 
-    def get(self, key, default=None):
-        parts = key.split('.')
+    def get(self, key, default=None, delim='.'):
+        parts = key.split(delim)
         try:
             value = self.cfg[parts[0]]
             if len(parts) == 1:
@@ -88,8 +88,8 @@ class BaseConfig(object):
         except (KeyError, TypeError):
             return default
 
-    def set(self, key, value):
-        parts = key.split('.')
+    def set(self, key, value, delim='.'):
+        parts = key.split(delim)
         try:
             if len(parts) == 1:
                 self.cfg[parts[0]] = value
@@ -101,7 +101,7 @@ class BaseConfig(object):
             return
 
 
-class _ConfigFile(BaseConfig):
+class ConfigFile(BaseConfig):
 
     def __init__(self, filename, default={}, template_dir='.', variables={}):
         env_vars = salty_jinja_envs()
@@ -123,8 +123,14 @@ class _ConfigFile(BaseConfig):
                     log.warn('File not found, loading defaults.')
                     self.dump_to_file(filename, defaults)
 
-            template = self.environment.get_template(filename)
-            rendered = template.render(variables)
+            rendered = ''
+            try:
+                template = self.environment.get_template(filename)
+                rendered = template.render(variables)
+            except jinja2.exceptions.TemplateNotFound:
+                log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
+                with open(filename, 'r') as f:
+                    rendered = f.read()
 
             newcfg = self.load_from_string(rendered)
             if merge:
@@ -153,7 +159,7 @@ class _ConfigFile(BaseConfig):
         return {}
 
 
-class YAMLConfig(_ConfigFile):
+class YAMLConfig(ConfigFile):
 
     def __init__(self, filename, default={}, template_dir='.', variables={}):
         super(YAMLConfig, self).__init__(filename, default, template_dir, variables)
@@ -175,7 +181,7 @@ class Config(YAMLConfig):
         super(Config, self).__init__(filename, default, template_dir, variables)
 
 
-class TOMLConfig(_ConfigFile):
+class TOMLConfig(ConfigFile):
 
     def __init__(self, filename, default={}, template_dir='.', variables={}):
         super(TOMLConfig, self).__init__(filename, default, template_dir, variables)
