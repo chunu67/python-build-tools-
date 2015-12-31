@@ -24,15 +24,46 @@ SOFTWARE.
 '''
 import os
 import yaml
-import glob
+import collections
 import jinja2
 import sys
 
 from buildtools.bt_logging import log
+from buildtools.os_utils import ensureDirExists
 import fnmatch
 from buildtools.ext.salt.jinja_ext import salty_jinja_envs
 
 # Old variables.
+
+
+def delimget(cfg, key, default=None, delim='.'):
+    parts = key.split(delim)
+    try:
+        value = cfg[parts[0]]
+        if len(parts) == 1:
+            return value
+        for part in parts[1:]:
+            value = value[part]
+        return value
+    except (KeyError, TypeError):
+        return default
+
+
+def delimset(cfg, key, value, delim='.'):
+    parts = key.split(delim)
+    try:
+        if len(parts) == 1:
+            cfg[parts[0]] = value
+        if parts[0] not in cfg:
+            cfg[parts[0]] = collections.OrderedDict()
+        L = cfg[parts[0]]
+        for part in parts[1:-1]:
+            if part not in L:
+                L[part] = collections.OrderedDict()
+            L = L[part]
+        L[parts[-1]] = value
+    except (KeyError, TypeError):
+        return
 
 
 def replace_var(input, varname, replacement):
@@ -77,28 +108,10 @@ class BaseConfig(object):
         return self.cfg.__setitem__(key, value)
 
     def get(self, key, default=None, delim='.'):
-        parts = key.split(delim)
-        try:
-            value = self.cfg[parts[0]]
-            if len(parts) == 1:
-                return value
-            for part in parts[1:]:
-                value = value[part]
-            return value
-        except (KeyError, TypeError):
-            return default
+        return delimget(self.cfg, key, default, delim)
 
     def set(self, key, value, delim='.'):
-        parts = key.split(delim)
-        try:
-            if len(parts) == 1:
-                self.cfg[parts[0]] = value
-            L = self.cfg[parts[0]]
-            for part in parts[1:-1]:
-                L = L[part]
-            L[parts[-1]] = value
-        except (KeyError, TypeError):
-            return
+        delimset(self.cfg, key, value, delim)
 
 
 class ConfigFile(BaseConfig):
@@ -121,22 +134,24 @@ class ConfigFile(BaseConfig):
                     return False
                 else:
                     log.warn('File not found, loading defaults.')
+                    ensureDirExists(os.path.dirname(filename))
                     self.dump_to_file(filename, defaults)
 
-            rendered = ''
-            try:
-                template = self.environment.get_template(filename)
-                rendered = template.render(variables)
-            except jinja2.exceptions.TemplateNotFound:
-                log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
-                with open(filename, 'r') as f:
-                    rendered = f.read()
+            if os.path.isfile(filename):
+                rendered = ''
+                try:
+                    template = self.environment.get_template(filename)
+                    rendered = template.render(variables)
+                except jinja2.exceptions.TemplateNotFound:
+                    log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
+                    with open(filename, 'r') as f:
+                        rendered = f.read()
 
-            newcfg = self.load_from_string(rendered)
-            if merge:
-                self.cfg = dict_merge(self.cfg, newcfg)
-            else:
-                self.cfg = newcfg
+                newcfg = self.load_from_string(rendered)
+                if merge:
+                    self.cfg = dict_merge(self.cfg, newcfg)
+                else:
+                    self.cfg = newcfg
         return True
 
     def Save(self, filename):
