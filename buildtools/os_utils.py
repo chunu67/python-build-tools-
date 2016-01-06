@@ -30,7 +30,7 @@ import shutil
 import platform
 import time
 import re
-import threading
+import zipfile
 
 from subprocess import CalledProcessError
 from functools import reduce
@@ -45,6 +45,7 @@ buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 scripts_dir = os.path.join(buildtools_dir, 'scripts')
 
 REG_EXCESSIVE_WHITESPACE = re.compile(r'\s{2,}')
+PLATFORM = platform.system()
 
 
 def clock():
@@ -103,9 +104,15 @@ class BuildEnv(object):
         key=self.getKey(key)
         self.env[key]=delim.join(ENV.env[key].split(delim)+[value])
 
+    def dumpToLog(self,keys=None):
+        if keys is None:
+            keys=self.env.keys()
+        ENV.dump(self.env,keys)
+
     @classmethod
-    def dump(cls, env):
+    def dump(cls, env, keys=None):
         for key, value in sorted(env.iteritems()):
+            if keys is not None and key not in keys: continue
             log.info('+{0}="{1}"'.format(key, value))
 
 
@@ -190,9 +197,16 @@ def which(program):
         if is_executable(program):
             return program
     else:
-        for path in os.environ["PATH"].split(os.pathsep):
+        for path in ENV.env["PATH"].split(os.pathsep):
             path = path.strip('"')
             exe_file = os.path.join(path, program)
+            if sys.platform == 'win32':
+                for ext in ENV.env["PATHEXT"].split(','):
+                    proposed_file=exe_file+""
+                    if not proposed_file.endswith(ext):
+                        proposed_file += ext
+                        if os.path.isfile(proposed_file):
+                            exe_file=proposed_file
             if is_executable(exe_file):
                 return exe_file
     return None
@@ -422,27 +436,47 @@ def decompressFile(archive):
     '''
     Decompresses the file to the current working directory.
     '''
-    print('Trying to decompress ' + archive)
+    #print('Trying to decompress ' + archive)
     if archive.endswith('.tar.gz') or archive.endswith('.tgz'):
+        if PLATFORM == 'Windows':
+            archive = cygpath(archive)
         cmd(['tar', 'xzf', archive], echo=True, show_output=False, critical=True)
         return True
-    elif archive.endswith('.tar.bz') or archive.endswith('.tbz'):
+    elif archive.endswith('.tar.bz2') or archive.endswith('.tbz'):
+        if PLATFORM == 'Windows':
+            archive = cygpath(archive)
         cmd(['tar', 'xjf', archive], echo=True, show_output=False, critical=True)
         return True
     elif archive.endswith('.tar.xz'):
+        if PLATFORM == 'Windows':
+            archive = cygpath(archive)
         cmd(['tar', 'xJf', archive], echo=True, show_output=False, critical=True)
         return True
     elif archive.endswith('.tar.7z'):
-        cmd(['7za', 'x', archive], echo=True, show_output=False, critical=True)
-        cmd(['tar', 'xf', archive[:-3]], echo=Tru, show_output=False, critical=True)
-        os.remove(path[-3])
+        cmd(['7za', 'x', '-aoa', archive], echo=True, show_output=False, critical=True)
+        if PLATFORM == 'Windows':
+            archive = cygpath(archive)
+        cmd(['tar', 'xf', archive[:-3]], echo=True, show_output=False, critical=True)
+        os.remove(path[:-3])
         return True
+    elif archive.endswith('.7z'):
+        if PLATFORM == 'Windows':
+            archive = cygpath(archive)
+        cmd(['7za', 'x', '-aoa', archive], echo=True, show_output=False, critical=True)
     elif archive.endswith('.zip'):
-        cmd(['unzip', archive[:-3]], echo=True, show_output=False, critical=True)
+        # unzip is unstable on Windows.
+        #cmd(['unzip', archive[:-4]], echo=True, show_output=False, critical=True)
+        with zipfile.ZipFile(archive) as arch:
+            arch.extractall('.')
         return True
+    elif archive.endswith('.rar'):
+        #if PLATFORM == 'Windows':
+        #    archive = cygpath(archive)
+        cmd(['7z', 'x', '-aoa', archive], echo=True, show_output=False, critical=True)
     else:
         log.critical(u'Unknown file extension: %s', archive)
     return False
+
 
 ENV = BuildEnv()
 
