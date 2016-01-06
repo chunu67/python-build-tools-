@@ -1,7 +1,7 @@
 '''
 ELF Utilities
 
-Copyright (c) 2015 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
+Copyright (c) 2015 - 2016 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -39,18 +39,18 @@ class ELFInfo:
     LDPATHS = None
     def __init__(self, path, ld_library_path=None):
         self.path = path
-        
+
         self.needed = []
         self.rpath = []
         self.runpath = []
         self.interpreter = None
-        
+
         self.f = open(path, 'rb')
         self.elf = ELFFile(self.f)
-        
+
     def Close(self):
         self.f.close()
-            
+
     def Load(self):
         libs = []
         for segment in self.elf.iter_segments():
@@ -59,25 +59,25 @@ class ELFInfo:
                 self.needed += [os.path.normpath(self.interpreter)]
             elif segment.header.p_type == 'PT_DYNAMIC':
                 for tag in segment.iter_tags():
-                    if tag.entry.d_tag == 'DT_NEEDED': 
+                    if tag.entry.d_tag == 'DT_NEEDED':
                         libs += [tag.needed]
-                    # if tag.entry.d_tag == 'DT_RPATH': 
+                    # if tag.entry.d_tag == 'DT_RPATH':
                     #    self.setRawRPath(tag.rpath)
-                    # if tag.entry.d_tag == 'DT_RUNPATH': 
+                    # if tag.entry.d_tag == 'DT_RUNPATH':
                     #    self.setRawRunPath(tag.runpath)
         for lib in libs:
             self.needed += [self.findLib(lib)]
-        
+
     def setRawRunPath(self, runpath_data):
         if len(self.rpath) > 0:
             self.rpath = []
         self.runpath = self._ParseLdPaths(runpath_data)
-        
+
     def setRawRPath(self, rpath_data):
         if len(self.runpath) > 0:
             return
         self.rpath = self._ParseLdPaths(rpath_data)
-        
+
     def findLib(self, givenname):
         if self.LDPATHS is None:
             self.LDPATHS = ldpaths()
@@ -95,7 +95,7 @@ class ELFInfo:
                     return lib
                 log.info('%s (!= %s), skipped',dbg,myclass)
         return givenname
-    
+
     def getElfClass(self):
         """ Return the ELF Class
         """
@@ -140,4 +140,4 @@ def ldpaths(ld_so_conf='/etc/ld.so.conf'):
     paths = list(set(paths))
     paths.sort()
     return paths
-                
+

@@ -1,7 +1,7 @@
 '''
 Salty Configuration, meaning that a bunch of this code is stolen from Salt :V
 
-Copyright (c) 2015 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
+Copyright (c) 2015 - 2016 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,16 +23,72 @@ SOFTWARE.
 
 '''
 import os
-import yaml
-import glob
+import collections
 import jinja2
 import sys
 
 from buildtools.bt_logging import log
+from buildtools.os_utils import ensureDirExists
 import fnmatch
 from buildtools.ext.salt.jinja_ext import salty_jinja_envs
 
-# Old variables.
+def delimget(cfg, key, default=None, delim='.'):
+    parts = key.split(delim)
+    try:
+        value = cfg[parts[0]]
+        if len(parts) == 1:
+            return value
+        for part in parts[1:]:
+            value = value[part]
+        return value
+    except (KeyError, TypeError):
+        return default
+
+def delimset(cfg, key, value, delim='.'):
+    parts = key.split(delim)
+    try:
+        if len(parts) == 1:
+            cfg[parts[0]] = value
+        if parts[0] not in cfg:
+            cfg[parts[0]] = collections.OrderedDict()
+        L = cfg[parts[0]]
+        for part in parts[1:-1]:
+            if part not in L:
+                L[part] = collections.OrderedDict()
+            L = L[part]
+        L[parts[-1]] = value
+    except (KeyError, TypeError):
+        return
+
+def flattenDict(cfg, delim='/', ppath=[], out=None):
+    if out is None:
+        out = collections.OrderedDict()
+    for key, value in cfg.iteritems():
+        cpath = ppath + [key]
+        strpath = delim.join(cpath)
+        if isinstance(value, dict):
+            flattenDict(value, delim, cpath, out)
+        elif isinstance(value, (list, set)):
+            flattenList(value, delim, cpath, out)
+        else:
+            out[strpath] = value
+    return out
+
+
+def flattenList(cfg, delim='/', ppath=[], out=None):
+    if out is None:
+        out = collections.OrderedDict()
+    for key, value in enumerate(cfg):
+        cpath = ppath + [key]
+        strpath = delim.join(cpath)
+        if isinstance(value, dict):
+            flattenDict(value, delim, cpath, out)
+        elif isinstance(value, (list, set)):
+            flattenList(value, delim, cpath, out)
+        else:
+            out[strpath] = value
+    return out
+
 def replace_var(input, varname, replacement):
     return input.replace('%%' + varname + '%%', replacement)
 
@@ -63,13 +119,31 @@ def dict_merge(a, b, path=None):
     return a
 
 
-class Config(object):
+class BaseConfig(object):
+
+    def __init__(self):
+        self.cfg = {}
+
+    def __getitem__(self, key):
+        return self.cfg.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        return self.cfg.__setitem__(key, value)
+
+    def get(self, key, default=None, delim='.'):
+        return delimget(self.cfg, key, default, delim)
+
+    def set(self, key, value, delim='.'):
+        delimset(self.cfg, key, value, delim)
+
+
+class ConfigFile(BaseConfig):
 
     def __init__(self, filename, default={}, template_dir='.', variables={}):
         env_vars = salty_jinja_envs()
         env_vars['loader'] = jinja2.loaders.FileSystemLoader(template_dir)
         self.environment = jinja2.Environment(**env_vars)
-        self.cfg={}
+        self.cfg = {}
         if filename is None:
             self.cfg = default
         else:
@@ -83,18 +157,28 @@ class Config(object):
                     return False
                 else:
                     log.warn('File not found, loading defaults.')
-                    with open(filename, 'w') as f:
-                        yaml.dump(defaults, f, default_flow_style=False)
+                    ensureDirExists(os.path.dirname(filename))
+                    self.dump_to_file(filename, defaults)
 
-            template = self.environment.get_template(filename)
-            rendered = template.render(variables)
+            if os.path.isfile(filename):
+                rendered = ''
+                try:
+                    template = self.environment.get_template(filename)
+                    rendered = template.render(variables)
+                except jinja2.exceptions.TemplateNotFound:
+                    log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
+                    with open(filename, 'r') as f:
+                        rendered = f.read()
 
-            newcfg = yaml.load(rendered)
-            if merge:
-                self.cfg = dict_merge(self.cfg, newcfg)
-            else:
-                self.cfg = newcfg
+                newcfg = self.load_from_string(rendered)
+                if merge:
+                    self.cfg = dict_merge(self.cfg, newcfg)
+                else:
+                    self.cfg = newcfg
         return True
+
+    def Save(self, filename):
+        self.dump_to_file(filename, self.cfg)
 
     def LoadFromFolder(self, path, pattern='*.yml', variables={}):
         'For conf.d/ stuff.'
@@ -106,35 +190,50 @@ class Config(object):
         # for filename in glob.glob(os.path.join(path,pattern)):
         #    self.Load(filename, merge=True)
 
-    def __getitem__(self, key):
-        return self.cfg.__getitem__(key)
+    def dump_to_file(self, filename, cfg):
+        pass
 
-    def __setitem__(self, key, value):
-        return self.cfg.__setitem__(key)
+    def load_from_string(self, string):
+        return {}
 
-    def get(self, key, default=None):
-        parts = key.split('.')
-        try:
-            value = self.cfg[parts[0]]
-            if len(parts) == 1:
-                return value
-            for part in parts[1:]:
-                value = value[part]
-            return value
-        except (KeyError, TypeError):
-            return default
 
-    def set(self, key, value):
-        parts = key.split('.')
-        try:
-            if len(parts) == 1:
-                self.cfg[parts[0]] = value
-            L = self.cfg[parts[0]]
-            for part in parts[1:-1]:
-                L = L[part]
-            L[parts[-1]] = value
-        except (KeyError, TypeError):
-            return
+class YAMLConfig(ConfigFile):
+
+    def __init__(self, filename, default={}, template_dir='.', variables={}):
+        super(YAMLConfig, self).__init__(filename, default, template_dir, variables)
+
+    def dump_to_file(self, filename, data):
+        import yaml
+        with open(filename, 'w') as f:
+            yaml.dump(data, f, default_flow_style=False)
+
+    def load_from_string(self, string):
+        import yaml
+        return yaml.load(string)
+
+
+class Config(YAMLConfig):
+
+    '''DEPRECATED: Use YAMLConfig instead.'''
+
+    def __init__(self, filename, default={}, template_dir='.', variables={}):
+        log.warn('Config class is deprecated.  Use YAMLConfig instead.')
+        super(Config, self).__init__(filename, default, template_dir, variables)
+
+
+class TOMLConfig(ConfigFile):
+
+    def __init__(self, filename, default={}, template_dir='.', variables={}):
+        super(TOMLConfig, self).__init__(filename, default, template_dir, variables)
+
+    def dump_to_file(self, filename, data):
+        import toml
+        with open(filename, 'w') as f:
+            f.write(toml.dumps(data))
+
+    def load_from_string(self, string):
+        import toml
+        return toml.loads(string)
 
 
 class Properties(object):

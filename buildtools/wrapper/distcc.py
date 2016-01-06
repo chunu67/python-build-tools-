@@ -1,7 +1,7 @@
 '''
 DistCC stuff
 
-Copyright (c) 2015 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
+Copyright (c) 2015 - 2016 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

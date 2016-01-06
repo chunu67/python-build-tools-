@@ -1,7 +1,7 @@
 '''
 General-Purpose Utilities.
 
-Copyright (c) 2015 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
+Copyright (c) 2015 - 2016 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,11 +22,35 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
+
+import hashlib
+
+
 def getClass(thing):
     return thing.__class__
+
 
 def getClassName(thing):
     return getClass(thing).name
 
+
 def bool2yn(b):
-  return 'Y' if b else 'N'
+    return 'Y' if b else 'N'
+
+
+def hashfile(afile, hasher, blocksize=65536):
+    buf = afile.read(blocksize)
+    while len(buf) > 0:
+        hasher.update(buf)
+        buf = afile.read(blocksize)
+    return hasher.hexdigest()
+
+
+def md5sum(filename, blocksize=65536):
+    with open(filename, 'rb') as f:
+        return hashfile(f, hashlib.md5())
+
+
+def sha256sum(filename, blocksize=65536):
+    with open(filename, 'rb') as f:
+        return hashfile(f, hashlib.sha256())

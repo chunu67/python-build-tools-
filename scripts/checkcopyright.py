@@ -30,7 +30,7 @@ import jinja2
 from datetime import date
 import argparse
 
-REG_COPYHOLDER = re.compile('copyright \(c\)\s*(?P<years>[0-9\-]+) (?P<holder>.*)$', re.IGNORECASE)
+REG_COPYHOLDER = re.compile('copyright \(c\)\s*(?P<years>[0-9\- ]+) (?P<holder>.*)$', re.IGNORECASE)
 
 
 class CopyrightChecker(object):
@@ -70,7 +70,7 @@ class CopyrightChecker(object):
         if line[:-3].rstrip() != '' and not new_header:
             outf.write(line[:-3].rstrip() + "\n")
 
-    def scanFile(self, infilename,outfilename):
+    def scanFile(self, infilename, outfilename):
         headerBuf = ''
         docBuf = ''
         hasReadHeader = ''
@@ -126,12 +126,12 @@ class CopyrightChecker(object):
                 if ext not in exts:
                     #print(' Skipping {} ({})'.format(relpath, ext))
                     continue
-                
-                relpathchunks=relpath.split(os.sep)
-                print(repr(relpathchunks))
-                relpathchunks[0]+='-fixed'
-                fixedpath=os.sep.join(relpathchunks)
-                fixedpathdir=os.path.dirname(fixedpath)
+
+                relpathchunks = relpath.split(os.sep)
+                # print(repr(relpathchunks))
+                relpathchunks[0] += '-fixed'
+                fixedpath = os.sep.join(relpathchunks)
+                fixedpathdir = os.path.dirname(fixedpath)
                 if not os.path.isdir(fixedpathdir):
                     os.makedirs(fixedpathdir)
                 self.scanFile(fullpath, fixedpath)
@@ -156,4 +156,7 @@ if __name__ == '__main__':
 
     legal = CopyrightChecker(args.license, args.holder, args.year)
     for path in args.path:
-        legal.scanFiles(path)
+        if os.path.isdir(path):
+            legal.scanFiles(path)
+        elif os.path.isfile(path):
+            legal.scanFile(path, path + '.fixed')
