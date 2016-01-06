@@ -1,25 +1,26 @@
 '''
 Taken from salt: salt/utils/jinja.py
-https://github.com/saltstack/salt/blob/develop/salt/utils/jinja.py
 
-   Copyright 2014 SaltStack Team
+Copyright (c) 2015 - 2016 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-       http://www.apache.org/licenses/LICENSE-2.0
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-   
-N3X15 4/22/2015
-    - Modified to not require salt to use. This is too nifty to require dragging salt around.
-    - Bumped some infos up to warnings. 
-    - Added salty_ninja_envs() so I don't have to stick this giant header into config.py
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 '''
 
 # Import python libs
@@ -68,7 +69,7 @@ def salty_jinja_envs(trim_blocks=False,lstrip_blocks=False):
     if lstrip_blocks:
         log.debug('Jinja2 lstrip_blocks is enabled')
         env_args['lstrip_blocks'] = True
-    
+
     return env_args
 
 # To dump OrderedDict objects as regular dicts. Used by the yaml

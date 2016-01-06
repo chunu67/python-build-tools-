@@ -1,7 +1,7 @@
 '''
 Salty Configuration, meaning that a bunch of this code is stolen from Salt :V
 
-Copyright (c) 2015 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
+Copyright (c) 2015 - 2016 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,6 @@ SOFTWARE.
 
 '''
 import os
-import yaml
 import collections
 import jinja2
 import sys
@@ -32,9 +31,6 @@ from buildtools.bt_logging import log
 from buildtools.os_utils import ensureDirExists
 import fnmatch
 from buildtools.ext.salt.jinja_ext import salty_jinja_envs
-
-# Old variables.
-
 
 def delimget(cfg, key, default=None, delim='.'):
     parts = key.split(delim)
@@ -47,7 +43,6 @@ def delimget(cfg, key, default=None, delim='.'):
         return value
     except (KeyError, TypeError):
         return default
-
 
 def delimset(cfg, key, value, delim='.'):
     parts = key.split(delim)
@@ -65,6 +60,34 @@ def delimset(cfg, key, value, delim='.'):
     except (KeyError, TypeError):
         return
 
+def flattenDict(cfg, delim='/', ppath=[], out=None):
+    if out is None:
+        out = collections.OrderedDict()
+    for key, value in cfg.iteritems():
+        cpath = ppath + [key]
+        strpath = delim.join(cpath)
+        if isinstance(value, dict):
+            flattenDict(value, delim, cpath, out)
+        elif isinstance(value, (list, set)):
+            flattenList(value, delim, cpath, out)
+        else:
+            out[strpath] = value
+    return out
+
+
+def flattenList(cfg, delim='/', ppath=[], out=None):
+    if out is None:
+        out = collections.OrderedDict()
+    for key, value in enumerate(cfg):
+        cpath = ppath + [key]
+        strpath = delim.join(cpath)
+        if isinstance(value, dict):
+            flattenDict(value, delim, cpath, out)
+        elif isinstance(value, (list, set)):
+            flattenList(value, delim, cpath, out)
+        else:
+            out[strpath] = value
+    return out
 
 def replace_var(input, varname, replacement):
     return input.replace('%%' + varname + '%%', replacement)
@@ -180,10 +203,12 @@ class YAMLConfig(ConfigFile):
         super(YAMLConfig, self).__init__(filename, default, template_dir, variables)
 
     def dump_to_file(self, filename, data):
+        import yaml
         with open(filename, 'w') as f:
             yaml.dump(data, f, default_flow_style=False)
 
     def load_from_string(self, string):
+        import yaml
         return yaml.load(string)
 
 
@@ -202,10 +227,12 @@ class TOMLConfig(ConfigFile):
         super(TOMLConfig, self).__init__(filename, default, template_dir, variables)
 
     def dump_to_file(self, filename, data):
+        import toml
         with open(filename, 'w') as f:
             f.write(toml.dumps(data))
 
     def load_from_string(self, string):
+        import toml
         return toml.loads(string)
 
 

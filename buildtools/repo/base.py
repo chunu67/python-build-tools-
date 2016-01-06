@@ -1,7 +1,7 @@
 '''
 Base SCMRepository Class
 
-Copyright (c) 2015 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
+Copyright (c) 2015 - 2016 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ Created on Mar 28, 2015
 
 class SCMRepository(object):
     '''Logical representation of a source code repository.'''
-    
+
     def __init__(self, path, quiet=True, noisy_clone=False):
         self.path = path
         self.quiet = quiet
@@ -35,6 +35,6 @@ class SCMRepository(object):
 
     def CheckForUpdates(self, quiet=True):
         return False
-                    
+
     def Update(self, cleanup=False):
         return False

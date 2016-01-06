@@ -1,7 +1,7 @@
 '''
 ccache Wrapper
 
-Copyright (c) 2015 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
+Copyright (c) 2015 - 2016 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -36,22 +36,22 @@ def configure_ccache(cfg, cmake):
     with log.info('Configuring ccache...'):
         if not cfg.get('env.ccache.enabled', False):
             log.info('ccache disabled, skipping.')
-        
+
             # Otherwise, strange things happen.
             ENV.set('CC', _which_if_basename(ENV.get('CC','gcc') + '.real'))
             ENV.set('CXX', _which_if_basename(ENV.get('CXX','g++') + '.real'))
         else:
             CCACHE = _which_if_basename(cfg.get('bin.ccache', 'ccache'))
             DISTCC = _which_if_basename(cfg.get('bin.distcc', 'distcc'))
-            
+
             if cfg.get('env.distcc.enabled', False):
                 ENV.set('CCACHE_PREFIX', DISTCC)
 
-            # Fixes a bug where CMake sets this all incorrectly. 
+            # Fixes a bug where CMake sets this all incorrectly.
             # http://public.kitware.com/Bug/view.php?id=12274
             cmake.setFlag('CMAKE_CXX_COMPILER_ARG1', ENV.env['CXX'])
             # set_cmake_env('CMAKE_ASM_COMPILER_ARG1',ENV.env['ASM'])
-            
+
             ENV.set('CC', CCACHE + ' ' + ENV.env['CC'])
             ENV.set('CXX', CCACHE + ' ' + ENV.env['CXX'])
             # ENV.set('ASM',CCACHE + ' ' + ENV.env['ASM'])

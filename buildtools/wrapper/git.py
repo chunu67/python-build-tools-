@@ -1,7 +1,7 @@
 '''
 Git Wrapper
 
-Copyright (c) 2015 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
+Copyright (c) 2015 - 2016 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,7 @@ class Git(object):
             args.append(ref)
         try:
             ret = cmd_output(['git', 'ls-remote'] + args, echo=not quiet, critical=True)
-            if not ret: return None 
+            if not ret: return None
             stderr, stdout = ret
             o = {}
             for line in (stdout + stderr).split('\n'):
@@ -65,7 +65,7 @@ class Git(object):
             print(e)
             pass
         return None
-    
+
     @classmethod
     def GetBranch(cls, quiet=True):
         try:
@@ -78,7 +78,7 @@ class Git(object):
             print(e)
             pass
         return '[UNKNOWN]'
-    
+
     @classmethod
     def IsDirty(cls, quiet=True):
         try:
