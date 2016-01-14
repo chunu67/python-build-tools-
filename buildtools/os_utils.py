@@ -390,7 +390,7 @@ def canCopy(src, dest, **op_args):
 
 def single_copy(fromfile, newroot, **op_args):
     newfile = os.path.join(newroot, os.path.basename(fromfile))
-    if op_args.get('force_file', False) or '.' in newroot:
+    if op_args.get('as_file', False) or '.' in newroot:
         newfile = newroot
     if canCopy(fromfile, newfile, **op_args):
         if op_args.get('verbose', False):
