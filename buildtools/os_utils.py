@@ -72,23 +72,25 @@ class BuildEnv(object):
             self.env = initial
         else:
             self.env = os.environ
-        self.keycapmap = {k.upper():k for k in self.env}
-        self.noisy=True
+        self.keycapmap = {k.upper(): k for k in self.env}
+        self.noisy = True
 
-    def getKey(self,key):
-        okey=key
-        key=key.upper()
+    def getKey(self, key):
+        okey = key
+        key = key.upper()
         if key not in self.keycapmap:
-            self.keycapmap[key]=okey
+            self.keycapmap[key] = okey
         return self.keycapmap[key]
 
-    def set(self, key, val):
-        key=self.getKey(key)
-        log.info('Build env: {} = {}'.format(key, val))
+    def set(self, key, val,noisy=None):
+        if noisy is None:
+            noisy=self.noisy
+        key = self.getKey(key)
+        if noisy: log.info('Build env: {} = {}'.format(key, val))
         self.env[key] = val
 
     def get(self, key, default=None):
-        key=self.getKey(key)
+        key = self.getKey(key)
         if key not in self.env:
             return default
         return self.env[key]
@@ -96,23 +98,75 @@ class BuildEnv(object):
     def merge(self, newvars):
         self.env = dict(self.env, **newvars)
 
-    def prependTo(self,key,value,delim=';'):
-        key=self.getKey(key)
-        self.env[key]=delim.join([value]+ENV.env[key].split(delim))
+    def prependTo(self, key, value, delim=';', noisy=None):
+        if noisy is None:
+            noisy=self.noisy
+        key = self.getKey(key)
+        if noisy: log.info('Build env: {} prepended: {}'.format(key, value))
+        self.env[key] = delim.join([value] + ENV.env[key].split(delim))
 
-    def appendTo(self,key,value,delim=';'):
-        key=self.getKey(key)
-        self.env[key]=delim.join(ENV.env[key].split(delim)+[value])
+    def appendTo(self, key, value, delim=';', noisy=None):
+        if noisy is None:
+            noisy=self.noisy
+        key = self.getKey(key)
+        if noisy: log.info('Build env: {} appended: {}'.format(key, value))
+        self.env[key] = delim.join(ENV.env[key].split(delim) + [value])
 
-    def dumpToLog(self,keys=None):
+    def clone(self):
+        return BuildEnv(self.env.copy())
+
+    def dumpToLog(self, keys=None):
         if keys is None:
-            keys=self.env.keys()
-        ENV.dump(self.env,keys)
+            keys = self.env.keys()
+        ENV.dump(self.env, keys)
+
+    def which(self, program, skip_paths=[]):
+        fpath, _ = os.path.split(program)
+        if fpath:
+            if is_executable(program):
+                return program
+        else:
+            for path in self.get("PATH").split(os.pathsep):
+                path = path.strip('"')
+                is_skipped_path=False
+                for badpath in skip_paths:
+                    if badpath.lower() in path.lower():
+                        is_skipped_path=True
+                        break
+                if is_skipped_path:
+                    continue
+                exe_file = os.path.join(path, program)
+                if sys.platform == 'win32':
+                    for ext in self.get("PATHEXT").split(os.pathsep):
+                        proposed_file = exe_file + ""
+                        if not proposed_file.endswith(ext):
+                            proposed_file += ext
+                            if os.path.isfile(proposed_file):
+                                exe_file = proposed_file
+                                #print('{}: {}'.format(exe_file,ext))
+                                break
+                if is_executable(exe_file):
+                    return exe_file
+        return None
+
+    def removeDuplicatedEntries(self,key,noisy=None,delim=os.pathsep):
+        if noisy is None:
+            noisy=self.noisy
+        newlist=[]
+        key=self.getKey(key)
+        for entry in self.env[key].split(delim):
+            entry = entry.strip('"')
+            if entry in newlist:
+                if noisy: log.info('Build env: Removing %r from %s: duplicated entry.',entry,key)
+                continue
+            newlist+=[entry]
+        self.env[key]=delim.join(newlist)
 
     @classmethod
     def dump(cls, env, keys=None):
         for key, value in sorted(env.iteritems()):
-            if keys is not None and key not in keys: continue
+            if keys is not None and key not in keys:
+                continue
             log.info('+{0}="{1}"'.format(key, value))
 
 
@@ -185,31 +239,11 @@ class Chdir(object):
 
 
 def is_executable(fpath):
-    if sys.platform == 'win32':
-        if not fpath.endswith('.exe'):
-            fpath += '.exe'
     return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
 
 def which(program):
-    fpath, _ = os.path.split(program)
-    if fpath:
-        if is_executable(program):
-            return program
-    else:
-        for path in ENV.env["PATH"].split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if sys.platform == 'win32':
-                for ext in ENV.env["PATHEXT"].split(','):
-                    proposed_file=exe_file+""
-                    if not proposed_file.endswith(ext):
-                        proposed_file += ext
-                        if os.path.isfile(proposed_file):
-                            exe_file=proposed_file
-            if is_executable(exe_file):
-                return exe_file
-    return None
+    return ENV.which(program)
 
 
 def assertWhich(program, fail_raise=False):
@@ -354,8 +388,10 @@ def canCopy(src, dest, **op_args):
     return not os.path.isfile(dest) or op_args.get('ignore_mtime', False) or (os.stat(src).st_mtime - os.stat(dest).st_mtime > 1)
 
 
-def _op_copy(fromfile, newroot, **op_args):
+def single_copy(fromfile, newroot, **op_args):
     newfile = os.path.join(newroot, os.path.basename(fromfile))
+    if op_args.get('force_file', False) or '.' in newroot:
+        newfile = newroot
     if canCopy(fromfile, newfile, **op_args):
         if op_args.get('verbose', False):
             log.info('Copying {} -> {}'.format(fromfile, newfile))
@@ -363,7 +399,7 @@ def _op_copy(fromfile, newroot, **op_args):
 
 
 def copytree(fromdir, todir, ignore=None, verbose=False, ignore_mtime=False):
-    optree(fromdir, todir, _op_copy, ignore,
+    optree(fromdir, todir, single_copy, ignore,
            verbose=verbose, ignore_mtime=ignore_mtime)
 
 
@@ -437,26 +473,27 @@ def decompressFile(archive):
     Decompresses the file to the current working directory.
     '''
     #print('Trying to decompress ' + archive)
+    tarpath=ENV.which('tar',skip_paths=['mingw']) # MinGW tar is broken, just throws errors (Jan 9 2016)
     if archive.endswith('.tar.gz') or archive.endswith('.tgz'):
-        if PLATFORM == 'Windows':
+        if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
             archive = cygpath(archive)
-        cmd(['tar', 'xzf', archive], echo=True, show_output=False, critical=True)
+        cmd([tarpath, 'xzf', archive], echo=True, show_output=False, critical=True)
         return True
     elif archive.endswith('.tar.bz2') or archive.endswith('.tbz'):
-        if PLATFORM == 'Windows':
+        if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
             archive = cygpath(archive)
-        cmd(['tar', 'xjf', archive], echo=True, show_output=False, critical=True)
+        cmd([tarpath, 'xjf', archive], echo=True, show_output=False, critical=True)
         return True
     elif archive.endswith('.tar.xz'):
-        if PLATFORM == 'Windows':
+        if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
             archive = cygpath(archive)
-        cmd(['tar', 'xJf', archive], echo=True, show_output=False, critical=True)
+        cmd([tarpath, 'xJf', archive], echo=True, show_output=False, critical=True)
         return True
     elif archive.endswith('.tar.7z'):
         cmd(['7za', 'x', '-aoa', archive], echo=True, show_output=False, critical=True)
-        if PLATFORM == 'Windows':
+        if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
             archive = cygpath(archive)
-        cmd(['tar', 'xf', archive[:-3]], echo=True, show_output=False, critical=True)
+        cmd([tarpath, 'xf', archive[:-3]], echo=True, show_output=False, critical=True)
         os.remove(path[:-3])
         return True
     elif archive.endswith('.7z'):
@@ -470,7 +507,7 @@ def decompressFile(archive):
             arch.extractall('.')
         return True
     elif archive.endswith('.rar'):
-        #if PLATFORM == 'Windows':
+        # if PLATFORM == 'Windows':
         #    archive = cygpath(archive)
         cmd(['7z', 'x', '-aoa', archive], echo=True, show_output=False, critical=True)
     else:

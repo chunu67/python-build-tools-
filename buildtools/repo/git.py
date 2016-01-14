@@ -73,7 +73,10 @@ class GitRepository(SCMRepository):
                 # self.remotes[remoteID]=line[2]
                 return line[2]
 
-    def UpdateRemotes(self):
+    def UpdateRemotes(self,remote=None):
+        if remote is not None:
+            self.remotes[remote]=self._getRemoteInfo(remote)
+            return True
         stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=not self.quiet)
         for line in (stdout + stderr).split('\n'):
             line = line.strip()
@@ -85,9 +88,9 @@ class GitRepository(SCMRepository):
             self.remotes[line] = self._getRemoteInfo(line)
         return True
 
-    def GetRepoState(self):
+    def GetRepoState(self,remote=None):
         with Chdir(self.path, quiet=self.quiet):
-            if self.UpdateRemotes():
+            if self.UpdateRemotes(remote):
                 self.current_branch = Git.GetBranch()
                 self.current_commit = Git.GetCommit(short=False)
 
@@ -118,7 +121,7 @@ class GitRepository(SCMRepository):
         with log:
             if not os.path.isdir(self.path):
                 return True
-            self.GetRepoState()
+            self.GetRepoState(remote)
             if not self.GetRemoteState(remote, branch):
                 return False
             if self.current_branch != branch:
@@ -131,7 +134,7 @@ class GitRepository(SCMRepository):
                 return True
         return False
 
-    def Pull(self, remote='origin', branch='master', cleanup=False):
+    def Pull(self, remote='origin', branch='master', commit=None, cleanup=False):
         if not os.path.isdir(self.path):
             cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone)
         with Chdir(self.path, quiet=self.quiet):
@@ -141,8 +144,11 @@ class GitRepository(SCMRepository):
             if self.current_branch != branch:
                 ref = 'remotes/{}/{}'.format(remote, branch)
                 cmd(['git', 'checkout', '-B', branch, ref, '--'], echo=not self.quiet, critical=True)
-            if self.current_commit != self.remote_commit:
-                cmd(['git', 'reset', '--hard', '{}/{}'.format(remote, branch)], echo=not self.quiet, critical=True)
+            if commit is not None:
+                cmd(['git', 'checkout', commit], echo=not self.quiet, critical=True)
+            else:
+                if self.current_commit != self.remote_commit:
+                    cmd(['git', 'reset', '--hard', '{}/{}'.format(remote, branch)], echo=not self.quiet, critical=True)
         return True
 
     def UpdateSubmodules(self, remote=False):

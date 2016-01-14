@@ -42,7 +42,7 @@ class CMake(object):
         log.info('CMake: {} = {}'.format(key, val))
         self.flags[key] = val
 
-    def build(self, CMAKE='cmake', dir='.', env=None, target=None, moreflags=[]):
+    def build(self, CMAKE='cmake', dir='.', env=None, target=None, moreflags=[], env_dump=False):
         if env is None:
             env = ENV.env
         flags = ['--build', dir]
@@ -52,10 +52,10 @@ class CMake(object):
         flags += moreflags
 
         with log.info('Running CMake --build:'):
-            BuildEnv.dump(env)
+            if env_dump: BuildEnv.dump(env)
             return cmd([CMAKE] + flags, env=env, critical=True, echo=True)
 
-    def run(self, CMAKE='cmake', env=None, dir='.', moreflags=[]):
+    def run(self, CMAKE='cmake', env=None, dir='.', moreflags=[], env_dump=False):
         if env is None:
             env = ENV.env
         flags = []
@@ -69,6 +69,6 @@ class CMake(object):
         flags += moreflags
 
         with log.info('Running CMake:'):
-            BuildEnv.dump(env)
+            if env_dump: BuildEnv.dump(env)
             return cmd([CMAKE] + flags + [dir], env=env, critical=True, echo=True)
         return False
