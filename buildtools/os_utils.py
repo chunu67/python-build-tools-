@@ -102,14 +102,14 @@ class BuildEnv(object):
         if noisy is None:
             noisy=self.noisy
         key = self.getKey(key)
-        if noisy: log.info('Build env: {} prepended: {}'.format(key, value))
+        if noisy: log.info('Build env: {1} prepended to {0}'.format(key, value))
         self.env[key] = delim.join([value] + ENV.env[key].split(delim))
 
     def appendTo(self, key, value, delim=';', noisy=None):
         if noisy is None:
             noisy=self.noisy
         key = self.getKey(key)
-        if noisy: log.info('Build env: {} appended: {}'.format(key, value))
+        if noisy: log.info('Build env: {1} appended to {0}'.format(key, value))
         self.env[key] = delim.join(ENV.env[key].split(delim) + [value])
 
     def clone(self):
@@ -247,7 +247,7 @@ def which(program):
 
 
 def assertWhich(program, fail_raise=False):
-    fullpath = which(program)
+    fullpath = ENV.which(program)
     with log.info('Checking if %s exists...', program):
         if fullpath is None:
             errmsg = '{executable} is not in PATH!'.format(executable=program)
