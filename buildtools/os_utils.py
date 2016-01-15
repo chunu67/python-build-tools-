@@ -494,7 +494,7 @@ def decompressFile(archive):
         if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
             archive = cygpath(archive)
         cmd([tarpath, 'xf', archive[:-3]], echo=True, show_output=False, critical=True)
-        os.remove(path[:-3])
+        os.remove(archive[:-3])
         return True
     elif archive.endswith('.7z'):
         if PLATFORM == 'Windows':
