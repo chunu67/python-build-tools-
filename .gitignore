@@ -53,3 +53,5 @@ docs/_build/
 # PyBuilder
 target/
 *.bak
+/buildtools-fixed
+/scripts-fixed

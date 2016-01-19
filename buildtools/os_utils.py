@@ -171,7 +171,7 @@ class BuildEnv(object):
 
 
 def ensureDirExists(path, mode=0o777, noisy=False):
-    if not os.path.isdir(path):
+    if path != '' and not os.path.isdir(path):
         os.makedirs(path, mode)
         if noisy:
             log.info('Created %s.', path)
