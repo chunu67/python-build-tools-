@@ -39,12 +39,11 @@ def getInputChar(prompt, valid, default):
     '''
     Get a char from the user.
     '''
-    prompt += _formatChoices(valid, default)
+    prompt += _formatChoices(valid, default)+' > '
     while True:
-        print(prompt)
-        print(' > ')
+        sys.stdout.write(prompt)
         inp = sys.stdin.read(1).lower()
-        print()
+        print('')
         if inp == '' and default is not None:
             return default
         if inp in valid:

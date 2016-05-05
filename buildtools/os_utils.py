@@ -306,13 +306,18 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
     command = _cmd_handle_args(command)
     if echo:
         log.info('$ ' + (' '.join(command)))
-
-    if show_output:
-        return subprocess.call(command, env=new_env, shell=False) == 0
+            
     output = ''
     try:
-        output = subprocess.check_output(command, env=new_env, stderr=subprocess.STDOUT)
-        return True
+        if show_output:
+            code = subprocess.call(command, env=new_env, shell=False)
+            success = code != 0
+            if critical and not success:
+                raise CalledProcessError(code, command)
+            return success
+        else:
+            output = subprocess.check_output(command, env=new_env, stderr=subprocess.STDOUT)
+            return True
     except CalledProcessError as cpe:
         log.error(cpe.output)
         if critical:
