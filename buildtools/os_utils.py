@@ -312,7 +312,7 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False):
         if show_output:
             code = subprocess.call(command, env=new_env, shell=False)
             success = code == 0
-            if critical and not success:
+            if critical and code:
                 raise CalledProcessError(code, command)
             return success
         else:
