@@ -274,17 +274,19 @@ def _cmd_handle_env(env):
     return new_env
 
 
-def _cmd_handle_args(command):
+def _cmd_handle_args(command, globbify):
     # Shell-style globbin'.
     new_args = []  # command[0]]
     for arg in command:  # 1:
         arg = str(arg)
-        if '*' in arg or '?' in arg:
-            new_args += glob.glob(arg)
-        elif '~' in arg:
-            new_args += [os.path.expanduser(arg)]
-        else:
-            new_args += [arg]
+        if globbify:
+            if '~' in arg:
+                arg = os.path.expanduser(arg)
+            if '*' in arg or '?' in arg:
+                new_args += glob.glob(arg)
+                continue
+
+        new_args += [arg]
     return new_args
 
 
@@ -301,9 +303,9 @@ def find_process(pid):
     return None
 
 
-def cmd(command, echo=False, env=None, show_output=True, critical=False):
+def cmd(command, echo=False, env=None, show_output=True, critical=False, globbify=True):
     new_env = _cmd_handle_env(env)
-    command = _cmd_handle_args(command)
+    command = _cmd_handle_args(command,globbify)
     if echo:
         log.info('$ ' + (' '.join(command)))
             
