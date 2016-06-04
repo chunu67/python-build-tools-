@@ -105,7 +105,7 @@ class ReactorManager:
 
 class AsyncCommand(object):
 
-    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None, debug=False):
+    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None, debug=False, globbify=True):
         
         self.echo = echo
         self.command = command
@@ -114,7 +114,7 @@ class AsyncCommand(object):
         self.stderr_callback = stderr if stderr is not None else self.default_stderr
 
         self.env = os_utils._cmd_handle_env(env)
-        self.command = os_utils._cmd_handle_args(command)
+        self.command = os_utils._cmd_handle_args(command,globbify=globbify)
 
         self.child = None
         self.refName = self.commandName = os.path.basename(self.command[0])
