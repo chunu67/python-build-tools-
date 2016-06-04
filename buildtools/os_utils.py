@@ -335,12 +335,12 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False, globbif
         return False
 
 
-def cmd_output(command, echo=False, env=None, critical=False):
+def cmd_output(command, echo=False, env=None, critical=False, globbify=True):
     '''
     :returns List[2]: (stdout,stderr)
     '''
     new_env = _cmd_handle_env(env)
-    command = _cmd_handle_args(command)
+    command = _cmd_handle_args(command, globbify)
     if echo:
         log.info('$ ' + (' '.join(command)))
 
@@ -354,9 +354,9 @@ def cmd_output(command, echo=False, env=None, critical=False):
     return False
 
 
-def cmd_daemonize(command, echo=False, env=None, critical=False):
+def cmd_daemonize(command, echo=False, env=None, critical=False, globbify=True):
     new_env = _cmd_handle_env(env)
-    command = _cmd_handle_args(command)
+    command = _cmd_handle_args(command, globbify)
     if echo:
         log.info('& ' + ' '.join(command))
 
