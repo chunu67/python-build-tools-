@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-import logging, os
+import logging, os, re
 
 class NullIndenter(object):
     def __enter__(self):
@@ -30,6 +30,27 @@ class NullIndenter(object):
 
     def __exit__(self, type, value, traceback):
         return False
+    
+_REGEX_COLOR=re.compile(r'<(red|green|yellow)>(.*)</\1>')
+_COLORSTART='\033['
+_COLOREND='m'
+
+_COLORS={
+    'red':    31,
+    'green':  32,
+    'yellow': 33
+}
+def encodeColor(colorID):
+    return _COLORSTART+str(colorID)+_COLOREND
+
+def _colorWrapper(m):
+    colorName=m.group(1)
+    text = m.group(2)
+    colorID=_COLORS[colorName]
+    return encodeColor(colorID)+text+encodeColor(0)
+    
+def colorize(text):
+    return _REGEX_COLOR.sub(_colorWrapper,text)
 
 class IndentLogger(object):
     '''
@@ -38,6 +59,7 @@ class IndentLogger(object):
     def __init__(self, logger=None):
         self.indent = 0
         self.log = logger
+        self.useAnsiColors=False
         if self.log is None:
             self.log = logging.getLogger()
 
@@ -48,6 +70,9 @@ class IndentLogger(object):
     def __exit__(self, type, value, traceback):
         self.indent -= 1
         return False
+    
+    def enableANSIColors(self,on=True):
+        self.useAnsiColors=on
 
     def debug(self, msg, *args, **kwargs):
         """
@@ -125,6 +150,8 @@ class IndentLogger(object):
         return self
 
     def _log(self, level, msg, args, exc_info=None, extra=None):
+        if self.useAnsiColors:
+            msg=colorize(msg)
         if isinstance(msg, str):
             indent = self.indent * '  '
             self.log._log(level, indent + msg, args, exc_info, extra)
