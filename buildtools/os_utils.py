@@ -64,7 +64,6 @@ def secondsToStr(t):
         reduce(lambda ll, b: divmod(ll[0], b) + ll[1:],
                [(t * 1000,), 1000, 60, 60])
 
-
 class BuildEnv(object):
 
     def __init__(self, initial=None):
@@ -307,8 +306,8 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False, globbif
     new_env = _cmd_handle_env(env)
     command = _cmd_handle_args(command,globbify)
     if echo:
-        log.info('$ ' + (' '.join(command)))
-            
+        log.info('$ ' + _args2str(command))
+        
     output = ''
     try:
         if show_output:
@@ -342,7 +341,7 @@ def cmd_output(command, echo=False, env=None, critical=False, globbify=True):
     new_env = _cmd_handle_env(env)
     command = _cmd_handle_args(command, globbify)
     if echo:
-        log.info('$ ' + (' '.join(command)))
+        log.info('$ ' + _args2str(command))
 
     try:
         return subprocess.Popen(command, env=new_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
@@ -358,7 +357,7 @@ def cmd_daemonize(command, echo=False, env=None, critical=False, globbify=True):
     new_env = _cmd_handle_env(env)
     command = _cmd_handle_args(command, globbify)
     if echo:
-        log.info('& ' + ' '.join(command))
+        log.info('& ' + _args2str(command))
 
     try:
         if platform.system() == 'Windows':
@@ -474,6 +473,14 @@ def cygpath(inpath):
     chunks[0] = chunks[0].lower()[:-1]
     return '/cygdrive/' + '/'.join(chunks)
 
+def _autoescape(string):
+    if ' ' in string:
+        return '"'+string+'"'
+    else:
+        return string
+    
+def _args2str(cmdlist):
+    return ' '.join([_autoescape(x) for x in cmdlist])
 
 def decompressFile(archive):
     '''
