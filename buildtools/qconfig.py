@@ -34,8 +34,8 @@ class QConfig(ConfigFile):
     Wrapper around QSettings.
     '''
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}):
-        super(QConfig, self).__init__(filename, default, template_dir, variables)
+    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False):
+        super(QConfig, self).__init__(filename, default, template_dir, variables, verbose)
 
     def _toPyType(self, qvar):
         if qvar.canConvert(0):

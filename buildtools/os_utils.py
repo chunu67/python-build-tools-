@@ -47,7 +47,6 @@ scripts_dir = os.path.join(buildtools_dir, 'scripts')
 REG_EXCESSIVE_WHITESPACE = re.compile(r'\s{2,}')
 PLATFORM = platform.system()
 
-
 def clock():
     if sys.platform == 'win32':
         return time.clock()

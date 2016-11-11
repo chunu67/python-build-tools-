@@ -27,7 +27,7 @@ import collections
 import jinja2
 import sys
 
-from buildtools.bt_logging import log
+from buildtools.bt_logging import log, NullIndenter
 from buildtools.os_utils import ensureDirExists
 import fnmatch
 from buildtools.ext.salt.jinja_ext import salty_jinja_envs
@@ -139,7 +139,7 @@ class BaseConfig(object):
 
 class ConfigFile(BaseConfig):
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}):
+    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False):
         env_vars = salty_jinja_envs()
         env_vars['loader'] = jinja2.loaders.FileSystemLoader(template_dir)
         self.environment = jinja2.Environment(**env_vars)
@@ -147,16 +147,19 @@ class ConfigFile(BaseConfig):
         if filename is None:
             self.cfg = default
         else:
-            self.Load(filename, merge=False, defaults=default, variables=variables)
+            self.Load(filename, merge=False, defaults=default, variables=variables, verbose=verbose)
 
-    def Load(self, filename, merge=False, defaults=None, variables={}):
-        with log.info("Loading %s...", filename):
+    def Load(self, filename, merge=False, defaults=None, variables={}, verbose=False):
+        lh = NullIndenter()
+        if verbose:
+            lh = log.info("Loading %s...", filename)
+        with lh:
             if not os.path.isfile(filename):
                 if defaults is None:
-                    log.error('Failed to load %s.', filename)
+                    if verbose: log.error('Failed to load %s.', filename)
                     return False
                 else:
-                    log.warn('File not found, loading defaults.')
+                    if verbose: log.warn('File not found, loading defaults.')
                     ensureDirExists(os.path.dirname(filename))
                     self.dump_to_file(filename, defaults)
 
@@ -166,7 +169,7 @@ class ConfigFile(BaseConfig):
                     template = self.environment.get_template(filename)
                     rendered = template.render(variables)
                 except jinja2.exceptions.TemplateNotFound:
-                    log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
+                    if verbose: log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
                     with open(filename, 'r') as f:
                         rendered = f.read()
 
@@ -180,13 +183,13 @@ class ConfigFile(BaseConfig):
     def Save(self, filename):
         self.dump_to_file(filename, self.cfg)
 
-    def LoadFromFolder(self, path, pattern='*.yml', variables={}):
+    def LoadFromFolder(self, path, pattern='*.yml', variables={}, verbose=False):
         'For conf.d/ stuff.'
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                filename = os.path.join(root, file)
-                if fnmatch.fnmatch(filename, pattern):
-                    self.Load(filename, merge=True, variables=variables)
+        for root, _, files in os.walk(path):
+            for filename in files:
+                absfilename = os.path.join(root, filename)
+                if fnmatch.fnmatch(absfilename, pattern):
+                    self.Load(absfilename, merge=True, variables=variables, verbose=verbose)
         # for filename in glob.glob(os.path.join(path,pattern)):
         #    self.Load(filename, merge=True)
 
@@ -199,8 +202,8 @@ class ConfigFile(BaseConfig):
 
 class YAMLConfig(ConfigFile):
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}):
-        super(YAMLConfig, self).__init__(filename, default, template_dir, variables)
+    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False):
+        super(YAMLConfig, self).__init__(filename, default, template_dir, variables, verbose)
 
     def dump_to_file(self, filename, data):
         import yaml
@@ -216,15 +219,15 @@ class Config(YAMLConfig):
 
     '''DEPRECATED: Use YAMLConfig instead.'''
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}):
+    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False):
         log.warn('Config class is deprecated.  Use YAMLConfig instead.')
-        super(Config, self).__init__(filename, default, template_dir, variables)
+        super(Config, self).__init__(filename, default, template_dir, variables, verbose)
 
 
 class TOMLConfig(ConfigFile):
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}):
-        super(TOMLConfig, self).__init__(filename, default, template_dir, variables)
+    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False):
+        super(TOMLConfig, self).__init__(filename, default, template_dir, variables, verbose)
 
     def dump_to_file(self, filename, data):
         import toml
