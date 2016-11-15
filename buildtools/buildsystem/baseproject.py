@@ -22,5 +22,38 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-from buildtools.buildsystem.CCompiler import CCompiler, WindowsCCompiler
-from buildtools.buildsystem.msbuild import MSBuild
+class BaseProject(object):
+    def __init__(self,name):
+        self.name=name
+        self.dependencies=[]
+        self.provides=[]
+
+    def Prepare(self,env):
+        """
+        Checks the global environment.
+
+        Runs prior to any builds.
+        :param BuildEnv env:
+            Build environment.
+        @return Success
+        """
+        return True
+
+    def Configure(self,env):
+        """
+        Checks the build environment, configures package.
+
+        Runs prior to project's build step.
+        @return Success
+        """
+        return True
+
+    def Build(self,env):
+        """
+        Builds the project. Configure is run before this step.
+        @return Success
+        """
+        return True
+
+    def Install(self,env):
+        return True

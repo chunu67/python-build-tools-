@@ -26,6 +26,7 @@ import os
 import collections
 import jinja2
 import sys
+import codecs
 
 from buildtools.bt_logging import log, NullIndenter
 from buildtools.os_utils import ensureDirExists
@@ -170,7 +171,7 @@ class ConfigFile(BaseConfig):
                     rendered = template.render(variables)
                 except jinja2.exceptions.TemplateNotFound:
                     if verbose: log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
-                    with open(filename, 'r') as f:
+                    with codecs.open(filename, 'r') as f:
                         rendered = f.read()
 
                 newcfg = self.load_from_string(rendered)
@@ -201,18 +202,39 @@ class ConfigFile(BaseConfig):
 
 
 class YAMLConfig(ConfigFile):
+    def dict_representer(self, dumper, data):
+        return dumper.represent_dict(data.iteritems())
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False):
+    def dict_constructor(self, loader, node):
+        return collections.OrderedDict(loader.construct_pairs(node))
+
+    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False, ordered_dicts=False):
+        self._ordered_dicts=False
         super(YAMLConfig, self).__init__(filename, default, template_dir, variables, verbose)
+        self._ordered_dicts=ordered_dicts
 
     def dump_to_file(self, filename, data):
         import yaml
-        with open(filename, 'w') as f:
-            yaml.dump(data, f, default_flow_style=False)
+        with codecs.open(filename, 'w', encoding='utf-8') as f:
+            dumper = yaml.Dumper(f, default_flow_style=False)
+            #if self._ordered_dicts:
+            dumper.add_representer(collections.OrderedDict, self.dict_representer)
+            try:
+                dumper.open()
+                dumper.represent(data)
+                dumper.close()
+            finally:
+                dumper.dispose()
 
     def load_from_string(self, string):
         import yaml
-        return yaml.load(string)
+        loader = yaml.Loader(string)
+        if self._ordered_dicts:
+            loader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, self.dict_constructor)
+        try:
+            return loader.get_single_data()
+        finally:
+            loader.dispose()
 
 
 class Config(YAMLConfig):

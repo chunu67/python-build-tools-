@@ -29,7 +29,7 @@ import glob
 import subprocess
 
 from buildtools.bt_logging import log
-from buildtools.os_utils import cmd_output, Chdir, cmd
+from buildtools.os_utils import cmd_output, Chdir, cmd, ENV
 from buildtools.wrapper.git import Git
 from buildtools.repo.base import SCMRepository
 
@@ -49,8 +49,11 @@ class GitRepository(SCMRepository):
         self.current_commit = None
         self.remote_commit = None
 
+        self.noPasswordEnv = ENV.clone().env
+        self.noPasswordEnv['GIT_TERMINAL_PROMPT']='0'
+
     def _git(self, args, echo=False):
-        ret = cmd_output(['git'] + args, echo=echo)
+        ret = cmd_output(['git'] + args, echo=echo, env=self.noPasswordEnv)
 
     def _getRemoteInfo(self, remoteID):
         '''
@@ -65,7 +68,7 @@ class GitRepository(SCMRepository):
           https://github.com/d3athrow/vgstation13.git
         '''
 
-        stdout, stderr = cmd_output(['git', 'remote', 'show', remoteID], echo=not self.quiet)
+        stdout, stderr = cmd_output(['git', 'remote', 'show', remoteID], echo=not self.quiet, env=self.noPasswordEnv)
         for line in (stdout + stderr).split('\n'):
             line = line.strip()
             components = line.split()
@@ -77,7 +80,7 @@ class GitRepository(SCMRepository):
         if remote is not None:
             self.remotes[remote]=self._getRemoteInfo(remote)
             return True
-        stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=not self.quiet)
+        stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=not self.quiet, env=self.noPasswordEnv)
         for line in (stdout + stderr).split('\n'):
             line = line.strip()
             if line == '':
@@ -96,7 +99,7 @@ class GitRepository(SCMRepository):
 
     def GetRemoteState(self, remote='origin', branch='master'):
         with Chdir(self.path, quiet=self.quiet):
-            ret = cmd_output(['git', 'fetch', '-q'], echo=not self.quiet)
+            ret = cmd_output(['git', 'fetch', '-q'], echo=not self.quiet, env=self.noPasswordEnv)
             if not ret:
                 return False
             stdout, stderr = ret
@@ -136,7 +139,7 @@ class GitRepository(SCMRepository):
 
     def Pull(self, remote='origin', branch='master', commit=None, cleanup=False):
         if not os.path.isdir(self.path):
-            cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone)
+            cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone, env=self.noPasswordEnv)
         with Chdir(self.path, quiet=self.quiet):
             if cleanup:
                 cmd(['git', 'clean', '-fdx'], echo=not self.quiet, critical=True)
@@ -158,7 +161,7 @@ class GitRepository(SCMRepository):
                     more_flags = []
                     if remote:
                         more_flags.append('--remote')
-                    cmd(['git', 'submodule', 'update', '--init', '--recursive'] + more_flags, echo=not self.quiet, critical=True)
+                    cmd(['git', 'submodule', 'update', '--init', '--recursive'] + more_flags, echo=not self.quiet, critical=True, env=self.noPasswordEnv)
 
     def Update(self, cleanup=False):
         return self.Pull(cleanup=cleanup)

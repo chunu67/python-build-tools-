@@ -1,5 +1,5 @@
 '''
-BLURB GOES HERE.
+MSBuild wrapper
 
 Copyright (c) 2015 - 2016 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
@@ -22,5 +22,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-from buildtools.buildsystem.CCompiler import CCompiler, WindowsCCompiler
-from buildtools.buildsystem.msbuild import MSBuild
+from buildtools import ENV, os_utils
+class MSBuild(object):
+    def __init__(self):
+        # ["msbuild", self.__solution, "/m", "/property:Configuration=Release"]
+        self.solution=''
+        self.configuration=''
+        self.platform='x86'
+        
+    def run(self, MSBUILD='msbuild', project=None, env=ENV):
+        cmd = ["msbuild", self.solution, "/m"]
+        if self.configuration!='':
+            cmd.append("/property:Configuration="+self.configuration)
+        if project is not None:
+            cmd.append("/target:"+project)
+        if self.platform is not None:
+            cmd.append('/p:Platform='+self.platform)
+        os_utils.cmd(cmd,env=env,echo=True,critical=True,show_output=True)

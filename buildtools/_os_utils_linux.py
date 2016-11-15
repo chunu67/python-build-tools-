@@ -27,7 +27,7 @@ import os
 from buildtools.bt_logging import log
 
 cmd_output = None
-
+ENV = None
 
 def InstallDpkgPackages(packages):
     import apt  # IGNORE:import-error

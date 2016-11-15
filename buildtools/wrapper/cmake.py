@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-import os
+import os, subprocess
 
 from buildtools.bt_logging import log
 from buildtools.os_utils import cmd, ENV, BuildEnv
@@ -42,7 +42,9 @@ class CMake(object):
         log.info('CMake: {} = {}'.format(key, val))
         self.flags[key] = val
 
-    def build(self, CMAKE='cmake', dir='.', env=None, target=None, moreflags=[], env_dump=False):
+    def build(self, CMAKE='cmake', dir='.', env=None, target=None, moreflags=None, env_dump=False):
+        if moreflags is None:
+            moreflags=[]
         if env is None:
             env = ENV.env
         flags = ['--build', dir]
@@ -55,9 +57,11 @@ class CMake(object):
             if env_dump: BuildEnv.dump(env)
             return cmd([CMAKE] + flags, env=env, critical=True, echo=True)
 
-    def run(self, CMAKE='cmake', env=None, dir='.', moreflags=[], env_dump=False):
+    def run(self, CMAKE='cmake', env=None, dir='.', moreflags=None, env_dump=False):
         if env is None:
             env = ENV.env
+        if moreflags is None:
+            moreflags=[]
         flags = []
 
         if self.generator is not None:

@@ -30,7 +30,7 @@ class NullIndenter(object):
 
     def __exit__(self, type, value, traceback):
         return False
-    
+
 _REGEX_COLOR=re.compile(r'<(red|green|yellow)>(.*)</\1>')
 _COLORSTART='\033['
 _COLOREND='m'
@@ -48,7 +48,7 @@ def _colorWrapper(m):
     text = m.group(2)
     colorID=_COLORS[colorName]
     return encodeColor(colorID)+text+encodeColor(0)
-    
+
 def colorize(text):
     return _REGEX_COLOR.sub(_colorWrapper,text)
 
@@ -70,7 +70,7 @@ class IndentLogger(object):
     def __exit__(self, type, value, traceback):
         self.indent -= 1
         return False
-    
+
     def enableANSIColors(self,on=True):
         self.useAnsiColors=on
 

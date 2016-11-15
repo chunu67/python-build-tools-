@@ -16,7 +16,7 @@ setup(
         "jinja2",
         "toml",
         "requests>=2.0",
-        'six'
+        'six',
     ],
     tests_require=[
         "pytest",

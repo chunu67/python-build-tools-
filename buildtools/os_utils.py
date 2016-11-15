@@ -31,6 +31,7 @@ import platform
 import time
 import re
 import zipfile
+import tarfile
 
 from subprocess import CalledProcessError
 from functools import reduce
@@ -262,7 +263,8 @@ def assertWhich(program, fail_raise=False):
 def _cmd_handle_env(env):
     if env is None:
         env = ENV.env
-
+    if isinstance(env, BuildEnv):
+        env = env.env
     # Fix a bug where env vars get some weird types.
     new_env = {}
     for k, v in env.items():
@@ -306,7 +308,7 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False, globbif
     command = _cmd_handle_args(command,globbify)
     if echo:
         log.info('$ ' + _args2str(command))
-        
+
     output = ''
     try:
         if show_output:
@@ -477,7 +479,7 @@ def _autoescape(string):
         return '"'+string+'"'
     else:
         return string
-    
+
 def _args2str(cmdlist):
     return ' '.join([_autoescape(x) for x in cmdlist])
 
@@ -488,14 +490,12 @@ def decompressFile(archive):
     #print('Trying to decompress ' + archive)
     tarpath=ENV.which('tar',skip_paths=['mingw']) # MinGW tar is broken, just throws errors (Jan 9 2016)
     if archive.endswith('.tar.gz') or archive.endswith('.tgz'):
-        if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
-            archive = cygpath(archive)
-        cmd([tarpath, 'xzf', archive], echo=True, show_output=False, critical=True)
+        with tarfile.open(archive, mode='r:gz') as arch:
+            arch.extractall('.')
         return True
-    elif archive.endswith('.tar.bz2') or archive.endswith('.tbz'):
-        if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
-            archive = cygpath(archive)
-        cmd([tarpath, 'xjf', archive], echo=True, show_output=False, critical=True)
+    elif archive.endswith('.bz2') or archive.endswith('.tbz'):
+        with tarfile.open(archive, mode='r:bz2') as arch:
+            arch.extractall('.')
         return True
     elif archive.endswith('.tar.xz'):
         if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
@@ -506,9 +506,14 @@ def decompressFile(archive):
         cmd(['7za', 'x', '-aoa', archive], echo=True, show_output=False, critical=True)
         if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
             archive = cygpath(archive)
-        cmd([tarpath, 'xf', archive[:-3]], echo=True, show_output=False, critical=True)
+        #cmd([tarpath, 'xf', archive[:-3]], echo=True, show_output=False, critical=True)
+        with tarfile.open(archive[:-3], mode='r') as arch:
+            arch.extractall('.')
         os.remove(archive[:-3])
         return True
+    elif archive.endswith('.gz'):
+        with tarfile.open(archive, mode='r:gz') as arch:
+            arch.extractall('.')
     elif archive.endswith('.7z'):
         if PLATFORM == 'Windows':
             archive = cygpath(archive)
@@ -532,8 +537,12 @@ ENV = BuildEnv()
 
 # Platform-specific extensions
 if platform.system() == 'Windows':
-    from buildtools._os_utils_win32 import WindowsEnv
+    import buildtools._os_utils_win32
+    buildtools._os_utils_win32.cmd_output = cmd_output
+    buildtools._os_utils_win32.ENV = ENV
+    from buildtools._os_utils_win32 import WindowsEnv, getVSVars
 else:
     import buildtools._os_utils_linux
     buildtools._os_utils_linux.cmd_output = cmd_output
+    buildtools._os_utils_linux.ENV=ENV
     from buildtools._os_utils_linux import GetDpkgShlibs, InstallDpkgPackages, DpkgSearchFiles

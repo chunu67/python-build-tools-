@@ -23,7 +23,12 @@ SOFTWARE.
 
 '''
 import sys
+import codecs
+
 from buildtools.bt_logging import log
+
+cmd_output = None
+ENV = None
 
 class WindowsEnv:
     """Utility class to get/set windows environment variable"""
@@ -69,3 +74,29 @@ class WindowsEnv:
         # TODO: handle CalledProcessError (for assert)
         subprocess.check_call('''\"%s" -c "import win32api, win32con; assert win32api.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')"''' % sys.executable)
         """
+
+def getVSVars(vspath, arch='x86', batfile=None, env=ENV):
+    '''
+    :param batfile:
+        Location to place the batch file.
+    '''
+    if batfile is None:
+        batfile='getvsvars.bat'
+    #C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\vcvars32.bat
+    with codecs.open(batfile,'w', encoding='utf-8') as f:
+        f.write('@echo off\r\n')
+        f.write('echo call "{}\\vcvarsall.bat" {}\r\n'.format(vspath,arch))
+        f.write('call "{}\\vcvarsall.bat" {}\r\n'.format(vspath,arch))
+        f.write('echo ###\r\n')
+        f.write('echo INCLUDE=%INCLUDE%\r\n')
+        f.write('echo LIB=%LIB%\r\n')
+        f.write('echo LIBPATH=%LIBPATH%\r\n')
+        f.write('echo PATH=%PATH%\r\n')
+    stdout, stderr = cmd_output(['cmd', '/c', batfile], echo=True, critical=True)
+    inVSVars=False
+    for line in (stdout+stderr).splitlines():
+        print(line)
+        if inVSVars and '=' in line:
+            k,v=line.split('=',1)
+            ENV.set(k,v,noisy=True)
+        if line == '###': inVSVars=True

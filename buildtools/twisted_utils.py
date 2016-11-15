@@ -26,10 +26,10 @@ SOFTWARE.
 # package twisted
 from twisted.internet import reactor
 from twisted.internet.protocol import ProcessProtocol
-    
+
 import sys
 import os
-import threading 
+import threading
 import time
 from buildtools.bt_logging import log
 import buildtools.os_utils as os_utils
@@ -106,7 +106,7 @@ class ReactorManager:
 class AsyncCommand(object):
 
     def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None, debug=False, globbify=True):
-        
+
         self.echo = echo
         self.command = command
         self.PTY = PTY
