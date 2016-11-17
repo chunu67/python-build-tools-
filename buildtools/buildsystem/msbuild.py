@@ -27,15 +27,18 @@ class MSBuild(object):
     def __init__(self):
         # ["msbuild", self.__solution, "/m", "/property:Configuration=Release"]
         self.solution=''
-        self.configuration=''
-        self.platform='x86'
-        
+        self.configuration=None
+        self.platform=None
+
     def run(self, MSBUILD='msbuild', project=None, env=ENV):
         cmd = ["msbuild", self.solution, "/m"]
-        if self.configuration!='':
-            cmd.append("/property:Configuration="+self.configuration)
+        props=[]
+        if self.configuration is not None:
+            props.append("Configuration="+self.configuration)
+        if self.platform is not None:
+            props.append('Platform='+self.platform)
+        if len(props)>0:
+            cmd.append('/p:'+';'.join(props))
         if project is not None:
             cmd.append("/target:"+project)
-        if self.platform is not None:
-            cmd.append('/p:Platform='+self.platform)
         os_utils.cmd(cmd,env=env,echo=True,critical=True,show_output=True)

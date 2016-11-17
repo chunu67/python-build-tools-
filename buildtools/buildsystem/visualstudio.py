@@ -54,7 +54,6 @@ def getElementValue(parent, elementName):
     if e is None: return None
     return e.text
 
-
 def _addSubelementProperty(elementName):
     return property(fget=lambda self: getElementValue(self.element, elementName), fset=lambda self, value: setElementValue(self.element,elementName,value))
 
@@ -79,7 +78,7 @@ class CopyToOutputDirectoryMode:
 
 class BaseFileOperation(BaseProjectElement):
     def __init__(self, project, element):
-        super(BaseFileOperation,self).__init(project,element)
+        super(BaseFileOperation,self).__init__(project,element)
 
     @property
     def Operation(self):
@@ -89,32 +88,32 @@ class BaseFileOperation(BaseProjectElement):
     def Operation_set(self, value):
         self.element.tag = value
 
-    DependentUpon=_addSubelementProperty('DependentUpon')
-    AutoGen      =_addSubelementProperty('AutoGen')
-    Visible      =_addSubelementProperty('Visible')
-    CopyToOutputDirectory=_addSubelementProperty('CopyToOutputDirectory') #<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    DependentUpon        = _addSubelementProperty('DependentUpon')
+    AutoGen              = _addSubelementProperty('AutoGen')
+    Visible              = _addSubelementProperty('Visible')
+    CopyToOutputDirectory= _addSubelementProperty('CopyToOutputDirectory') #<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 
     Include = _addAttributeProperty('Include')
 
 class CompileOperation(BaseFileOperation):
     def __init__(self, project, element):
-        super(CompileOperation,self).__init(project,element)
+        super(CompileOperation,self).__init__(project,element)
 
 class EmbeddedResourceOperation(BaseFileOperation):
     def __init__(self, project, element):
-        super(EmbeddedResourceOperation,self).__init(project,element)
+        super(EmbeddedResourceOperation,self).__init__(project,element)
 
-    Generator = _addSubelementProperty('Generator')
-    LastGenOutput = _addSubelementProperty('LastGenOutput')
+    Generator           = _addSubelementProperty('Generator')
+    LastGenOutput       = _addSubelementProperty('LastGenOutput')
     CustomToolNamespace = _addSubelementProperty('CustomToolNamespace')
-    LogicalName = _addSubelementProperty('LogicalName')
-    Link = _addSubelementProperty('Link')
+    LogicalName         = _addSubelementProperty('LogicalName')
+    Link                = _addSubelementProperty('Link')
 
 
 
 class BaseReference(BaseProjectElement):
     def __init__(self, project, element):
-        super(BaseReference,self).__init(project,element)
+        super(BaseReference,self).__init__(project,element)
 
     @property
     def RefID(self):
@@ -122,19 +121,16 @@ class BaseReference(BaseProjectElement):
 
 class AssemblyReference(BaseReference):
     def __init__(self, project, element):
-        super(AssemblyReference,self).__init(project,element)
+        super(AssemblyReference,self).__init__(project,element)
 
     @property
     def RefID(self):
-        return self.Include.split(',')[0].strip();
+        return self.Include.split(',')[0].strip()
 
-    @property
-    def Include(self):
-        return self.element.attrib['Include']
-
-    @Include.setter
-    def Include_set(self,value):
-        self.element.attrib['Include']=value
+    Include  = _addAttributeProperty('Include')
+    # Needs special handling.
+    #Private = _addSubelementProperty('Private')
+    HintPath = _addSubelementProperty('HintPath')
 
     @property
     def Private(self):
@@ -144,55 +140,29 @@ class AssemblyReference(BaseReference):
     def Private_set(self,value):
         setElementValue(self.element,'Private','true' if value else "false")
 
-    @property
-    def HintPath(self):
-        return getElementValue(self.element,'HintPath')
-
-    @HintPath.setter
-    def HintPath_set(self,value):
-        setElementValue(self.element,'HintPath',value)
-
 class ProjectReference(BaseReference):
     def __init__(self, project, element):
-        super(ProjectReference,self).__init(project,element)
+        super(ProjectReference,self).__init__(project,element)
 
     @property
     def RefID(self):
         return self.Include if (self.Name is None or self.Name == '') else self.Name
 
-    @property
-    def Include(self):
-        return self.element.attrib['Include']
-
-    @Include.setter
-    def Include_set(self,value):
-        self.element.attrib['Include']=value
-
-    @property
-    def Project(self):
-        return getElementValue(self.element,'Project')
-
-    @Project.setter
-    def Project_set(self,value):
-        setElementValue(self.element,'Project',value)
-
-    @property
-    def Name(self):
-        return getElementValue(self.element,'Name')
-
-    @Name.setter
-    def Name_set(self,value):
-        setElementValue(self.element,'Name',value)
+    Include = _addAttributeProperty('Include')
+    Project = _addSubelementProperty('Project')
+    Name    = _addSubelementProperty('Name')
 
 class PropertyGroup(BaseProjectElement):
     def __init__(self, project, element):
-        super(PropertyGroup,self).__init(project,element)
+        super(PropertyGroup, self).__init__(project,element)
 
-    def getitem(self, a):
-        return getElementValue(self.element,a)
+    def __getitem__(self, elemName):
+        return getElementValue(self.element, elemName)
+    def __setitem__(self, elemName, value):
+        setElementValue(self.element, elemName, value)
 
-    def setitem(self,a,value):
-        setElementValue(self.element,a,value)
+    #def setitem(self,a,value):
+    #    setElementValue(self.element,a,value)
 
 class VS2015Project(object):
     def __init__(self):
@@ -210,12 +180,12 @@ class VS2015Project(object):
         self._embeddedResourceItemGroup=None
 
     def LoadFromFile(self, filename):
-        with codecs.open(filename, 'r', encoding='utf-8-sig') as f:
-            it = etree.iterparse(f)
-            for _, el in it:
-                if '}' in el.tag:
-                    el.tag = el.tag.split('}', 1)[1]  # strip all namespaces
-            self._project = it.root
+        #with codecs.open(filename, 'r', encoding='utf-8-sig') as f:
+        it = etree.iterparse(filename)
+        for _, el in it:
+            if '}' in el.tag:
+                el.tag = el.tag.split('}', 1)[1]  # strip all namespaces
+        self._project = it.root
             #self._project=etree.parse(f)
         self.ReloadEverything()
 
@@ -238,22 +208,22 @@ class VS2015Project(object):
                 reference = AssemblyReference(self,node)
                 self.ReferencesByName[reference.RefID]=reference
                 self.References.append(reference)
-                self._referenceGroup=node.parent
+                self._referenceGroup=node.getparent()
             elif node.tag == 'ProjectReference':
                 projectReference = ProjectReference(self,node)
                 self.ReferencesByName[projectReference.RefID] = projectReference
-                self.References.Add(projectReference)
-                self._projectReferenceGroup = node.parent
+                self.References.append(projectReference)
+                self._projectReferenceGroup = node.getparent()
             elif node.tag == 'PropertyGroup':
                 self.PropertyGroups.append(PropertyGroup(self,node))
             elif node.tag == "Compile":
-                self._compileItemGroup = node.parent
+                self._compileItemGroup = node.getparent()
                 self.Files.append(CompileOperation(self,node))
             elif node.tag == "None":
-                self._noneItemGroup = node.parent
+                self._noneItemGroup = node.getparent()
                 self.Files.append(BaseFileOperation(self,node))
             elif node.tag == "EmbeddedResource":
-                self._embeddedResourceItemGroup = node.parent
+                self._embeddedResourceItemGroup = node.getparent()
                 self.Files.append(EmbeddedResourceOperation(self,node))
 
     def SaveToFile(self, filename):
@@ -432,14 +402,14 @@ EndGlobal
     def getGlobalSectionEnd(self):
         return '\tEndGlobalSection'
 
-    def AddProject(self, name, typeGUID, location=None):
+    def AddProject(self, name, typeGUID, location=None, guid=None):
         if location is None:
             location=name
         project = SolutionProject()
         project.name = name
         project.type = typeGUID
         project.projectfile=location
-        project.guid = '{{{}}}'.format(str(uuid.uuid4()).upper())
+        project.guid = guid or '{{{}}}'.format(str(uuid.uuid4()).upper())
         self.projects.append(project)
         self.projectsByGUID[project.guid]=project
         self.projectsByName[project.name]=project
@@ -598,8 +568,6 @@ class VisualStudio2012Solution(Solution):
 
 class VisualStudio2015Solution(Solution):
     '''
-    This is actually a VS2015 solution.  I'm serious.  Stop laughing.
-
     Microsoft Visual Studio Solution File, Format Version 12.00
     # Visual Studio 14
     VisualStudioVersion = 14.0.25420.1

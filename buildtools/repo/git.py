@@ -118,12 +118,33 @@ class GitRepository(SCMRepository):
                 self.remote_commit = remoteinfo[ref]
         return True
 
-    def CheckForUpdates(self, remote='origin', branch='master', quiet=True):
+    def ResolveTag(self, tag):
+        with Chdir(self.path, quiet=self.quiet):
+            return self._resolveTagNoChdir(tag)
+
+    def _resolveTagNoChdir(self, tag):
+        ret = cmd_output(['git', 'rev-list', '-n', '1', 'refs/tags/{}'.format(tag)], echo=not self.quiet, env=self.noPasswordEnv)
+        if not ret:
+            return None
+        stdout, stderr = ret
+        for line in (stdout + stderr).split('\n'):
+            line = line.strip()
+            if line == '':
+                continue
+            if line.startswith('fatal:'):
+                log.error('[git] ' + line)
+                return None
+            return line.strip()
+        return None
+
+    def CheckForUpdates(self, remote='origin', branch='master', commit=None, tag=None, quiet=True):
         if not quiet:
             log.info('Checking %s for updates...', self.path)
+        if not os.path.isdir(self.path):
+            return True
+        if tag is not None:
+            commit=self.ResolveTag(tag)
         with log:
-            if not os.path.isdir(self.path):
-                return True
             self.GetRepoState(remote)
             if not self.GetRemoteState(remote, branch):
                 return False
@@ -131,13 +152,14 @@ class GitRepository(SCMRepository):
                 if not quiet:
                     log.info('Branch is wrong! %s (L) != %s (R)', self.current_branch, branch)
                 return True
-            if self.current_commit != self.remote_commit:
+            targetCommit = commit or self.remote_commit
+            if self.current_commit != targetCommit:
                 if not quiet:
-                    log.info('Commit is out of date! %s (L) != %s (R)', self.current_commit, self.remote_commit)
+                    log.info('Commit is out of date! %s (L) != %s (R)', self.current_commit, targetCommit)
                 return True
         return False
 
-    def Pull(self, remote='origin', branch='master', commit=None, cleanup=False):
+    def Pull(self, remote='origin', branch='master', commit=None, tag=None, cleanup=False):
         if not os.path.isdir(self.path):
             cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone, env=self.noPasswordEnv)
         with Chdir(self.path, quiet=self.quiet):
@@ -147,6 +169,8 @@ class GitRepository(SCMRepository):
             if self.current_branch != branch:
                 ref = 'remotes/{}/{}'.format(remote, branch)
                 cmd(['git', 'checkout', '-B', branch, ref, '--'], echo=not self.quiet, critical=True)
+            if tag is not None:
+                commit=self._resolveTagNoChdir(tag)
             if commit is not None:
                 cmd(['git', 'checkout', commit], echo=not self.quiet, critical=True)
             else:
