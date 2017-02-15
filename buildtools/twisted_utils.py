@@ -53,6 +53,7 @@ class _PipeReader(ProcessProtocol):
         if self.debug:
             log.info('%s %s: Received %d bytes', self._logPrefix(), bid, len(data))
         for b in data:
+            b=str(b)
             if b != '\n' and b != '\r' and b != '':
                 self.buf[bid] += b
             else:
