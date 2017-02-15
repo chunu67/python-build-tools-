@@ -24,6 +24,7 @@ SOFTWARE.
 '''
 
 import hashlib
+import sys
 
 
 def getClass(thing):
@@ -37,6 +38,18 @@ def getClassName(thing):
 def bool2yn(b):
     return 'Y' if b else 'N'
 
+def is_python_3():
+    return sys.version_info[0] >= 3
+
+if is_python_3():
+    def bytes2str(b):
+        if isinstance(b,bytes):
+            return b.decode('utf-8')
+        else:
+            return str(b)
+else:
+    def bytes2str(b):
+        return str(b)
 
 def hashfile(afile, hasher, blocksize=65536):
     buf = afile.read(blocksize)

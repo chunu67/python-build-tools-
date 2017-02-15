@@ -26,6 +26,8 @@ SOFTWARE.
 # package twisted
 from twisted.internet import reactor
 from twisted.internet.protocol import ProcessProtocol
+from twisted.python.failure import Failure
+from twisted.internet.error import ProcessDone, ProcessTerminated
 
 import sys
 import os
@@ -33,6 +35,7 @@ import threading
 import time
 from buildtools.bt_logging import log
 import buildtools.os_utils as os_utils
+from buildtools.utils import bytes2str
 
 class _PipeReader(ProcessProtocol):
 
@@ -52,20 +55,19 @@ class _PipeReader(ProcessProtocol):
     def _processData(self, bid, cb, data):
         if self.debug:
             log.info('%s %s: Received %d bytes', self._logPrefix(), bid, len(data))
-        for b in data:
-            b=str(b)
+        for b in bytes2str(data):
             if b != '\n' and b != '\r' and b != '':
                 self.buf[bid] += b
             else:
-                buf = self.buf[bid].strip()
-                if self.debug:
-                    log.info('buf = %r', buf)
-                if buf != '':
-                    cb(self._asyncCommand, buf)
-                self.buf[bid] = ''
+                self._dump_to_callback(bid, cb)
 
-    def _getRemainingBuf(self):
-        return self.buf['stdout'] + self.buf['stderr']
+    def _dump_to_callback(self, bid, cb):
+        buf = self.buf[bid].strip()
+        if self.debug:
+            log.info('%s buf = %r', self._logPrefix(), buf)
+        if buf != '':
+            cb(self._asyncCommand, buf)
+        self.buf[bid] = ''
 
     def outReceived(self, data):
         self._processData('stdout', self._cb_stdout, data)
@@ -82,9 +84,12 @@ class _PipeReader(ProcessProtocol):
     def errConnectionLost(self):
         log.warn('%s Lost connection to stderr.', self._logPrefix())
 
-    def processEnded(self, code):
-        self._asyncCommand.exit_code = code
-        self._cb_exit(code, self._getRemainingBuf())
+    def processEnded(self, reason):
+        self._dump_to_callback('stderr', self._cb_stderr)
+        self._dump_to_callback('stdout', self._cb_stdout)
+        self._asyncCommand.running=False
+        self._asyncCommand.exit_code = reason.value.exitCode
+        self._cb_exit(self._asyncCommand.exit_code)
 
 
 class ReactorManager:
@@ -107,7 +112,7 @@ class ReactorManager:
 class AsyncCommand(object):
 
     def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None, debug=False, globbify=True):
-
+        self.running=False
         self.echo = echo
         self.command = command
         self.PTY = PTY
@@ -130,15 +135,15 @@ class AsyncCommand(object):
         self.pipe_reader = None
         self.debug = debug
 
-    def default_exit_handler(self, code, remainingBuf):
+    def default_exit_handler(self, code):
         if code != 0:
             if code < 0:
-                strerr = '%s: Received signal %d' % (abs(self.child.returncode))
+                strerr = '%s: Received signal %d' % (self.refName, 0-code)
                 if code < -100:
                     strerr += ' (?!)'
-                self.log.error(strerr, self.refName)
+                self.log.error(strerr)
             else:
-                self.log.warning('%s exited with code %d: %s', self.refName, remainingBuf)
+                self.log.warning('%s exited with code %d', self.refName, code)
         else:
             self.log.info('%s has exited normally.', self.refName)
 
@@ -153,9 +158,11 @@ class AsyncCommand(object):
             self.log.info('[ASYNC] $ "%s"', '" "'.join(self.command))
         pr = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback, self.exit_code_handler)
         pr.debug = self.debug
+        self.running=True
         self.child = reactor.spawnProcess(pr, self.command[0], self.command[1:], env=self.env, usePTY=self.PTY)
         if self.child is None:
             self.log.error('Failed to start %r.', ' '.join(self.command))
+            self.running=False
             return False
         ReactorManager.Start()
         return True
@@ -171,7 +178,7 @@ class AsyncCommand(object):
         return self.exit_code
 
     def IsRunning(self):
-        return self.exit_code is not None
+        return self.running
 
 def async_cmd(command, stdout=None, stderr=None, env=None):
     ascmd = AsyncCommand(command, stdout=stdout, stderr=stderr, env=env)
