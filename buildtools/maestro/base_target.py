@@ -37,8 +37,8 @@ class BuildTarget(object):
             return True
 
         if config is not None:
-            configHash = hashlib.sha256(json.dumps(config)).hexdigest()
-            targetHash = hashlib.sha256(target).hexdigest()
+            configHash = hashlib.sha256(json.dumps(config).encode('utf-8')).hexdigest()
+            targetHash = hashlib.sha256(target.encode('utf-8')).hexdigest()
 
             def writeHash():
                 with open(configcachefile, 'w') as f:
