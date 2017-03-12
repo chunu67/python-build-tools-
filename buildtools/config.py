@@ -140,7 +140,7 @@ class BaseConfig(object):
 
 class ConfigFile(BaseConfig):
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False):
+    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False):
         env_vars = salty_jinja_envs()
         env_vars['loader'] = jinja2.loaders.FileSystemLoader(template_dir)
         self.environment = jinja2.Environment(**env_vars)
@@ -208,7 +208,7 @@ class YAMLConfig(ConfigFile):
     def dict_constructor(self, loader, node):
         return collections.OrderedDict(loader.construct_pairs(node))
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False, ordered_dicts=False):
+    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False, ordered_dicts=False):
         self._ordered_dicts=False
         super(YAMLConfig, self).__init__(filename, default, template_dir, variables, verbose)
         self._ordered_dicts=ordered_dicts
@@ -241,14 +241,14 @@ class Config(YAMLConfig):
 
     '''DEPRECATED: Use YAMLConfig instead.'''
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False):
+    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False):
         log.warn('Config class is deprecated.  Use YAMLConfig instead.')
         super(Config, self).__init__(filename, default, template_dir, variables, verbose)
 
 
 class TOMLConfig(ConfigFile):
 
-    def __init__(self, filename, default={}, template_dir='.', variables={}, verbose=False):
+    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False):
         super(TOMLConfig, self).__init__(filename, default, template_dir, variables, verbose)
 
     def dump_to_file(self, filename, data):
