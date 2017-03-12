@@ -220,8 +220,9 @@ class Chdir(object):
                 os.chdir(self.chdir)
                 if not self.quiet:
                     log.info('cd ' + self.chdir)
-        except:
+        except Exception as e:
             log.critical('Failed to chdir to {}.'.format(self.chdir))
+            log.exception(e)
             sys.exit(1)
         return self
 
@@ -231,8 +232,9 @@ class Chdir(object):
                 os.chdir(self.pwd)
                 if not self.quiet:
                     log.info('cd ' + self.pwd)
-        except:
-            log.critical('Failed to chdir to {}.'.format(self.pwd))
+        except Exception as e:
+            log.critical('Failed to chdir to {}.'.format(self.chdir))
+            log.exception(e)
             sys.exit(1)
         return False
 
