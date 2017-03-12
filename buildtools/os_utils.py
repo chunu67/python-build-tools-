@@ -216,7 +216,7 @@ class Chdir(object):
 
     def __enter__(self):
         try:
-            if os.getcwdu() != self.chdir:
+            if os.getcwd() != self.chdir:
                 os.chdir(self.chdir)
                 if not self.quiet:
                     log.info('cd ' + self.chdir)
@@ -228,7 +228,7 @@ class Chdir(object):
 
     def __exit__(self, typeName, value, traceback):
         try:
-            if os.getcwdu() != self.pwd:
+            if os.getcwd() != self.pwd:
                 os.chdir(self.pwd)
                 if not self.quiet:
                     log.info('cd ' + self.pwd)
