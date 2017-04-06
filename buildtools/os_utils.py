@@ -102,14 +102,14 @@ class BuildEnv(object):
             noisy=self.noisy
         key = self.getKey(key)
         if noisy: log.info('Build env: {1} prepended to {0}'.format(key, value))
-        self.env[key] = delim.join([value] + ENV.env[key].split(delim))
+        self.env[key] = delim.join([value] + ENV.env.get(key,'').split(delim))
 
     def appendTo(self, key, value, delim=';', noisy=None):
         if noisy is None:
             noisy=self.noisy
         key = self.getKey(key)
         if noisy: log.info('Build env: {1} appended to {0}'.format(key, value))
-        self.env[key] = delim.join(ENV.env[key].split(delim) + [value])
+        self.env[key] = delim.join(ENV.env.get(key,'').split(delim) + [value])
 
     def clone(self):
         return BuildEnv(self.env.copy())
