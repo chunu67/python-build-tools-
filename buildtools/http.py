@@ -22,40 +22,37 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-import httplib
 import logging
-import urlparse
-import urllib
-import urllib2
+import urllib.request
 
-from .bt_logging import log
+from buildtools.bt_logging import log
 
 HTTP_METHOD_GET = 'GET'
 HTTP_METHOD_POST = 'POST'
 
 
 def DownloadFile(url, filename):
-    u = urllib2.urlopen(url)
+    u = urllib.request.urlopen(url)
     with open(filename, 'wb') as f:
         meta = u.info()
-        file_size = int(meta.getheaders("Content-Length")[0])
-        print "Downloading: %s Bytes: %s" % (filename, file_size)
+        file_size = int(meta["Content-Length"])
+        print("Downloading: %s Bytes: %s" % (filename, file_size))
 
         file_size_dl = 0
         block_sz = 8192
         while True:
             buf = u.read(block_sz)
-            if not buffer or file_size == file_size_dl:
+            if not buf or file_size == file_size_dl:
                 break
 
             file_size_dl += len(buf)
             f.write(buf)
             status = r"%10d/%10d  [%3.2f%%]" % (file_size_dl, file_size, file_size_dl * 100. / file_size)
             status = status + chr(8) * (len(status) + 1)
-            print status,
+            print(status,end='\r')
         log.info('Downloaded {} to {} ({}B)'.format(url, filename, file_size_dl))
 
-
+''' Use requests.
 class HTTPFetcher(object):
 
     def __init__(self, url):
@@ -72,7 +69,7 @@ class HTTPFetcher(object):
         self.debug = False
 
     def getFormData(self):
-        return urllib.urlencode(self.fields)
+        return urllib.parse.urlencode(self.fields)
         # o=[]
         # for key in self.fields:
         #    o+=['{0}={1}'.format(key,urllib2.quote(self.fields[key]))]
@@ -89,15 +86,15 @@ class HTTPFetcher(object):
         #    self.url += "?" + formdata
 
         # web = urllib2.urlopen(self.url)
-        uri = urlparse.urlparse(self.url)
+        uri = urllib.parse.urlparse(self.url)
         port = ''
         if uri.port:
             port = ':%d' % uri.port
         req = None
         if self.url.startswith('https://'):
-            req = httplib.HTTPSConnection(uri.hostname + port)
+            req = http.client.HTTPSConnection(uri.hostname + port)
         else:
-            req = httplib.HTTPConnection(uri.hostname + port)
+            req = http.client.HTTPConnection(uri.hostname + port)
         req.debuglevel = 1 if self.debug else 0
         headers = {"Accept": ','.join(self.accept)}
         if self.method != HTTP_METHOD_GET:
@@ -130,112 +127,4 @@ class HTTPFetcher(object):
         # expectedContentSize = response.info().getheader('Content-Length');
 
         return response.read()  # Not too complex.
-
-        """
-            Cookies = httpWebResponse.Cookies;
-            StringBuilder sb = new StringBuilder();
-            //Task.Factory.StartNew(() =>
-            //{
-            dlThread = new Thread(new ThreadStart(() =>
-            {
-                Log.Debug("Starting DL thread.");
-                bool download = true;
-                // If temporary file, or the file exists and we're not supposed to download in that case,
-                if (DoneIfFileExists)
-                {
-                    if (!path.EndsWith(".tmp") && File.Exists(path))
-                    {
-                        download = false;
-                        Log.Debug("File exists, skipping.");
-                    }
-                }
-
-                bytesDownloaded = 0;
-                if (download)
-                {
-                    byte[] buffer = new byte[1024];
-                    Stopwatch watch = Stopwatch.StartNew();
-                    try
-                    {
-                        using (responseStream)
-                        {
-                            using (FileStream outFile = new FileStream(tmpPath, FileMode.OpenOrCreate))
-                            {
-                                if (StartingRange > 0)
-                                    outFile.Seek(StartingRange, SeekOrigin.Begin);
-                                int bytesRead;
-                                while ((bytesRead = responseStream.Read(buffer, 0, buffer.Length)) != 0)
-                                {
-                                    bytesDownloaded += bytesRead;
-                                    if (DownloadProgress != null)
-                                    {
-                                        double seconds = watch.ElapsedMilliseconds / 1000d;
-                                        double kbsec = (bytesDownloaded / 1024d) / seconds;
-                                        DownloadProgress(bytesDownloaded + StartingRange, httpWebResponse.ContentLength, path, kbsec);
-                                    }
-                                    outFile.Write(buffer, 0, bytesRead);
-                                    //Application.DoEvents();
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error(e.ToString());
-                    }
-                }
-                httpWebResponse.Close();
-                if (bytesDownloaded + StartingRange != expectedContentSize)
-                {
-                    if (retry)
-                    {
-                        Log.Warning(string.Format("Only downloaded {0}/{1} bytes;  Restarting after 5 seconds!", StartingRange + bytesDownloaded, expectedContentSize));
-                        for (int i = 0; i < 5; i++)
-                        {
-                            Program.CurrentStatus = PatchStatus.WaitingForServer;
-                            frmProgress.Instance.StatusText = string.Format("Restarting download in {0} seconds...", 5 - i);
-                            Thread.Sleep(new TimeSpan(0, 0, 1)); // 5 seconds
-                        }
-                        Log.Debug("Ending DL thread (retrying elsewhere!)");
-                        if (DownloadComplete != null)
-                        {
-                            Log.Debug("Sending DownloadIncomplete signal.");
-                            DownloadComplete(new DownloadIncompleteException(StartingRange + bytesDownloaded,retry), path);
-                        }
-                    }
-                    else
-                    {
-                        Log.Debug("Ending DL thread");
-                        if (DownloadComplete != null)
-                        {
-                            Log.Debug("Sending DownloadIncomplete signal.");
-                            DownloadComplete(new DownloadIncompleteException(StartingRange + bytesDownloaded,retry), path);
-                        }
-                    }
-                    return;
-                }
-                if (!path.EndsWith(".tmp"))
-                {
-                    Log.Debug("Moving temporary file " + tmpPath + " to " + path);
-                    try
-                    {
-                        if (File.Exists(path))
-                            File.Delete(path);
-                        File.Move(tmpPath, path);
-                    }
-                    catch (IOException e)
-                    {
-                        string err = string.Format("File.Move from {0} to {1} failed:\n{2}", tmpPath, path, e);
-                        Program.SetError(err);
-                        return;
-                    }
-                }
-                if (DownloadComplete != null)
-                {
-                    DownloadComplete(null, path);
-                }
-                Log.General("Downloaded " + path + "");
-            }));
-            dlThread.Name = "Download Thread";
-            dlThread.Start();
-            """
+'''
