@@ -41,8 +41,9 @@ def getInputChar(prompt, valid, default):
     '''
     prompt += _formatChoices(valid, default)+' > '
     while True:
-        sys.stdout.write(prompt)
-        inp = sys.stdin.read(1).lower()
+        #sys.stdout.write(prompt)
+        #inp = sys.stdin.read(1).lower()
+        inp = input(prompt).lower()
         print('')
         if inp == '' and default is not None:
             return default
@@ -61,7 +62,7 @@ def getInputLine(prompt, choices=None, default=None):
             prompt += ' [{}]'.format(default)
     while True:
         print(prompt)
-        inp= raw_input(' > ')
+        inp=input(' > ')
         #inp = sys.stdin.readline()
         #print()
         #inp = raw_input()

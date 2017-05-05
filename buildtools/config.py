@@ -64,7 +64,7 @@ def delimset(cfg, key, value, delim='.'):
 def flattenDict(cfg, delim='/', ppath=[], out=None):
     if out is None:
         out = collections.OrderedDict()
-    for key, value in cfg.iteritems():
+    for key, value in cfg.items():
         cpath = ppath + [key]
         strpath = delim.join(cpath)
         if isinstance(value, dict):
@@ -203,7 +203,7 @@ class ConfigFile(BaseConfig):
 
 class YAMLConfig(ConfigFile):
     def dict_representer(self, dumper, data):
-        return dumper.represent_dict(data.iteritems())
+        return dumper.represent_dict(data.items())
 
     def dict_constructor(self, loader, node):
         return collections.OrderedDict(loader.construct_pairs(node))
