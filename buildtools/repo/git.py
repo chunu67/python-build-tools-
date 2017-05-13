@@ -159,6 +159,20 @@ class GitRepository(SCMRepository):
                 return True
         return False
 
+    def UsesLFS(self):
+        gitattributes = os.path.join(self.path,'.gitattributes')
+        if os.path.isfile(gitattributes):
+            #*.zip filter=lfs diff=lfs merge=lfs -text
+            with open(gitattributes, 'r') as f:
+                for line in f:
+                    if 'filter=lfs' in line:
+                        return True
+                    if 'diff=lfs' in line:
+                        return True
+                    if 'merge=lfs' in line:
+                        return True
+        return False
+
     def Pull(self, remote='origin', branch='master', commit=None, tag=None, cleanup=False):
         if not os.path.isdir(self.path):
             cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone, env=self.noPasswordEnv)
@@ -176,6 +190,9 @@ class GitRepository(SCMRepository):
             else:
                 if self.current_commit != self.remote_commit:
                     cmd(['git', 'reset', '--hard', '{}/{}'.format(remote, branch)], echo=not self.quiet, critical=True)
+            if self.UsesLFS():
+                log.info('git-lfs detected!')
+                cmd(['git', 'lfs', 'pull'], echo=not self.quiet, critical=True)
         return True
 
     def UpdateSubmodules(self, remote=False):
