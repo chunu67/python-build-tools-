@@ -55,7 +55,7 @@ def GetDpkgShlibs(files):
     deps = {}
     stdout, stderr = cmd_output(['perl', os.path.join(scripts_dir, 'dpkg-dump-shpkgs.pl')] + files, critical=True)
     if stdout or stderr:
-        for line in (stdout + stderr).split('\n'):
+        for line in (stdout + stderr).decode('utf-8').split('\n'):
             line = line.strip()
             if line == '':
                 continue
@@ -105,7 +105,7 @@ def DpkgSearchFiles(files):
 
     packages = []
     if stdout or stderr:
-        for line in (stdout + stderr).split('\n'):
+        for line in (stdout + stderr).decode('utf-8').split('\n'):
             line = line.strip()
             if line == '':
                 continue

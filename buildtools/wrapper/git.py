@@ -55,7 +55,7 @@ class Git(object):
             if not ret: return None
             stderr, stdout = ret
             o = {}
-            for line in (stdout + stderr).split('\n'):
+            for line in (stdout + stderr).decode('utf-8').split('\n'):
                 line = line.strip()
                 if line == '': continue
                 hashid, ref = line.split()

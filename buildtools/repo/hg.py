@@ -44,7 +44,7 @@ def checkHg():
     global HG_VERSION
     if HG_VERSION is None:
         stdout, stderr = cmd_output(['hg', '--version'], critical=True)
-        for line in (stdout + stderr).split('\n'):
+        for line in (stdout + stderr).decode('utf-8').split('\n'):
             m = REG_VERSION.search(line)
             if m:
                 HG_VERSION = m.group(1)
@@ -77,7 +77,7 @@ class HgRepository(SCMRepository):
         stdout, stderr = cmd_output(['hg', '--cwd', self.path, '--encoding', 'UTF-8'] + args, echo=not self.quiet, critical=True)
         if self.show_output:
             with log:
-                for line in (stdout + stderr).split('\n'):
+                for line in (stdout + stderr).decode('utf-8').split('\n'):
                     if line.strip() == '':
                         continue
                     log.info('-> %s', line)

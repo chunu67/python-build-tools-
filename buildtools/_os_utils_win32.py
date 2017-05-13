@@ -94,7 +94,7 @@ def getVSVars(vspath, arch='x86', batfile=None, env=ENV):
         f.write('echo PATH=%PATH%\r\n')
     stdout, stderr = cmd_output(['cmd', '/c', batfile], echo=True, critical=True)
     inVSVars=False
-    for line in (stdout+stderr).splitlines():
+    for line in (stdout + stderr).decode('utf-8').splitlines():
         print(line)
         if inVSVars and '=' in line:
             k,v=line.split('=',1)
