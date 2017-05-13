@@ -69,7 +69,7 @@ class GitRepository(SCMRepository):
         '''
 
         stdout, stderr = cmd_output(['git', 'remote', 'show', remoteID], echo=not self.quiet, env=self.noPasswordEnv)
-        for line in (stdout + stderr).split('\n'):
+        for line in (stdout + stderr).decode('utf-8').split('\n'):
             line = line.strip()
             components = line.split()
             if line.startswith('Fetch URL:'):
@@ -81,7 +81,7 @@ class GitRepository(SCMRepository):
             self.remotes[remote]=self._getRemoteInfo(remote)
             return True
         stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=not self.quiet, env=self.noPasswordEnv)
-        for line in (stdout + stderr).split('\n'):
+        for line in (stdout + stderr).decode('utf-8').split('\n'):
             line = line.strip()
             if line == '':
                 continue
@@ -103,7 +103,7 @@ class GitRepository(SCMRepository):
             if not ret:
                 return False
             stdout, stderr = ret
-            for line in (stdout + stderr).split('\n'):
+            for line in (stdout + stderr).decode('utf-8').split('\n'):
                 line = line.strip()
                 if line == '':
                     continue
@@ -127,7 +127,7 @@ class GitRepository(SCMRepository):
         if not ret:
             return None
         stdout, stderr = ret
-        for line in (stdout + stderr).split('\n'):
+        for line in (stdout + stderr).decode('utf-8').split('\n'):
             line = line.strip()
             if line == '':
                 continue
