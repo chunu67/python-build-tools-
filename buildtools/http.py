@@ -39,6 +39,20 @@ HTTP_METHOD_POST = 'POST'
 
 
 def DownloadFile(url, filename, log_after=True, print_status=True, log_before=True):
+    '''
+    Download a file from url to filename.
+
+    :param url:
+        HTTP URL to download. (SSL/TLS will also work, assuming the cert isn't broken.)
+    :param filename:
+        Path of the file to download to.
+    :param log_after:
+        Produce a log statement after the download completes (includes URL).
+    :param log_before:
+        Produce a log statement before the download starts.
+    :param print_status:
+        Prints live-updated status of the download progress. (May not work very well for piped or redirected output.)
+    '''
     u = urlopen(url)
     with open(filename, 'wb') as f:
         meta = u.info()
@@ -57,7 +71,7 @@ def DownloadFile(url, filename, log_after=True, print_status=True, log_before=Tr
             f.write(buf)
             if print_status:
                 status = r"%10d/%10d  [%3.2f%%]" % (file_size_dl, file_size, file_size_dl * 100. / file_size)
-                status = status + chr(8) * (len(status) + 1)
+                #status = status + chr(8) * (len(status) + 1)  - pre-2.6 method
                 print(status, end='\r')
         if log_after:
             log.info('Downloaded {} to {} ({}B)'.format(url, filename, file_size_dl))
