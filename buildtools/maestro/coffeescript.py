@@ -32,25 +32,25 @@ from buildtools.maestro.base_target import BuildTarget
 class CoffeeBuildTarget(BuildTarget):
     BT_TYPE = 'CoffeeScript'
 
-    def __init__(self, target=None, files=[], dependencies=[]):
+    def __init__(self, target=None, files=[], dependencies=[], coffee_opts=['--no-header','-bcM']):
         super(CoffeeBuildTarget, self).__init__(target, files, dependencies)
+        self.coffee_opts=coffee_opts
 
     def build(self):
-        args = ['-bcM']  # m
-        if self.checkMTimes(self.files + self.dependencies, self.target, args):
+        if self.checkMTimes(self.files + self.dependencies, self.target, self.coffee_opts):
             os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
             os_utils.ensureDirExists(os.path.dirname(self.target))
             coffeefile = os.path.join('tmp', self.target)
             coffeefile, _ = os.path.splitext(coffeefile)
             coffeefile += '.coffee'
             coffeefile = os.path.abspath(coffeefile)
-            with codecs.open(coffeefile, 'w', encoding='utf-8') as outf:
+            with codecs.open(coffeefile, 'w', encoding='utf-8-sig') as outf:
                 for infilename in self.files:
                     with codecs.open(infilename, 'r') as inf:
                         for line in inf:
                             outf.write(line.rstrip() + "\n")
             log.info("COFFEE %s", self.target)
-            os_utils.cmd([COFFEE] + args + ['--output', os.path.dirname(self.target), coffeefile], critical=True, echo=False, show_output=True)
+            os_utils.cmd([COFFEE] + self.coffee_opts + ['--output', os.path.dirname(self.target), coffeefile], critical=True, echo=False, show_output=True)
 
 COFFEE = os_utils.which('coffee')
 if COFFEE is None:
