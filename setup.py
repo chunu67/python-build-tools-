@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="buildtools",
-    version="0.0.2",
+    version="0.2.0",
     description=("Simple library implementing common processes and logging for buildsystems"),
     author="Rob Nelson",
     author_email="nexisentertainment@gmail.com",
