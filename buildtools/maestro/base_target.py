@@ -23,7 +23,7 @@ SOFTWARE.
 
 '''
 import hashlib
-import json
+import yaml
 import os
 
 from buildtools import os_utils
@@ -61,7 +61,7 @@ class BuildTarget(object):
             return True
 
         if config is not None:
-            configHash = hashlib.sha256(json.dumps(config).encode('utf-8')).hexdigest()
+            configHash = hashlib.sha256(yaml.dump(config).encode('utf-8')).hexdigest()
             targetHash = hashlib.sha256(target.encode('utf-8')).hexdigest()
 
             def writeHash():
