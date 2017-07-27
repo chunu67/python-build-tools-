@@ -2,12 +2,12 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name="buildtools",
+    name="pybuildtools",
     version="0.2.0",
     description=("Simple library implementing common processes and logging for buildsystems"),
     author="Rob Nelson",
     author_email="nexisentertainment@gmail.com",
-    packages=find_packages(),
+    packages=find_packages(exclude=['testcopyright', '*-fixed', 'qc', 'build']),
     install_requires=[
         "psutil",
         "lxml",

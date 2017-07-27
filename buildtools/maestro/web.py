@@ -28,21 +28,24 @@ from buildtools import os_utils, log
 class SCSSBuildTarget(BuildTarget):
     BT_TYPE = 'SCSS'
 
-    def __init__(self, target=None, files=[], dependencies=[], compass=False, import_paths=[]):
+    def __init__(self, target=None, files=[], dependencies=[], compass=False, import_paths=[], output_style='compact'):
         super(SCSSBuildTarget, self).__init__(target, files, dependencies)
         self.compass = compass
         self.import_paths = import_paths
+        self.output_style = output_style
 
     def serialize(self):
         dat= super(SCSSBuildTarget,self).serialize()
         dat['compass']=self.compass
         dat['imports']=self.import_paths
+        dat['style']=self.output_style
         return dat
 
     def deserialize(self,data):
         super(SCSSBuildTarget,self).deserialize(data)
         self.compass=data.get('compass',False)
         self.import_paths=data.get('imports',[])
+        self.output_style=data.get('style','compact')
 
     def build(self):
         sass_cmd = []
@@ -51,7 +54,7 @@ class SCSSBuildTarget(BuildTarget):
             sass_cmd = [os.path.join(RUBYDIR, 'ruby.exe'), os.path.join(RUBYDIR, 'sass')]
         else:
             sass_cmd = [SASS]
-        args = ['--scss', '--force', '-C', '-t', 'compact']
+        args = ['--scss', '--force', '-C', '-t', self.output_style]
         if self.compass:
             args += ['--compass']
         for import_path in self.import_paths:
