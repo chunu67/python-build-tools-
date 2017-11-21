@@ -140,11 +140,13 @@ class BaseConfig(object):
 
 class ConfigFile(BaseConfig):
 
-    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False):
+    def __init__(self, filename=None, default={}, template_dir=None, variables={}, verbose=False):
         env_vars = salty_jinja_envs()
-        env_vars['loader'] = jinja2.loaders.FileSystemLoader(template_dir)
+        env_vars['loader'] = jinja2.loaders.FileSystemLoader(os.path.dirname(filename) if template_dir is None else template_dir)
         self.environment = jinja2.Environment(**env_vars)
         self.cfg = {}
+        self.filename = filename
+        self.template_dir = template_dir
         if filename is None:
             self.cfg = default
         else:
@@ -167,8 +169,9 @@ class ConfigFile(BaseConfig):
             if os.path.isfile(filename):
                 rendered = ''
                 try:
-                    template = self.environment.get_template(filename)
+                    template = self.environment.get_template(os.path.basename(filename))
                     rendered = template.render(variables)
+                    print(rendered)
                 except jinja2.exceptions.TemplateNotFound:
                     if verbose: log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
                     with codecs.open(filename, 'r') as f:

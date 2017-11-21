@@ -22,10 +22,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-
+import time
 import hashlib
 import sys
-
+import mimetypes
+import binascii
+import mmap
 
 def getClass(thing):
     return thing.__class__
@@ -67,3 +69,20 @@ def md5sum(filename, blocksize=65536):
 def sha256sum(filename, blocksize=65536):
     with open(filename, 'rb') as f:
         return hashfile(f, hashlib.sha256())
+
+def img2blob(filename):
+    mime, _ = mimetypes.guess_type(filename)
+    with open(filename, 'rb') as fp:
+        data64 = binascii.b2a_base64(fp.read())
+    return 'data:%s;base64,%s' % (mime, data64.decode('ascii'))
+
+
+def get_num_lines(file_path):
+    fp = open(file_path, "r+")
+    buf = mmap.mmap(fp.fileno(), 0)
+    lines = 0
+    while buf.readline():
+        lines += 1
+    return lines
+
+current_milli_time = lambda: int(round(time.time() * 1000))

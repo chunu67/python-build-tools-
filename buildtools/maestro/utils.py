@@ -23,13 +23,7 @@ SOFTWARE.
 
 '''
 import codecs
-import os
-import re
-import shutil
 import yaml
-
-from buildtools import log, os_utils
-from buildtools.maestro.base_target import BuildTarget
 
 class SerializableLambda(yaml.YAMLObject):
     yaml_tag = '!lambda'
@@ -52,61 +46,7 @@ class SerializableFileLambda(SerializableLambda):
         with codecs.open(self.filename, 'r', encoding=self.encoding) as f:
             return self.outformat.format(FILEDATA=f.read())
 
-class CopyFileTarget(BuildTarget):
-    BT_TYPE = 'CopyFile'
-
-    def __init__(self, target=None, filename=None, dependencies=[]):
-        self.subject=filename
-        super(CopyFileTarget, self).__init__(target, [filename], dependencies)
-
-    def serialize(self):
-        dat = super(CopyFileTarget, self).serialize()
-        return dat
-
-    def deserialize(self,data):
-        super(CopyFileTarget, self).deserialize(data)
-        self.subject=data['files'][0]
-
-    def build(self):
-        if self.checkMTimes(self.files + self.dependencies, self.target, {}):
-            os_utils.single_copy(self.subject, self.target, verbose=True)
-
-class ReplaceTextTarget(BuildTarget):
-    BT_TYPE = 'ReplaceText'
-
-    def __init__(self, target=None, filename=None, replacements=None, dependencies=[], read_encoding='utf-8-sig', write_encoding='utf-8-sig'):
-        self.replacements = replacements
-        self.subject=filename
-        self.read_encoding=read_encoding
-        self.write_encoding=write_encoding
-        super(ReplaceTextTarget, self).__init__(target, [filename], dependencies)
-
-    def serialize(self):
-        dat = super(ReplaceTextTarget, self).serialize()
-        dat['replacements'] = self.replacements
-        dat['read-encoding'] = self.read_encoding
-        dat['write-encoding'] = self.write_encoding
-        return dat
-
-    def deserialize(self,data):
-        super(ReplaceTextTarget, self).deserialize(data)
-        self.replacements=data['replacements']
-        self.read_encoding=data['read-encoding']
-        self.write_encoding=data['write-encoding']
-        self.subject=data['files'][0]
-
-    def build(self):
-        if self.checkMTimes(self.files + self.dependencies, self.target, self.replacements):
-            with log.info('Writing %s...', self.target):
-                os_utils.ensureDirExists(os.path.dirname(self.target))
-                with codecs.open(self.subject, 'r', encoding=self.read_encoding) as inf:
-                    with codecs.open(self.target + '.out', 'w', encoding=self.write_encoding) as outf:
-                        for line in inf:
-                            for needle, replacement in self.replacements.items():
-                                if isinstance(needle, SerializableLambda):
-                                    needle = needle()
-                                #if isinstance(replacement, SerializableLambda):
-                                #    replacement = replacement()
-                                line = re.sub(needle, replacement, line)
-                            outf.write(line)
-                shutil.move(self.target + '.out', self.target)
+def callLambda(var):
+    if isinstance(var, SerializableLambda):
+        var = var()
+    return var

@@ -23,6 +23,7 @@ SOFTWARE.
 
 '''
 import logging, os, re
+import colorama
 
 class NullIndenter(object):
     def __enter__(self):
@@ -31,14 +32,20 @@ class NullIndenter(object):
     def __exit__(self, type, value, traceback):
         return False
 
-_REGEX_COLOR=re.compile(r'<(red|green|yellow)>(.*)</\1>')
+# Regular expression used to detect color tags for colorize()
+_REGEX_COLOR = re.compile(r'<(red|green|yellow|blue|magenta|cyan|white)>([^<]+)</\1>')
+
 _COLORSTART='\033['
 _COLOREND='m'
 
 _COLORS={
-    'red':    31,
-    'green':  32,
-    'yellow': 33
+    'red':     31,
+    'green':   32,
+    'yellow':  33,
+    'blue':    34,
+    'magenta': 35,
+    'cyan':    36,
+    'white':   37,
 }
 def encodeColor(colorID):
     return _COLORSTART+str(colorID)+_COLOREND
@@ -73,6 +80,10 @@ class IndentLogger(object):
 
     def enableANSIColors(self,on=True):
         self.useAnsiColors=on
+        if self.useAnsiColors:
+            colorama.init(convert=True)
+        else:
+            colorama.deinit()
 
     def debug(self, msg, *args, **kwargs):
         """

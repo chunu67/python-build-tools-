@@ -23,13 +23,15 @@ SOFTWARE.
 
 '''
 import codecs
+import re
 import sys
+from buildtools.bt_logging import NullIndenter, log
+from buildtools.maestro.base_target import BuildTarget
+from buildtools.maestro.fileio import *
+from buildtools.maestro.utils import *
 
 import yaml
-
-from buildtools.bt_logging import log
-from buildtools.maestro.base_target import BuildTarget
-from buildtools.maestro.utils import *
+from tqdm import tqdm
 
 
 class BuildMaestro(object):
@@ -40,9 +42,12 @@ class BuildMaestro(object):
         self.targets = []
         self.targetsCompleted = []
 
+        self.verbose = False
+        self.colors = True
+
     def add(self, bt):
         self.alltargets.append(bt)
-        self.targets.append(bt.target)
+        self.targets += bt.provides()
 
     @staticmethod
     def RecognizeType(cls):
@@ -51,14 +56,17 @@ class BuildMaestro(object):
     def saveRules(self, filename):
         serialized = {}
         for rule in self.alltargets:
-            serialized[rule.target] = rule.serialize()
-        with codecs.open(filename+'.yml', 'w', encoding='utf-8') as f:
+            serialized[rule.name] = rule.serialize()
+        with codecs.open(filename + '.yml', 'w', encoding='utf-8') as f:
             yaml.dump(serialized, f, default_flow_style=False)
         with codecs.open(filename, 'w', encoding='utf-8') as f:
             for tKey in sorted(serialized.keys()):
                 target = dict(serialized[tKey])
                 f.write(u'[{} {}]: {}\n'.format(target['type'], tKey, ', '.join(target.get('dependencies', []))))
                 del target['dependencies']
+                for provided in target.get('provides', []):
+                    if provided != tKey:
+                        f.write(u'< {}\n'.format(provided))
                 for depend in target.get('files', []):
                     f.write(u'> {}\n'.format(depend))
                 del target['files']
@@ -69,8 +77,8 @@ class BuildMaestro(object):
 
     def loadRules(self, filename):
         REGEX_RULEHEADER = re.compile('\[([A-Za-z0-9]+) ([^:]+)\]:(.*)$')
-        self.targets=[]
-        self.alltargets=[]
+        self.targets = []
+        self.alltargets = []
         with codecs.open(filename, 'r') as f:
             context = {}
             yamlbuf = ''
@@ -92,10 +100,13 @@ class BuildMaestro(object):
                         'type': typeID,
                         'target': ruleKey,
                         'dependencies': [x.strip() for x in depends.split(',') if x != ''],
-                        'files': []
+                        'files': [],
+                        'provides': []
                     }
                 elif line.startswith('>') and context is not None:
                     context['files'].append(line[1:].strip())
+                elif line.startswith('<') and context is not None:
+                    context['provides'].append(line[1:].strip())
                 else:
                     yamlbuf += oline
             if context is not None:
@@ -103,7 +114,7 @@ class BuildMaestro(object):
         log.info('Loaded %d rules from %s', len(self.alltargets), filename)
 
     def addFromRules(self, context, yamlbuf):
-        #print(repr(yamlbuf))
+        # print(repr(yamlbuf))
         if yamlbuf.strip() != '':
             yml = yaml.load(yamlbuf)
             for k, v in yml.items():
@@ -113,27 +124,38 @@ class BuildMaestro(object):
         bt.deserialize(context)
         self.add(bt)
 
-    def run(self):
-        keys=[]
+    def get_max_label_length(self):
+        max_len = 0
+        for bt in self.alltargets:
+            max_len = max(max_len, len(bt.get_label()))
+        return max_len
+
+    def run(self, verbose=None):
+        if verbose is not None:
+            self.verbose = verbose
+        keys = []
         for target in self.alltargets:
-            keys += target.target
+            keys += target.provides()
         for target in self.alltargets:
             for reqfile in target.files:
                 if reqfile in keys and reqfile not in target.dependencies:
                     target.dependencies.append(reqfile)
         loop = 0
+        #progress = tqdm(total=len(self.targets), unit='target', desc='Building', leave=False)
         while len(self.targets) > len(self.targetsCompleted) and loop < 1000:
             loop += 1
             for bt in self.alltargets:
-                if bt.canBuild(self) and bt.target not in self.targetsCompleted:
-                    with log.info('Building target %s...', bt.target):
-                        bt.build()
-                    self.targetsCompleted.append(bt.target)
+                bt.maestro = self
+                if bt.canBuild(self) and any([target not in self.targetsCompleted for target in bt.provides()]):
+                    bt.try_build()
+                    # progress.update(1)
+                    self.targetsCompleted += bt.provides()
             #log.info('%d > %d',len(self.targets), len(self.targetsCompleted))
+        # progress.close()
         if loop >= 1000:
             with log.critical("Failed to resolve dependencies.  The following targets are left unresolved. Exiting."):
                 for bt in self.alltargets:
-                    if bt.target not in self.targetsCompleted:
-                        log.critical(bt.target)
-                        log.critical('%r',bt.serialize())
+                    if any([target not in self.targetsCompleted for target in bt.provides()]):
+                        log.critical(bt.name)
+                        log.critical('%r', bt.serialize())
             sys.exit(1)

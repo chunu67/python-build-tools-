@@ -28,41 +28,91 @@ import os
 
 from buildtools import os_utils
 from buildtools.bt_logging import log
+from buildtools.maestro.utils import callLambda
 
 
 class BuildTarget(object):
     BT_TYPE = '-'
+    BT_COLOR = 'cyan'
+    BT_LABEL = None
 
-    def __init__(self, target=None, files=[], dependencies=[]):
-        self.target = target
+    def __init__(self, targets=None, files=[], dependencies=[], provides=[], name=''):
+        self._all_provides = targets if isinstance(targets, list) else [targets]+provides
+        self.name = os.path.relpath(self._all_provides[0], os.getcwd()) if name == '' else name
         self.files = files
         self.dependencies = dependencies
 
         self.maestro = None
 
+    def try_build(self):
+        self.files = callLambda(self.files)
+        if self.is_stale():
+            with self.logStart():
+                self.build()
+
+    def get_config(self):
+        return {}
+
+    def is_stale(self):
+        return self.checkMTimes(self.files, self.provides(), config=self.get_config())
+
     def build(self):
         pass
+
+    def provides(self):
+        return self._all_provides
+
+    def get_label(self):
+        return self.BT_LABEL or self.BT_TYPE.upper() or type(self).__class__.__name__
+
+    def logStart(self):
+        color = self.BT_COLOR or 'cyan'
+        label = self.get_label()
+        pct = round((len(self.maestro.targetsCompleted)/len(self.maestro.targets))*100)
+        msg = ''
+        padded_label = label.ljust(self.maestro.get_max_label_length())
+        if self.maestro.verbose:
+            if self.maestro.colors:
+                msg = f'Running target <{color}>{self.name}</{color}>...'
+            else:
+                msg = f'Running target {self.name}...'
+        else:
+            if self.maestro.colors:
+                msg = f'<{color}>{padded_label}</{color}> {self.name}'
+            else:
+                msg = f'{padded_label} {self.name}'
+        return log.info(f'[{str(pct).rjust(3)}%] {msg}')
 
     def serialize(self):
         return {
             'type': self.BT_TYPE,
-            'files': self.files,
-            'dependencies': self.dependencies
+            'name': self.name,
+            'files': callLambda(self.files),
+            'dependencies': self.dependencies,
+            'provides': self.provides()
         }
+
+    def genVirtualTarget(self, vid=None):
+        if vid is None:
+            vid = self.name
+        return os.path.join('.build', 'tmp', 'virtual-targets', vid)
 
     def deserialize(self, data):
         self.target = data['target']
-        self.files = data.get('files',[])
-        self.dependencies = data.get('dependencies',[])
+        self.files = data.get('files', [])
+        self.dependencies = data.get('dependencies', [])
+        self._all_provides = data.get('provides', [])
 
-    def checkMTimes(self, inputs, target, config=None):
-        if not os.path.isfile(target):
-            log.info('%s does not exist.', target)
-            return True
+    def checkMTimes(self, inputs, targets, config=None):
+        inputs=callLambda(inputs)
+        for target in targets:
+            if not os.path.isfile(target):
+                log.debug('%s does not exist.', target)
+                return True
 
         if config is not None:
             configHash = hashlib.sha256(yaml.dump(config).encode('utf-8')).hexdigest()
-            targetHash = hashlib.sha256(target.encode('utf-8')).hexdigest()
+            targetHash = hashlib.sha256(';'.join(targets).encode('utf-8')).hexdigest()
 
             def writeHash():
                 with open(configcachefile, 'w') as f:
@@ -71,23 +121,41 @@ class BuildTarget(object):
             configcachefile = os.path.join('.build', targetHash)
             if not os.path.isfile(configcachefile):
                 writeHash()
-                log.info('%s: Target cache doesn\'t exist.', target)
+                log.debug('%s: Target cache doesn\'t exist.', self.name)
                 return True
             oldConfigHash = ''
             with open(configcachefile, 'r') as f:
                 oldConfigHash = f.readline().strip()
             if(oldConfigHash != configHash):
                 writeHash()
-                log.info('%s: Target config changed.', target)
+                log.debug('%s: Target config changed.', self.name)
                 return True
-        target_mtime = os.stat(target).st_mtime  # must be higher
-        for infilename in inputs:
+        target_mtime = 0  # must be higher
+        newest_target = None
+        inputs_mtime = 0
+        newest_input = None
+        for infilename in targets:
+            infilename = callLambda(infilename)
             if os.path.isfile(infilename):
-                input_mtime = os.stat(infilename).st_mtime
+                c_mtime = os.stat(infilename).st_mtime
                 # log.info("%d",input_mtime-target_mtime)
-                if input_mtime - target_mtime > 1:
-                    log.info("%s is newer than %s by %ds!", infilename, target, input_mtime - target_mtime)
-                    return True
+                if c_mtime > target_mtime:
+                    target_mtime = c_mtime
+                    newest_target = infilename
+        for infilename in inputs:
+            infilename = callLambda(infilename)
+            if os.path.isfile(infilename):
+                c_mtime = os.stat(infilename).st_mtime
+                # log.info("%d",input_mtime-target_mtime)
+                if c_mtime > inputs_mtime:
+                    inputs_mtime = c_mtime
+                    newest_input = infilename
+        if target_mtime < inputs_mtime:
+            log.debug("%s is newer than %s by %ds!", newest_input, newest_target, inputs_mtime - target_mtime)
+            return True
+        else:
+            log.debug("%s is older than %s by %ds!", newest_input, newest_target, target_mtime - inputs_mtime)
+
         return False
 
     def canBuild(self, maestro):
@@ -95,3 +163,8 @@ class BuildTarget(object):
             if dep not in maestro.targetsCompleted:
                 return False
         return True
+
+class SingleBuildTarget(BuildTarget):
+    def __init__(self, target=None, files=[], dependencies=[], provides=[], name=''):
+        self.target=target
+        super(SingleBuildTarget, self).__init__([target], files=files, dependencies=dependencies, provides=provides, name=name)

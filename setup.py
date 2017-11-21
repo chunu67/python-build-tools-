@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pybuildtools",
-    version="0.2.0",
+    version="0.2.1",
     description=("Simple library implementing common processes and logging for buildsystems"),
     author="Rob Nelson",
     author_email="nexisentertainment@gmail.com",
@@ -17,6 +17,8 @@ setup(
         "toml",
         "requests>=2.0",
         'six',
+        'colorama',
+        'tqdm'
     ],
     tests_require=[
         "pytest",
@@ -31,6 +33,6 @@ setup(
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Development Status :: 4 - Beta",
-        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.6",
     ],
 )
