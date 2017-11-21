@@ -80,7 +80,15 @@ class BowerBuildTarget(_NPMLikeBuildTarget):
 class GruntBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'Grunt'
     BT_LABEL = 'GRUNT'
-    def __init__(self, working_dir='.', opts=[], target=None, dependencies=[], grunt_pathc=None):
+    def __init__(self, working_dir='.', opts=[], target=None, dependencies=[], grunt_path=None):
         if target is None:
             target = os.path.join(working_dir, 'tmp', '.grunt.target')
         super().__init__('grunt', working_dir=working_dir, opts=opts, target=target, exe_path=grunt_path, files=[os.path.join(working_dir, 'Gruntfile.js')], dependencies=[])
+
+class ComposerBuildTarget(_NPMLikeBuildTarget):
+    BT_TYPE = 'Composer'
+    BT_LABEL = 'COMPOSER'
+    def __init__(self, working_dir='.', opts=['install'], modules_dir='vendor', target=None, dependencies=[], composer_path=None):
+        if target is None:
+            target = os.path.join(working_dir, modules_dir, '.composer.target')
+        super().__init__('composer', working_dir=working_dir, opts=opts, target=target, exe_path=composer_path, files=[os.path.join(working_dir, 'composer.json')], dependencies=[])
