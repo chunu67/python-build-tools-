@@ -58,17 +58,22 @@ class BuildMaestro(object):
         self.alltargets.append(bt)
         self.targets += bt.provides()
 
-    def parse_args(self):
+    def build_argparser(self):
         import argparse
         argp = argparse.ArgumentParser()
         argp.add_argument('--clean', action='store_true', help='Cleans everything.')
         argp.add_argument('--no-colors', action='store_true', help='Disables colors.')
         argp.add_argument('--rebuild', action='store_true', help='Clean rebuild of project.')
         argp.add_argument('--verbose', action='store_true', help='Show hidden buildsteps.')
-        return argp.parse_known_args()
+        return argp
 
-    def as_app(self):
-        args, skipped = self.parse_args()
+    def parse_args(self, argp=None, args=None):
+        if argp is None:
+            argp = self.build_argparser()
+        return argp.parse_args(args)
+
+    def as_app(self, argp=None, args=None):
+        args = self.parse_args(argp, args)
         if args.verbose:
             log.log.setLevel(logging.DEBUG)
             self.verbose = True
@@ -198,7 +203,7 @@ class BuildMaestro(object):
                     self.targetsCompleted += bt.provides()
             #log.info('%d > %d',len(self.targets), len(self.targetsCompleted))
         # progress.close()
-        alltargets=set()
+        alltargets = set()
         for bt in self.alltargets:
             for targetfile in bt.provides():
                 alltargets.add(targetfile)

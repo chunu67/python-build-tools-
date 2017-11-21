@@ -197,11 +197,6 @@ class CopyFilesTarget(SingleBuildTarget):
                     latest = current
         return latest
 
-    def touch(self, filename):
-        os_utils.ensureDirExists(os.path.dirname(filename))
-        with open(filename, 'w') as f:
-            f.write('a')
-
     def get_config(self):
         return [self.source, self.destination]
 

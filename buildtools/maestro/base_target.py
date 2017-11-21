@@ -26,6 +26,8 @@ import hashlib
 import yaml
 import os
 
+from pathlib import Path
+
 from buildtools import os_utils
 from buildtools.bt_logging import log
 from buildtools.maestro.utils import callLambda
@@ -163,6 +165,10 @@ class BuildTarget(object):
             if dep not in maestro.targetsCompleted:
                 return False
         return True
+
+    def touch(self, filename):
+        os_utils.ensureDirExists(os.path.dirname(filename))
+        Path(filename).touch(exist_ok=True)
 
 class SingleBuildTarget(BuildTarget):
     def __init__(self, target=None, files=[], dependencies=[], provides=[], name=''):
