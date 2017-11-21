@@ -13,11 +13,12 @@ class CopyFileTarget(SingleBuildTarget):
     BT_TYPE = 'CopyFile'
     BT_LABEL = 'COPY'
 
-    def __init__(self, target=None, filename=None, dependencies=[]):
+    def __init__(self, target=None, filename=None, dependencies=[], verbose=False):
         super(CopyFileTarget, self).__init__(target, [filename], dependencies)
+        self.name = f'{filename} -> {target}'
 
     def build(self):
-        os_utils.single_copy(self.files[0], self.target, verbose=True)
+        os_utils.single_copy(self.files[0], self.target, verbose=False)
 
 
 class MoveFileTarget(SingleBuildTarget):
@@ -26,6 +27,7 @@ class MoveFileTarget(SingleBuildTarget):
 
     def __init__(self, target=None, filename=None, dependencies=[]):
         super(MoveFileTarget, self).__init__(target, [filename], dependencies)
+        self.name = f'{filename} -> {target}'
 
     def build(self):
         shutil.move(self.files[0], self.target)

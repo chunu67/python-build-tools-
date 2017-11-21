@@ -23,12 +23,18 @@ SOFTWARE.
 
 '''
 import codecs
+import logging
+import os
 import re
 import sys
+from buildtools import os_utils
 from buildtools.bt_logging import NullIndenter, log
 from buildtools.maestro.base_target import BuildTarget
-from buildtools.maestro.fileio import *
-from buildtools.maestro.utils import *
+from buildtools.maestro.fileio import (ConcatenateBuildTarget, CopyFilesTarget,
+                                       CopyFileTarget, MoveFileTarget,
+                                       ReplaceTextTarget)
+from buildtools.maestro.utils import (SerializableFileLambda,
+                                      SerializableLambda, callLambda)
 
 import yaml
 from tqdm import tqdm
@@ -37,17 +43,57 @@ from tqdm import tqdm
 class BuildMaestro(object):
     ALL_TYPES = {}
 
-    def __init__(self):
+    def __init__(self, all_targets_file='.alltargets.yml', hidden_build_dir='.build'):
         self.alltargets = []
         self.targets = []
         self.targetsCompleted = []
 
         self.verbose = False
-        self.colors = True
+        self.colors = False
+
+        self.builddir = hidden_build_dir
+        self.all_targets_file = os.path.join(self.builddir, hidden_build_dir)
 
     def add(self, bt):
         self.alltargets.append(bt)
         self.targets += bt.provides()
+
+    def parse_args(self):
+        import argparse
+        argp = argparse.ArgumentParser()
+        argp.add_argument('--clean', action='store_true', help='Cleans everything.')
+        argp.add_argument('--no-colors', action='store_true', help='Disables colors.')
+        argp.add_argument('--rebuild', action='store_true', help='Clean rebuild of project.')
+        argp.add_argument('--verbose', action='store_true', help='Show hidden buildsteps.')
+        return argp.parse_known_args()
+
+    def as_app(self):
+        args, skipped = self.parse_args()
+        if args.verbose:
+            log.log.setLevel(logging.DEBUG)
+            self.verbose = True
+
+        self.colors = not args.no_colors
+
+        if self.colors:
+            log.enableANSIColors()
+
+        if args.rebuild or args.clean:
+            self.clean()
+        if args.clean:
+            return
+        self.run()
+
+    def clean(self):
+        if os.path.isfile(self.all_targets_file):
+            with open(self.all_targets_file, 'r', encoding='utf-8') as f:
+                for targetfile in yaml.load(f):
+                    if os.path.isfile(targetfile):
+                        if self.colors:
+                            log.info('<red>RM</red> %s', targetfile)
+                        else:
+                            log.info('RM %s', targetfile)
+                        os.remove(targetfile)
 
     @staticmethod
     def RecognizeType(cls):
@@ -152,6 +198,12 @@ class BuildMaestro(object):
                     self.targetsCompleted += bt.provides()
             #log.info('%d > %d',len(self.targets), len(self.targetsCompleted))
         # progress.close()
+        alltargets=set()
+        for bt in self.alltargets:
+            for targetfile in bt.provides():
+                alltargets.add(targetfile)
+        with open(self.all_targets_file, 'w', encoding='utf-8') as f:
+            yaml.dump(alltargets, f, default_flow_style=False)
         if loop >= 1000:
             with log.critical("Failed to resolve dependencies.  The following targets are left unresolved. Exiting."):
                 for bt in self.alltargets:
