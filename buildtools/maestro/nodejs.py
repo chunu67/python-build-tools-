@@ -92,3 +92,9 @@ class ComposerBuildTarget(_NPMLikeBuildTarget):
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.composer.target')
         super().__init__('composer', working_dir=working_dir, opts=opts, target=target, exe_path=composer_path, files=[os.path.join(working_dir, 'composer.json')], dependencies=[])
+
+class BrowserifyBuildTarget(_NPMLikeBuildTarget):
+    BT_TYPE = 'Browserify'
+    BT_LABEL = 'BROWSERIFY'
+    def __init__(self, working_dir='.', opts=[], target=None, files=[], dependencies=[], browserify_path=None):
+        super().__init__('browserify', working_dir=working_dir, opts=opts, target=target, exe_path=browserify_path, files=files, dependencies=[])

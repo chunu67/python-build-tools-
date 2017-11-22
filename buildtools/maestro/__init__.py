@@ -187,10 +187,6 @@ class BuildMaestro(object):
         keys = []
         for target in self.alltargets:
             keys += target.provides()
-        for target in self.alltargets:
-            for reqfile in target.files:
-                if reqfile in keys and reqfile not in target.dependencies:
-                    target.dependencies.append(reqfile)
         loop = 0
         #progress = tqdm(total=len(self.targets), unit='target', desc='Building', leave=False)
         while len(self.targets) > len(self.targetsCompleted) and loop < 1000:
