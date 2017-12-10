@@ -18,7 +18,7 @@ class CopyFileTarget(SingleBuildTarget):
         self.name = f'{filename} -> {target}'
 
     def build(self):
-        os_utils.ensureDirExists(os.path.dirname(self.files[0]), noisy=True)
+        os_utils.ensureDirExists(os.path.dirname(self.target), noisy=False)
         os_utils.single_copy(self.files[0], self.target, verbose=False)
 
 
@@ -31,7 +31,7 @@ class MoveFileTarget(SingleBuildTarget):
         self.name = f'{filename} -> {target}'
 
     def build(self):
-        os_utils.ensureDirExists(os.path.dirname(self.files[0]), noisy=True)
+        os_utils.ensureDirExists(os.path.dirname(self.target), noisy=False)
         shutil.move(self.files[0], self.target)
 
 

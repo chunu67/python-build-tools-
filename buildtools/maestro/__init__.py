@@ -27,6 +27,7 @@ import logging
 import os
 import re
 import sys
+import shutil
 from buildtools import os_utils
 from buildtools.bt_logging import NullIndenter, log
 from buildtools.maestro.base_target import BuildTarget
@@ -92,13 +93,20 @@ class BuildMaestro(object):
     def clean(self):
         if os.path.isfile(self.all_targets_file):
             with open(self.all_targets_file, 'r', encoding='utf-8') as f:
-                for targetfile in yaml.load(f):
+                for targetfile in sorted(yaml.load(f)):
+                    targetfile = os.path.normpath(targetfile)
                     if os.path.isfile(targetfile):
                         if self.colors:
                             log.info('<red>RM</red> %s', targetfile)
                         else:
                             log.info('RM %s', targetfile)
                         os.remove(targetfile)
+        if os.path.isdir(self.builddir):
+            if self.colors:
+                log.info('<red>RMTREE</red> %s <red>(build system stuff)</red>', self.builddir)
+            else:
+                log.info('RMTREE %s (build system stuff)', self.builddir)
+            shutil.rmtree(self.builddir, ignore_errors=True)
 
     @staticmethod
     def RecognizeType(cls):
