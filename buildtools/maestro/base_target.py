@@ -46,6 +46,11 @@ class BuildTarget(object):
 
         self.maestro = None
 
+        #: This target was rebuilt. (Files changed)
+        self.dirty = False
+
+        self._lambdas_called=False
+
     def try_build(self):
         self.files = callLambda(self.files)
         if self.is_stale():
@@ -56,7 +61,7 @@ class BuildTarget(object):
         return {}
 
     def is_stale(self):
-        return self.checkMTimes(self.files, self.provides(), config=self.get_config())
+        return self.checkMTimes(self.files+self.dependencies, self.provides(), config=self.get_config())
 
     def build(self):
         pass
@@ -67,22 +72,27 @@ class BuildTarget(object):
     def get_label(self):
         return self.BT_LABEL or self.BT_TYPE.upper() or type(self).__class__.__name__
 
+    def verboseLogEntry(self, color):
+        if self.maestro.colors:
+            return f'Running target <{color}>{self.name}</{color}>...'
+        else:
+            return f'Running target {self.name}...'
+
+    def standardLogEntry(self, color):
+        padded_label = self.get_label().ljust(self.maestro.get_max_label_length())
+        if self.maestro.colors:
+            return f'<{color}>{padded_label}</{color}> {self.name}'
+        else:
+            return f'{padded_label} {self.name}'
+
     def logStart(self):
         color = self.BT_COLOR or 'cyan'
-        label = self.get_label()
         pct = round((len(self.maestro.targetsCompleted)/len(self.maestro.targets))*100)
         msg = ''
-        padded_label = label.ljust(self.maestro.get_max_label_length())
         if self.maestro.verbose:
-            if self.maestro.colors:
-                msg = f'Running target <{color}>{self.name}</{color}>...'
-            else:
-                msg = f'Running target {self.name}...'
+            msg = self.verboseLogEntry(color)
         else:
-            if self.maestro.colors:
-                msg = f'<{color}>{padded_label}</{color}> {self.name}'
-            else:
-                msg = f'{padded_label} {self.name}'
+            msg = self.standardLogEntry(color)
         return log.info(f'[{str(pct).rjust(3)}%] {msg}')
 
     def serialize(self):
@@ -152,7 +162,7 @@ class BuildTarget(object):
                 if c_mtime > inputs_mtime:
                     inputs_mtime = c_mtime
                     newest_input = infilename
-        if target_mtime < inputs_mtime:
+        if target_mtime <= inputs_mtime:
             log.debug("%s is newer than %s by %ds!", newest_input, newest_target, inputs_mtime - target_mtime)
             return True
         else:
@@ -160,8 +170,14 @@ class BuildTarget(object):
 
         return False
 
-    def canBuild(self, maestro):
-        for dep in self.dependencies:
+    def canBuild(self, maestro, keys):
+        #self.files = list(callLambda(self.files))
+        #for dep in list(set(self.dependencies + self.files)):
+        if not self._lambdas_called:
+            for reqfile in callLambda(self.files):
+                if reqfile in keys and reqfile not in self.dependencies:
+                    self.dependencies.append(reqfile)
+        for dep in list(set(self.dependencies)):
             if dep not in maestro.targetsCompleted:
                 return False
         return True

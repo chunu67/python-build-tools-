@@ -18,6 +18,7 @@ class CopyFileTarget(SingleBuildTarget):
         self.name = f'{filename} -> {target}'
 
     def build(self):
+        os_utils.ensureDirExists(os.path.dirname(self.files[0]), noisy=True)
         os_utils.single_copy(self.files[0], self.target, verbose=False)
 
 
@@ -30,6 +31,7 @@ class MoveFileTarget(SingleBuildTarget):
         self.name = f'{filename} -> {target}'
 
     def build(self):
+        os_utils.ensureDirExists(os.path.dirname(self.files[0]), noisy=True)
         shutil.move(self.files[0], self.target)
 
 
@@ -165,6 +167,8 @@ class ConcatenateBuildTarget(SingleBuildTarget):
             for subj in tqdm.tqdm(self.subjects, leave=False):
                 with codecs.open(subj, 'r', encoding=self.read_encoding) as f:
                     outf.write(f.read())
+        if os.path.isfile(self.target):
+            os.remove(self.target)
         shutil.move(self.target + '.tmp', self.target)
 
 
@@ -176,7 +180,9 @@ class CopyFilesTarget(SingleBuildTarget):
         self.source = source
         self.destination = destination
         self.verbose = verbose
+        self.provided_files=os_utils.get_file_list(source, start=source, prefix=destination)
         super(CopyFilesTarget, self).__init__(target, dependencies=dependencies, files=[self.source, self.destination, os.path.abspath(__file__)])
+        self.name = f'{source} -> {destination}'
 
     def serialize(self):
         data = super(CopyFilesTarget, self).serialize()
@@ -186,6 +192,9 @@ class CopyFilesTarget(SingleBuildTarget):
     def deserialize(self, data):
         super(CopyFilesTarget, self).deserialize(data)
         self.source, self.destination = data['files']
+
+    def provides(self):
+        return [self.target]+self.provided_files
 
     def getLatestMTimeIn(self, dirpath):
         latest = 0
@@ -198,7 +207,7 @@ class CopyFilesTarget(SingleBuildTarget):
         return latest
 
     def get_config(self):
-        return [self.source, self.destination]
+        return [self.source, self.destination, self.provided_files]
 
     def is_stale(self):
         return not os.path.isdir(self.destination) or self.getLatestMTimeIn(self.source) > self.getLatestMTimeIn(self.destination) or self.checkMTimes([os.path.abspath(__file__)], [self.target], [self.destination])

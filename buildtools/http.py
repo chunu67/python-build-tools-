@@ -23,22 +23,19 @@ SOFTWARE.
 
 '''
 from __future__ import print_function
+from tqdm import tqdm
 
 import logging
 
 from buildtools.bt_logging import log
-from buildtools.utils import is_python_3
 
-if is_python_3():
-    from urllib.request import urlopen
-else:
-    from urllib import urlopen  # ??
+import requests
 
 HTTP_METHOD_GET = 'GET'
 HTTP_METHOD_POST = 'POST'
 
 
-def DownloadFile(url, filename, log_after=True, print_status=True, log_before=True):
+def DownloadFile(url, filename, log_after=True, print_status=True, log_before=True, **kwargs):
     '''
     Download a file from url to filename.
 
@@ -53,25 +50,49 @@ def DownloadFile(url, filename, log_after=True, print_status=True, log_before=Tr
     :param print_status:
         Prints live-updated status of the download progress. (May not work very well for piped or redirected output.)
     '''
-    u = urlopen(url)
+    #kwargs['headers'] = dict(DEFAULT_HEADERS, **kwargs.get('headers', {}))
+    r = None
+    try:
+        r = requests.get(url, stream=True, **kwargs)
+    except requests.exceptions.ConnectionError as e:
+        logging.warning(e)
+        return False
+    except UnicodeEncodeError as e:
+        logging.warning(e)
+        return False
+
+    if (r.status_code == 404):
+        logging.warn('404 - Not Found: %s', url)
+        return False
+    elif(r.status_code != 200):
+        logging.warn("Error code: {0}".format(r.status_code))
+        return False
     with open(filename, 'wb') as f:
-        meta = u.info()
-        file_size = int(meta["Content-Length"])
+        file_size = int(r.headers.get('Content-Length', '-1'))
+        if file_size < 0:
+            if 'Content-Length' not in r.headers:
+                log.warn('Content-Length header was not received, expect progress bar weirdness.')
+            else:
+                log.warn('Content-Length header has invalid value: %r', r.headers['Content-Length'])
         if log_before:
-            log.info("Downloading: %s Bytes: %s" % (filename, file_size))
+            log.info("Downloading: %s Bytes: %s" % (filename, file_size if file_size > -1 else 'UNKNOWN'))
 
         file_size_dl = 0
         block_sz = 8192
-        while True:
-            buf = u.read(block_sz)
+
+        progress = tqdm(total=file_size, unit='B', leave=False) if print_status else None
+        for buf in r.iter_content(block_sz):
             if not buf or file_size == file_size_dl:
                 break
 
             file_size_dl += len(buf)
             f.write(buf)
             if print_status:
-                status = r"%10d/%10d  [%3.2f%%]" % (file_size_dl, file_size, file_size_dl * 100. / file_size)
+                #status = r"%10d/%10d  [%3.2f%%]" % (file_size_dl, file_size, file_size_dl * 100. / file_size)
+                progress.update(file_size_dl)
                 #status = status + chr(8) * (len(status) + 1)  - pre-2.6 method
-                print(status, end='\r')
-        if log_after:
-            log.info('Downloaded {} to {} ({}B)'.format(url, filename, file_size_dl))
+                #print(status, end='\r')
+        if progress is not None:
+            progress.close()
+    if log_after:
+        log.info('Downloaded %s to %s (%dB)', url, filename, file_size_dl)

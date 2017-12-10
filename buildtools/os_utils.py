@@ -488,6 +488,8 @@ def _args2str(cmdlist):
 def decompressFile(archive):
     '''
     Decompresses the file to the current working directory.
+
+    Uses 7z for .7z and .rar files.
     '''
     #print('Trying to decompress ' + archive)
     tarpath=ENV.which('tar',skip_paths=['mingw']) # MinGW tar is broken, just throws errors (Jan 9 2016)
@@ -534,6 +536,58 @@ def decompressFile(archive):
         log.critical(u'Unknown file extension: %s', archive)
     return False
 
+
+
+def del_empty_dirs(src_dir: str, quiet=False) -> int:
+    '''
+    Removes empty directories.
+
+    :param src_dir:
+        Root of directory tree to search for empty directories.
+    :param quiet:
+        Squelches log messages about removing empty directories.
+    :returns:
+        Count of removed directories.
+    '''
+    ndeleted = -1
+    totalDel = 0
+    while ndeleted != 0:
+        ndeleted = 0
+        # Listing the files
+        for dirpath, dirnames, filenames in os.walk(src_dir, topdown=False):
+            if dirpath == src_dir:
+                break
+            if len(filenames) == 0 and len(dirnames) == 0:
+                if not quiet:
+                    log.info('Removing %s (empty)...', dirpath)
+                os.rmdir(dirpath)
+                ndeleted += 1
+                totalDel += 1
+    return totalDel
+
+
+def get_file_list(root_dir: str, start: str = None, prefix: str='') -> list:
+    '''
+    Gets all files in a directory, including in subdirectories.
+    :param root_dir:
+        Root of directory tree to search for files.
+    :param start:
+        start parameter for `os.path.relpath()`.
+    :param prefix:
+        Prefix to append to each returned file path.
+    :returns:
+        List of files.
+    '''
+    output = []
+    if start is None:
+        start = root_dir
+    for root, _, files in os.walk(root_dir):
+        for filename in files:
+            rpath = os.path.relpath(os.path.abspath(os.path.join(root, filename)), start)
+            if prefix is not None:
+                rpath = os.path.join(prefix, rpath)
+            output += [rpath]
+    return output
 
 ENV = BuildEnv()
 

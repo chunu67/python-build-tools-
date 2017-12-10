@@ -187,16 +187,25 @@ class BuildMaestro(object):
         keys = []
         for target in self.alltargets:
             keys += target.provides()
+        # Redundant
+        #for target in self.alltargets:
+        #    for reqfile in callLambda(target.files):
+        #        if reqfile in keys and reqfile not in target.dependencies:
+        #            target.dependencies.append(reqfile)
         loop = 0
         #progress = tqdm(total=len(self.targets), unit='target', desc='Building', leave=False)
+        self.targetsCompleted = []
+        self.targetsDirty = []
         while len(self.targets) > len(self.targetsCompleted) and loop < 1000:
             loop += 1
             for bt in self.alltargets:
                 bt.maestro = self
-                if bt.canBuild(self) and any([target not in self.targetsCompleted for target in bt.provides()]):
+                if bt.canBuild(self, keys) and any([target not in self.targetsCompleted for target in bt.provides()]):
                     bt.try_build()
                     # progress.update(1)
                     self.targetsCompleted += bt.provides()
+                    if bt.dirty:
+                        self.targetsDirty += bt.provides()
             #log.info('%d > %d',len(self.targets), len(self.targetsCompleted))
         # progress.close()
         alltargets = set()
