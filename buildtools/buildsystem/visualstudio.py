@@ -540,7 +540,7 @@ EndGlobal
                                 line.split('=')[0].strip())
                         elif section[0] == GlobalSections.SolutionProperties:
                             key, value = [x.strip() for x in line.split('=')]
-                            print(key, value)
+                            #print(key, value)
                             self.properties[key] = value
 
     def writeline(self, f, s):

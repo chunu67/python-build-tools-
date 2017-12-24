@@ -140,9 +140,10 @@ class BaseConfig(object):
 
 class ConfigFile(BaseConfig):
 
-    def __init__(self, filename=None, default={}, template_dir=None, variables={}, verbose=False):
+    def __init__(self, filename=None, default={}, template_dir=None, variables={}, verbose=False, encoding='utf-8'):
+        self.encoding=encoding
         env_vars = salty_jinja_envs()
-        env_vars['loader'] = jinja2.loaders.FileSystemLoader(os.path.dirname(filename) if template_dir is None else template_dir)
+        env_vars['loader'] = jinja2.loaders.FileSystemLoader(os.path.dirname(filename) if template_dir is None else template_dir, encoding=encoding)
         self.environment = jinja2.Environment(**env_vars)
         self.cfg = {}
         self.filename = filename
@@ -171,10 +172,9 @@ class ConfigFile(BaseConfig):
                 try:
                     template = self.environment.get_template(os.path.basename(filename))
                     rendered = template.render(variables)
-                    print(rendered)
                 except jinja2.exceptions.TemplateNotFound:
                     if verbose: log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
-                    with codecs.open(filename, 'r') as f:
+                    with codecs.open(filename, 'r', encoding=self.encoding) as f:
                         rendered = f.read()
 
                 newcfg = self.load_from_string(rendered)
@@ -211,15 +211,15 @@ class YAMLConfig(ConfigFile):
     def dict_constructor(self, loader, node):
         return collections.OrderedDict(loader.construct_pairs(node))
 
-    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False, ordered_dicts=False):
+    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False, ordered_dicts=False, encoding='utf-8'):
         self._ordered_dicts=False
-        super(YAMLConfig, self).__init__(filename, default, template_dir, variables, verbose)
+        super(YAMLConfig, self).__init__(filename, default, template_dir, variables, verbose, encoding)
         self._ordered_dicts=ordered_dicts
 
     def dump_to_file(self, filename, data):
         import yaml
-        with codecs.open(filename, 'w', encoding='utf-8') as f:
-            dumper = yaml.Dumper(f, default_flow_style=False)
+        with codecs.open(filename, 'w', encoding=self.encoding) as f:
+            dumper = yaml.Dumper(f, default_flow_style=False, encoding=self.encoding)
             #if self._ordered_dicts:
             dumper.add_representer(collections.OrderedDict, self.dict_representer)
             try:
@@ -251,12 +251,12 @@ class Config(YAMLConfig):
 
 class TOMLConfig(ConfigFile):
 
-    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False):
-        super(TOMLConfig, self).__init__(filename, default, template_dir, variables, verbose)
+    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False, encoding='utf-8'):
+        super(TOMLConfig, self).__init__(filename, default, template_dir, variables, verbose, encoding)
 
     def dump_to_file(self, filename, data):
         import toml
-        with open(filename, 'w') as f:
+        with open(filename, 'w', encoding=self.encoding) as f:
             f.write(toml.dumps(data))
 
     def load_from_string(self, string):

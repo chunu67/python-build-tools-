@@ -28,6 +28,7 @@ import os
 import re
 import sys
 import shutil
+from collections import defaultdict
 from buildtools import os_utils
 from buildtools.bt_logging import NullIndenter, log
 from buildtools.maestro.base_target import BuildTarget
@@ -38,9 +39,59 @@ from buildtools.maestro.utils import (SerializableFileLambda,
                                       SerializableLambda, callLambda)
 
 import yaml
+from typing import List
 from tqdm import tqdm
 
+class TarjanGraphVertex(object):
+    def __init__(self, ID: int, refs: List[int]):
+        self.ID=ID
+        self.refs = refs
+        self.disc = -1
+        self.low = -1
+        self.stackMember = False
 
+
+class TarjanGraph(object):
+    def __init__(self):
+        self.cur_id = 0 # Used for populating the graph.
+        #self.graph = defaultdict(list)
+        self.vertices = {}
+        self.time = 0
+        self.cycles=[]
+
+    def add_edge(self, ID: int, refs: List[int]):
+        self.vertices[ID] = TarjanGraphVertex(ID, refs)
+        #for ref in refs:
+        #    self.graph[ID].append(ref)
+
+    def _sccutil(self, vertex, stack):
+        vertex.disc = self.time
+        vertex.low = self.time
+        self.time+=1
+        stack.append(vertex.ID)
+        vertex.stackMember=True
+
+        for vID in vertex.refs:
+            other_vertex = self.vertices[vID]
+            if other_vertex.disc == -1:
+                self._sccutil(other_vertex, stack)
+                vertex.low=min(vertex.low,other_vertex.low)
+            else:
+                vertex.low=min(vertex.low,other_vertex.disc)
+        w=-1
+        if vertex.low == vertex.disc:
+            cycle=[]
+            while w!=vertex.ID:
+                w = stack.pop()
+                cycle += [w]
+                self.vertices[w].stackMember=False
+            self.cycles += [cycle]
+
+    def SCC(self):
+        stack=[]
+        for vertex in self.vertices.values():
+            if vertex.disc == -1:
+                self._sccutil(vertex, stack)
 class BuildMaestro(object):
     ALL_TYPES = {}
 
@@ -56,8 +107,11 @@ class BuildMaestro(object):
         self.all_targets_file = os.path.join(self.builddir, hidden_build_dir)
 
     def add(self, bt):
+        bt.ID = len(self.alltargets)
         self.alltargets.append(bt)
         self.targets += bt.provides()
+        return bt
+
 
     def build_argparser(self):
         import argparse
@@ -189,12 +243,70 @@ class BuildMaestro(object):
             max_len = max(max_len, len(bt.get_label()))
         return max_len
 
+    def checkForCycles(self):
+        with log.info('Checking for dependency cycles...'):
+            # Using Tarjan's Strongly Connected Cycles algorithm
+            tg = TarjanGraph()
+
+            # First, I need to convert all BuildTargets to TarjanGraphVertexes.
+            for bt in self.alltargets:
+                refs = []
+                for depend in bt.dependencies:
+                    providers=[]
+                    for obt in self.alltargets:
+                        if depend in obt.provides():
+                            #log.info('%s provides %s, which %s needs', obt.name, depend, bt.name)
+                            providers += [obt]
+                    if len(providers) > 1:
+                        log.warn('Build target %s has %d providers for dependency %s: %r',bt.name,len(providers),depend,[x.name for x in providers])
+                    refs.append(providers[-1].ID)
+                with log.debug('Dependency tree:'):
+                    with log.debug('[%s] (%d,[%s])',bt.name,bt.ID,', '.join([str(x) for x in refs])):
+                        for refID in refs:
+                            log.debug(self.alltargets[refID].name)
+                tg.add_edge(bt.ID, refs)
+
+            # Run the algo
+            tg.SCC()
+
+            # Sort through the crap that falls out
+            foundCycles=False
+            for cycle in tg.cycles:
+                if len(cycle) > 1:
+                    log.critical('CYCLE FOUND: %r', ['#{} ({})'.format(self.alltargets[btid].ID,self.alltargets[btid].name) for btid in cycle])
+                    foundCycles=True
+            return foundCycles
+
+    def _write_targets(self):
+        alltargets = set()
+        for bt in self.alltargets:
+            if bt.built:
+                for targetfile in bt.provides():
+                    alltargets.add(targetfile)
+        os_utils.ensureDirExists(os.path.dirname(self.all_targets_file))
+        with open(self.all_targets_file, 'w', encoding='utf-8') as f:
+            yaml.dump(alltargets, f, default_flow_style=False)
+
     def run(self, verbose=None):
         if verbose is not None:
             self.verbose = verbose
+
+        new_targets=[]
+        for t in self.targets:
+            if t in new_targets:
+                log.warn('Target %s added more than once.', t)
+            else:
+                new_targets.append(t)
+
+        if self.checkForCycles():
+            return
         keys = []
+        alldeps=[]
         for target in self.alltargets:
             keys += target.provides()
+            alldeps += target.dependencies
+            target.built=False
+        alldeps=list(set(alldeps))
         # Redundant
         #for target in self.alltargets:
         #    for reqfile in callLambda(target.files):
@@ -204,28 +316,35 @@ class BuildMaestro(object):
         #progress = tqdm(total=len(self.targets), unit='target', desc='Building', leave=False)
         self.targetsCompleted = []
         self.targetsDirty = []
-        while len(self.targets) > len(self.targetsCompleted) and loop < 1000:
+        while len(self.targets) > len(self.targetsCompleted) and loop < 10:
             loop += 1
             for bt in self.alltargets:
                 bt.maestro = self
                 if bt.canBuild(self, keys) and any([target not in self.targetsCompleted for target in bt.provides()]):
-                    bt.try_build()
-                    # progress.update(1)
-                    self.targetsCompleted += bt.provides()
-                    if bt.dirty:
-                        self.targetsDirty += bt.provides()
-            #log.info('%d > %d',len(self.targets), len(self.targetsCompleted))
+                    try:
+                        bt.try_build()
+                        # progress.update(1)
+                        self.targetsCompleted += bt.provides()
+                        if bt.dirty:
+                            self.targetsDirty += bt.provides()
+                    except Exception as e:
+                        self._write_targets()
+                        log.critical('An exception occurred, build halted.')
+                        log.exception(e)
+                        return
+                    bt.built=True
+            log.debug('%d > %d',len(self.targets), len(self.targetsCompleted))
         # progress.close()
-        alltargets = set()
-        for bt in self.alltargets:
-            for targetfile in bt.provides():
-                alltargets.add(targetfile)
-        with open(self.all_targets_file, 'w', encoding='utf-8') as f:
-            yaml.dump(alltargets, f, default_flow_style=False)
-        if loop >= 1000:
-            with log.critical("Failed to resolve dependencies.  The following targets are left unresolved. Exiting."):
-                for bt in self.alltargets:
-                    if any([target not in self.targetsCompleted for target in bt.provides()]):
-                        log.critical(bt.name)
-                        log.critical('%r', bt.serialize())
+        self._write_targets()
+        if loop >= 10:
+            incompleteTargets=[t for t in self.targets if t not in self.targetsCompleted]
+            if len(incompleteTargets)>0:
+                with log.critical("Failed to resolve dependencies.  The following targets are left unresolved. Exiting."):
+                    for t in incompleteTargets:
+                        log.critical(t)
+            orphanDeps=[t for t in alldeps if t not in self.targets]
+            if len(orphanDeps)>0:
+                with log.critical("Failed to resolve dependencies.  The following dependencies are orphaned. Exiting."):
+                    for t in orphanDeps:
+                        log.critical(t)
             sys.exit(1)

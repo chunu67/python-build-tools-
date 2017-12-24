@@ -25,7 +25,7 @@ SOFTWARE.
 import os
 import re
 import shutil
-
+from buildtools.bt_logging import log
 class IndentWriter(object):
 
     def __init__(self, fh, indent_level=0, indent_chars='\t', variables={}):
@@ -141,7 +141,7 @@ def writeGivenIndentData(writefunc, lines, writeIndentedLine, offsets=0, overrid
                 statement = indentOffsets.pop()
                 writeindented('# END {}'.format(statement), len(indentOffsets))
                 continue
-            print('UNKNOWN TEMPLATE ENGINE COMMAND: ' + line.strip())
+            log.error('UNKNOWN TEMPLATE ENGINE COMMAND: ' + line.strip())
             continue
         indent = max(indent + diff, 0)
         lastLineIndented = writeIndentedLine(indent, diff, ndiff, line, len(indentOffsets), writeindented)

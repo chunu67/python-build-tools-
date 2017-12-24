@@ -27,6 +27,7 @@ Created on May 14, 2015
 
 import os
 
+from buildtools.bt_logging import log
 from buildtools.lxml_utils import *
 from lxml import etree
 from buildtools.utils import getClassName
@@ -173,7 +174,7 @@ class Project(BaseNode):
             elif child.tag == 'Reference':
                 proj.references += [Reference.DeserializeXML(child)]
             else:
-                print('!!! Unknown project tag child {}'.format(child.tag))
+                log.error('!!! Unknown project tag child {}'.format(child.tag))
 
         return proj
 

@@ -22,31 +22,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-import os
-import sys
 import glob
-import subprocess
-import shutil
+import os
 import platform
-import time
 import re
-import zipfile
+import shutil
+import subprocess
+import sys
 import tarfile
-
-from subprocess import CalledProcessError
+import time
+import zipfile
+from buildtools.bt_logging import log
 from functools import reduce
+from subprocess import CalledProcessError
 
 # package psutil
 import psutil
-
-
-from buildtools.bt_logging import log
 
 buildtools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 scripts_dir = os.path.join(buildtools_dir, 'scripts')
 
 REG_EXCESSIVE_WHITESPACE = re.compile(r'\s{2,}')
 PLATFORM = platform.system()
+
 
 def clock():
     if sys.platform == 'win32':
@@ -63,6 +61,7 @@ def secondsToStr(t):
     return "%d:%02d:%02d.%03d" % \
         reduce(lambda ll, b: divmod(ll[0], b) + ll[1:],
                [(t * 1000,), 1000, 60, 60])
+
 
 class BuildEnv(object):
 
@@ -81,11 +80,12 @@ class BuildEnv(object):
             self.keycapmap[key] = okey
         return self.keycapmap[key]
 
-    def set(self, key, val,noisy=None):
+    def set(self, key, val, noisy=None):
         if noisy is None:
-            noisy=self.noisy
+            noisy = self.noisy
         key = self.getKey(key)
-        if noisy: log.info('Build env: {} = {}'.format(key, val))
+        if noisy:
+            log.info('Build env: {} = {}'.format(key, val))
         self.env[key] = val
 
     def get(self, key, default=None):
@@ -99,17 +99,19 @@ class BuildEnv(object):
 
     def prependTo(self, key, value, delim=';', noisy=None):
         if noisy is None:
-            noisy=self.noisy
+            noisy = self.noisy
         key = self.getKey(key)
-        if noisy: log.info('Build env: {1} prepended to {0}'.format(key, value))
-        self.env[key] = delim.join([value] + ENV.env.get(key,'').split(delim))
+        if noisy:
+            log.info('Build env: {1} prepended to {0}'.format(key, value))
+        self.env[key] = delim.join([value] + ENV.env.get(key, '').split(delim))
 
     def appendTo(self, key, value, delim=';', noisy=None):
         if noisy is None:
-            noisy=self.noisy
+            noisy = self.noisy
         key = self.getKey(key)
-        if noisy: log.info('Build env: {1} appended to {0}'.format(key, value))
-        self.env[key] = delim.join(ENV.env.get(key,'').split(delim) + [value])
+        if noisy:
+            log.info('Build env: {1} appended to {0}'.format(key, value))
+        self.env[key] = delim.join(ENV.env.get(key, '').split(delim) + [value])
 
     def clone(self):
         return BuildEnv(self.env.copy())
@@ -127,10 +129,10 @@ class BuildEnv(object):
         else:
             for path in self.get("PATH").split(os.pathsep):
                 path = path.strip('"')
-                is_skipped_path=False
+                is_skipped_path = False
                 for badpath in skip_paths:
                     if badpath.lower() in path.lower():
-                        is_skipped_path=True
+                        is_skipped_path = True
                         break
                 if is_skipped_path:
                     continue
@@ -148,18 +150,19 @@ class BuildEnv(object):
                     return exe_file
         return None
 
-    def removeDuplicatedEntries(self,key,noisy=None,delim=os.pathsep):
+    def removeDuplicatedEntries(self, key, noisy=None, delim=os.pathsep):
         if noisy is None:
-            noisy=self.noisy
-        newlist=[]
-        key=self.getKey(key)
+            noisy = self.noisy
+        newlist = []
+        key = self.getKey(key)
         for entry in self.env[key].split(delim):
             entry = entry.strip('"')
             if entry in newlist:
-                if noisy: log.info('Build env: Removing %r from %s: duplicated entry.',entry,key)
+                if noisy:
+                    log.info('Build env: Removing %r from %s: duplicated entry.', entry, key)
                 continue
-            newlist+=[entry]
-        self.env[key]=delim.join(newlist)
+            newlist += [entry]
+        self.env[key] = delim.join(newlist)
 
     @classmethod
     def dump(cls, env, keys=None):
@@ -305,9 +308,59 @@ def find_process(pid):
     return None
 
 
-def cmd(command, echo=False, env=None, show_output=True, critical=False, globbify=True):
+def check_output(*popenargs, timeout=None, acceptable_exit_codes=[0], **kwargs):
+    '''
+    Python 3.6 subprocess.check_output(), modded to accept more exit codes.
+    '''
+    if 'stdout' in kwargs:
+        raise ValueError('stdout argument not allowed, it will be overridden.')
+
+    if 'input' in kwargs and kwargs['input'] is None:
+        # Explicitly passing input=None was previously equivalent to passing an
+        # empty string. That is maintained here for backwards compatibility.
+        kwargs['input'] = '' if kwargs.get('universal_newlines', False) else b''
+    return run(*popenargs, stdout=subprocess.PIPE, timeout=timeout, check=True, acceptable_exit_codes=acceptable_exit_codes, **kwargs).stdout
+
+
+def check_call(*popenargs, acceptable_exit_codes=[0], **kwargs):
+    """
+    Python 3.6 subprocess.check_call(), modded to accept more exit codes.
+    """
+    retcode = subprocess.call(*popenargs, **kwargs)
+    if retcode not in acceptable_exit_codes:
+        cmd = kwargs.get("args")
+        if cmd is None:
+            cmd = popenargs[0]
+        raise subprocess.CalledProcessError(retcode, cmd)
+    return 0
+
+
+def run(*popenargs, input=None, timeout=None, check=False, acceptable_exit_codes=[0], **kwargs):
+    '''
+    Python 3.6 subprocess.run(), modded to accept more exit codes.
+    '''
+    with subprocess.Popen(*popenargs, **kwargs) as process:
+        try:
+            stdout, stderr = process.communicate(input, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+            raise subprocess.TimeoutExpired(process.args, timeout, output=stdout,  # pylint: disable=E1101
+                                            stderr=stderr)
+        except:
+            process.kill()
+            process.wait()
+            raise
+        retcode = process.poll()
+        if check and retcode not in acceptable_exit_codes:
+            raise CalledProcessError(retcode, process.args,  # pylint: disable=E1101
+                                     output=stdout, stderr=stderr)
+    return subprocess.CompletedProcess(process.args, retcode, stdout, stderr)  # pylint: disable=E1101
+
+
+def cmd(command, echo=False, env=None, show_output=True, critical=False, globbify=True, acceptable_exit_codes=[0]):
     new_env = _cmd_handle_env(env)
-    command = _cmd_handle_args(command,globbify)
+    command = _cmd_handle_args(command, globbify)
     if echo:
         log.info('$ ' + _args2str(command))
 
@@ -315,12 +368,14 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False, globbif
     try:
         if show_output:
             code = subprocess.call(command, env=new_env, shell=False)
-            success = code == 0
-            if critical and code:
+            #print(repr(code))
+            success = code in acceptable_exit_codes
+            if critical and not success:
                 raise CalledProcessError(code, command)
             return success
         else:
-            output = subprocess.check_output(command, env=new_env, stderr=subprocess.STDOUT)
+            # Using our own customized check_output for acceptable_exit_codes.
+            output = check_output(command, env=new_env, stderr=subprocess.STDOUT, acceptable_exit_codes=acceptable_exit_codes)
             return True
     except CalledProcessError as cpe:
         log.error(cpe.output)
@@ -468,6 +523,7 @@ def standardize_path(path):
         path = os.path.join(path, chunk)
     return path
 
+
 REG_DRIVELETTER = re.compile(r'^([A-Z]):\\')
 
 
@@ -476,14 +532,17 @@ def cygpath(inpath):
     chunks[0] = chunks[0].lower()[:-1]
     return '/cygdrive/' + '/'.join(chunks)
 
+
 def _autoescape(string):
     if ' ' in string:
-        return '"'+string+'"'
+        return '"' + string + '"'
     else:
         return string
 
+
 def _args2str(cmdlist):
     return ' '.join([_autoescape(x) for x in cmdlist])
+
 
 def decompressFile(archive):
     '''
@@ -492,7 +551,7 @@ def decompressFile(archive):
     Uses 7z for .7z and .rar files.
     '''
     #print('Trying to decompress ' + archive)
-    tarpath=ENV.which('tar',skip_paths=['mingw']) # MinGW tar is broken, just throws errors (Jan 9 2016)
+    tarpath = ENV.which('tar', skip_paths=['mingw'])  # MinGW tar is broken, just throws errors (Jan 9 2016)
     if archive.endswith('.tar.gz') or archive.endswith('.tgz'):
         with tarfile.open(archive, mode='r:gz') as arch:
             arch.extractall('.')
@@ -535,7 +594,6 @@ def decompressFile(archive):
     else:
         log.critical(u'Unknown file extension: %s', archive)
     return False
-
 
 
 def del_empty_dirs(src_dir: str, quiet=False) -> int:
@@ -589,6 +647,16 @@ def get_file_list(root_dir: str, start: str = None, prefix: str='') -> list:
             output += [rpath]
     return output
 
+
+def is_windows():
+    return platform.system() == 'Windows'
+
+def is_linux():
+    return platform.system() == 'Linux'
+
+#def is_osx():
+# Ha Ha fuck macs.
+
 ENV = BuildEnv()
 
 # Platform-specific extensions
@@ -600,5 +668,5 @@ if platform.system() == 'Windows':
 else:
     import buildtools._os_utils_linux
     buildtools._os_utils_linux.cmd_output = cmd_output
-    buildtools._os_utils_linux.ENV=ENV
+    buildtools._os_utils_linux.ENV = ENV
     from buildtools._os_utils_linux import GetDpkgShlibs, InstallDpkgPackages, DpkgSearchFiles

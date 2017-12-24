@@ -40,7 +40,11 @@ class BuildTarget(object):
 
     def __init__(self, targets=None, files=[], dependencies=[], provides=[], name=''):
         self._all_provides = targets if isinstance(targets, list) else [targets]+provides
-        self.name = os.path.relpath(self._all_provides[0], os.getcwd()) if name == '' else name
+        self.name = ''
+        try:
+            self.name = os.path.relpath(self._all_provides[0], os.getcwd()) if name == '' else name
+        except ValueError:
+            self.name = self._all_provides[0] if name == '' else name
         self.files = files
         self.dependencies = dependencies
 
@@ -162,7 +166,7 @@ class BuildTarget(object):
                 if c_mtime > inputs_mtime:
                     inputs_mtime = c_mtime
                     newest_input = infilename
-        if target_mtime <= inputs_mtime:
+        if newest_input is None or target_mtime <= inputs_mtime:
             log.debug("%s is newer than %s by %ds!", newest_input, newest_target, inputs_mtime - target_mtime)
             return True
         else:
@@ -179,6 +183,7 @@ class BuildTarget(object):
                     self.dependencies.append(reqfile)
         for dep in list(set(self.dependencies)):
             if dep not in maestro.targetsCompleted:
+                log.debug('%s: Waiting on %s.',self.name,dep)
                 return False
         return True
 
