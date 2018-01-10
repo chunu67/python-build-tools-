@@ -200,12 +200,13 @@ class CopyFilesTarget(SingleBuildTarget):
     BT_TYPE = 'CopyFiles'
     BT_LABEL = 'COPYFILES'
 
-    def __init__(self, target, source, destination, dependencies=[], verbose=False, ignore=None):
+    def __init__(self, target, source, destination, dependencies=[], verbose=False, ignore=None, show_progress=False):
         self.source = source
         self.destination = destination
         self.verbose = verbose
         self.ignore=ignore
         self.provided_files=os_utils.get_file_list(source, start=source, prefix=destination)
+        self.show_progress=show_progress
         super(CopyFilesTarget, self).__init__(target, dependencies=dependencies, files=[self.source, self.destination, os.path.abspath(__file__)])
         self.name = f'{source} -> {destination}'
 
@@ -226,9 +227,7 @@ class CopyFilesTarget(SingleBuildTarget):
         for root, _, filenames in os.walk(dirpath):
             for basefilename in filenames:
                 filename = os.path.join(root, basefilename)
-                current = os.stat(filename).st_mtime
-                if latest > current:
-                    latest = current
+                latest = max(os.stat(filename).st_mtime, latest)
         return latest
 
     def get_config(self):
@@ -238,5 +237,5 @@ class CopyFilesTarget(SingleBuildTarget):
         return not os.path.isdir(self.destination) or self.getLatestMTimeIn(self.source) > self.getLatestMTimeIn(self.destination) or self.checkMTimes([os.path.abspath(__file__)], [self.target], [self.destination])
 
     def build(self):
-        os_utils.copytree(self.source, self.destination, verbose=self.verbose, ignore=self.ignore)
+        os_utils.copytree(self.source, self.destination, verbose=self.verbose, ignore=self.ignore, progress=self.show_progress)
         self.touch(self.target)

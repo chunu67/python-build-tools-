@@ -1,4 +1,3 @@
-
 '''
 lxml Utility Functions
 

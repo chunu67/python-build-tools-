@@ -31,6 +31,7 @@ import subprocess
 import sys
 import tarfile
 import time
+import tqdm
 import zipfile
 from buildtools.bt_logging import log
 from functools import reduce
@@ -462,7 +463,15 @@ def single_copy(fromfile, newroot, **op_args):
         shutil.copy2(fromfile, newfile)
 
 
-def copytree(fromdir, todir, ignore=None, verbose=False, ignore_mtime=False):
+def copytree(fromdir, todir, ignore=None, verbose=False, ignore_mtime=False, progress=False):
+    if progress:
+        count={'a':0}
+        def incrementCount(a,b,**c):
+            count['a']+=1
+        optree(fromdir, todir, incrementCount, ignore,
+               verbose=False, ignore_mtime=ignore_mtime)
+        optree(fromdir, todir, single_copy, ignore,
+               verbose=verbose, ignore_mtime=ignore_mtime, tqdm_total=count['a'], progress=True)
     optree(fromdir, todir, single_copy, ignore,
            verbose=verbose, ignore_mtime=ignore_mtime)
 
@@ -471,7 +480,15 @@ def optree(fromdir, todir, op, ignore=None, **op_args):
     if ignore is None:
         ignore = []
     # print('ignore=' + repr(ignore))
-    for root, _, files in os.walk(fromdir):
+    gen = os.walk(fromdir)
+    if op_args.get('progress', False):
+        gen = tqdm.tqdm(gen,
+            desc=op_args.get('tqdm_desc', 'Operating...'),
+            total=op_args.get('tqdm_total', 0),
+            leave=True,
+            ascii=sys.platform.startswith('win'), #*shakes fist*
+            unit='file')
+    for root, _, files in gen:
         path = root.split(os.sep)
         start = len(fromdir)
         if root[start:].startswith(os.sep):

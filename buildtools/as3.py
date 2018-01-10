@@ -1,7 +1,5 @@
-
-
 '''
-BLURB GOES HERE.
+ActionScript3-related shit
 
 Copyright (c) 2015 - 2017 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
@@ -22,10 +20,17 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 '''
+
+import os
+import re
+import shutil
+
+from .indentation import getIndentChars
+
+
 def calculateNewImports(readImports, requiredImports):
-    #print(repr(readImports))
+    # print(repr(readImports))
     newImports = []
     for imp in requiredImports:
         chunks = imp.split('.')
@@ -37,23 +42,22 @@ def calculateNewImports(readImports, requiredImports):
             newImports += [imp]
     return newImports
 
+
 def ensureConditionalImports(filename, matchToImports, sort=False):
     requires = []
     with open(filename, 'r') as f:
         for line in f:
             line = line.strip()
             for match, imports in matchToImports.items():
-                if re.search(match,line) is not None:
+                if re.search(match, line) is not None:
                     requires += [i for i in imports if i not in requires]
     if len(requires) > 0:
-        ensureImportsExist(filename,requires,sort=sort)
+        ensureImportsExist(filename, requires, sort=sort)
 
 
 def ensureImportsExist(filename, requiredImports, sort=False):
     REG_IMPORT_STOP_A = re.compile(r'(public|private) (class|function)')
     REG_IMPORT_STOP_B = re.compile(r'/\*\*')
-	#import classes.GameData.PerkClasses.*;
-	#import classes.StorageClass;
     REG_IMPORT = re.compile(r'import ([a-zA-Z0-9_\.\*]+);')
 
     def matches(line, regex, action=None):
@@ -67,7 +71,7 @@ def ensureImportsExist(filename, requiredImports, sort=False):
     with open(filename, 'r') as f:
         with open(filename + '.tmp', 'w') as w:
             ln = 0
-            lastIndent = ''
+            #lastIndent = ''
             writingImports = True
             for line in f:
                 ln += 1
@@ -79,10 +83,11 @@ def ensureImportsExist(filename, requiredImports, sort=False):
                     m = REG_IMPORT.search(line)
                     if m is not None:
                         readImports += [m.group(1)]
-                        lastIndent = indent
-                        if sort: continue
+                        #lastIndent = indent
+                        if sort:
+                            continue
                     if matches(line, REG_IMPORT_STOP_A) or matches(line, REG_IMPORT_STOP_B):
-                        added=calculateNewImports(readImports, requiredImports)
+                        added = calculateNewImports(readImports, requiredImports)
                         if sort:
                             added += readImports
                             added.sort()
