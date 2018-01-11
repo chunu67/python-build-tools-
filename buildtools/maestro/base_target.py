@@ -61,6 +61,9 @@ class BuildTarget(object):
             with self.logStart():
                 self.build()
 
+    def clean(self):
+        pass
+
     def get_config(self):
         return {}
 
