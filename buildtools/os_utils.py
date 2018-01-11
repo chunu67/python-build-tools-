@@ -471,24 +471,19 @@ def copytree(fromdir, todir, ignore=None, verbose=False, ignore_mtime=False, pro
         optree(fromdir, todir, incrementCount, ignore,
                verbose=False, ignore_mtime=ignore_mtime)
         optree(fromdir, todir, single_copy, ignore,
-               verbose=verbose, ignore_mtime=ignore_mtime, tqdm_total=count['a'], progress=True)
-    optree(fromdir, todir, single_copy, ignore,
-           verbose=verbose, ignore_mtime=ignore_mtime)
+               verbose=verbose, ignore_mtime=ignore_mtime, tqdm_total=count['a'],
+               tqdm_desc='Copying...', progress=True)
+    else:
+        optree(fromdir, todir, single_copy, ignore,
+                verbose=verbose, ignore_mtime=ignore_mtime)
 
 
 def optree(fromdir, todir, op, ignore=None, **op_args):
     if ignore is None:
         ignore = []
+    gen = []
     # print('ignore=' + repr(ignore))
-    gen = os.walk(fromdir)
-    if op_args.get('progress', False):
-        gen = tqdm.tqdm(gen,
-            desc=op_args.get('tqdm_desc', 'Operating...'),
-            total=op_args.get('tqdm_total', 0),
-            leave=True,
-            ascii=sys.platform.startswith('win'), #*shakes fist*
-            unit='file')
-    for root, _, files in gen:
+    for root, _, files in os.walk(fromdir):
         path = root.split(os.sep)
         start = len(fromdir)
         if root[start:].startswith(os.sep):
@@ -500,10 +495,10 @@ def optree(fromdir, todir, op, ignore=None, **op_args):
             if op_args.get('verbose', False):
                 log.info(u'Skipping {}'.format(substructure))
             continue
-        if not os.path.isdir(newroot):
-            if op_args.get('verbose', False):
-                log.info(u'mkdir {}'.format(newroot))
-            os.makedirs(newroot)
+        #if not os.path.isdir(newroot):
+        #    if op_args.get('verbose', False):
+        #        log.info(u'mkdir {}'.format(newroot))
+        #    os.makedirs(newroot)
         for filename in files:
             fromfile = os.path.join(root, filename)
             _, ext = os.path.splitext(os.path.basename(fromfile))
@@ -511,7 +506,27 @@ def optree(fromdir, todir, op, ignore=None, **op_args):
                 if op_args.get('verbose', False):
                     log.info(u'Skipping {} ({})'.format(fromfile, ext))
                 continue
-            op(fromfile, newroot, **op_args)
+            gen += [(fromfile, newroot)]
+    #print(len(gen))
+    prog=None
+    if op_args.get('progress', False):
+        prog = tqdm.tqdm(gen,
+            desc=op_args.get('tqdm_desc', 'Operating...'),
+            total=op_args.get('tqdm_total', 0),
+            leave=True,
+            ascii=sys.platform.startswith('win'), # *shakes fist*
+            unit='file')
+            
+    for fromfile, newroot in gen:
+        if not os.path.isdir(newroot):
+            if op_args.get('verbose', False):
+                log.info(u'mkdir {}'.format(newroot))
+            os.makedirs(newroot)
+        op(fromfile, newroot, **op_args)
+        if prog:
+            prog.update(1)
+    if prog:
+        prog.close()
 
 
 def safe_rmtree(dirpath):

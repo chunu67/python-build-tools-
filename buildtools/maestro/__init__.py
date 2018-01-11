@@ -155,6 +155,9 @@ class BuildMaestro(object):
                         else:
                             log.info('RM %s', targetfile)
                         os.remove(targetfile)
+        for bt in self.alltargets:
+            bt.maestro = self
+            bt.clean()
         if os.path.isdir(self.builddir):
             if self.colors:
                 log.info('<red>RMTREE</red> %s <red>(build system stuff)</red>', self.builddir)
