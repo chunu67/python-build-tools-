@@ -44,6 +44,7 @@ class CopyFileTarget(SingleBuildTarget):
     def build(self):
         os_utils.ensureDirExists(os.path.dirname(self.target), noisy=False)
         os_utils.single_copy(self.files[0], self.target, verbose=False)
+        self.touch(self.target)
 
 
 class MoveFileTarget(SingleBuildTarget):

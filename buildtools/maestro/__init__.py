@@ -255,6 +255,9 @@ class BuildMaestro(object):
             for bt in self.alltargets:
                 refs = []
                 for depend in bt.dependencies:
+                    if not isinstance(depend, str):
+                        log.critical('Build target %s has invalid dependency %s.',bt.name,depend)
+                        sys.exit(1)
                     providers=[]
                     for obt in self.alltargets:
                         if depend in obt.provides():
@@ -262,6 +265,9 @@ class BuildMaestro(object):
                             providers += [obt]
                     if len(providers) > 1:
                         log.warn('Build target %s has %d providers for dependency %s: %r',bt.name,len(providers),depend,[x.name for x in providers])
+                    elif len(providers) == 0:
+                        log.error('Build target %s has no providers for dependency %s: %r',bt.name,depend,[x.name for x in providers])
+                        sys.exit(1)
                     refs.append(providers[-1].ID)
                 with log.debug('Dependency tree:'):
                     with log.debug('[%s] (%d,[%s])',bt.name,bt.ID,', '.join([str(x) for x in refs])):
@@ -331,9 +337,15 @@ class BuildMaestro(object):
                         if bt.dirty:
                             self.targetsDirty += bt.provides()
                     except Exception as e:
+                        bt.failed()
                         self._write_targets()
                         log.critical('An exception occurred, build halted.')
                         log.exception(e)
+                        return
+                    except KeyboardInterrupt:
+                        bt.failed()
+                        self._write_targets()
+                        log.critical('Cancelled via KeyboardInterrupt.')
                         return
                     bt.built=True
             log.debug('%d > %d',len(self.targets), len(self.targetsCompleted))

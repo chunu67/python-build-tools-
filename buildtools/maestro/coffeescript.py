@@ -50,20 +50,27 @@ class CoffeeBuildTarget(SingleBuildTarget):
         }
 
     def build(self):
-        os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
         os_utils.ensureDirExists(os.path.dirname(self.target))
-        coffeefile = os.path.join('tmp', self.target)
-        coffeefile, _ = os.path.splitext(coffeefile)
-        coffeefile += '.coffee'
-        coffeefile = os.path.abspath(coffeefile)
-        with codecs.open(coffeefile, 'w', encoding='utf-8-sig') as outf:
-            tq = tqdm(self.files, desc='Concatenating...', leave=False)
-            for infilename in tq:
-                with codecs.open(infilename, 'r', encoding='utf-8-sig') as inf:
-                    for line in inf:
-                        outf.write(line.rstrip() + "\n")
-            tq.close()
-        os_utils.cmd([self.coffee_executable] + self.coffee_opts + ['--output', os.path.dirname(self.target), coffeefile], critical=True, echo=False, show_output=True)
+        # BUGFIX: Coffeescript sometimes doesn't want to overwrite shit. - N3X
+        if os.path.isfile(self.target):
+            os.remove(self.target)
+        coffeefile = self.files[0]
+        if len(self.files) > 1:
+            os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
+            coffeefile = os.path.join('tmp', self.target)
+            coffeefile, _ = os.path.splitext(coffeefile)
+            coffeefile += '.coffee'
+            coffeefile = os.path.abspath(coffeefile)
+            if os.path.isfile(coffeefile):
+                os.remove(coffeefile)
+            with codecs.open(coffeefile, 'w', encoding='utf-8-sig') as outf:
+                tq = tqdm(self.files, desc='Concatenating...', leave=False)
+                for infilename in tq:
+                    with codecs.open(infilename, 'r', encoding='utf-8-sig') as inf:
+                        for line in inf:
+                            outf.write(line.rstrip() + "\n")
+                tq.close()
+        os_utils.cmd([self.coffee_executable] + self.coffee_opts + ['-o', os.path.dirname(self.target), coffeefile], critical=True, echo=False, show_output=True)
 
 class JS2CoffeeBuildTarget(SingleBuildTarget):
     BT_TYPE = 'JS2Coffee'

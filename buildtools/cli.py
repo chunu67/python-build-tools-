@@ -22,8 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-import os
-import sys
 
 
 def _formatChoices(choices, default):
@@ -37,7 +35,7 @@ def _formatChoices(choices, default):
 
 def getInputChar(prompt, valid, default):
     '''
-    Get a char from the user.
+    Get a lowercase char from the user.
     '''
     prompt += _formatChoices(valid, default)+' > '
     while True:
@@ -70,3 +68,32 @@ def getInputLine(prompt, choices=None, default=None):
             return default
         if choices is None or inp in choices:
             return inp
+
+def pressAnyKey(prompt='Press any key to continue.'):
+    print(prompt)
+    getChar()
+    
+
+def _find_getch():
+    try:
+        import termios
+    except ImportError:
+        # Non-POSIX. Return msvcrt's (Windows') getch.
+        import msvcrt
+        return msvcrt.getch
+
+    # POSIX system. Create and return a getch that manipulates the tty.
+    import sys, tty
+    def _getch():
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+
+    return _getch
+
+getChar = _find_getch()

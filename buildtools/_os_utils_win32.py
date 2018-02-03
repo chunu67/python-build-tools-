@@ -24,56 +24,88 @@ SOFTWARE.
 '''
 import sys
 import codecs
+import ctypes
+from ctypes.wintypes import HWND, UINT, WPARAM, LPVOID, LPARAM
 
 from buildtools.bt_logging import log
 
+LRESULT = LPARAM
+
 cmd_output = None
 ENV = None
-
-class WindowsEnv:
-    """Utility class to get/set windows environment variable"""
-
-    def __init__(self, scope):
-        log.info('Python version: 0x%0.8X' % sys.hexversion)
+class RegistryKey(object):
+    def __init__(self, hkey, key):
+        log.debug('Python version: 0x%0.8X' % sys.hexversion)
         if sys.hexversion > 0x03000000:
             import winreg #IGNORE:import-error
         else:
             import _winreg as winreg #IGNORE:import-error
         self.winreg = winreg
+        self.hkey = hkey
+        self.key = key
 
+        self._reg=None
+        self._key=None
+
+    def __enter__(self):
+        self._reg = self.winreg.ConnectRegistry(None, self.hkey)
+        self._key = self.winreg.OpenKey(self._reg, self.key, 0, self.winreg.KEY_ALL_ACCESS)
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.winreg.CloseKey(self._key)
+        self.winreg.CloseKey(self._reg)
+
+    def get(self, name, default=None):
+        try:
+            value = self.winreg.QueryValueEx(self._key, name)[0]
+        except WindowsError:
+            #if default is self.NO_DEFAULT_PROVIDED:
+            #    raise ValueError("No such registry key", name)
+            value = default
+        return value
+
+    def set(self, name, reg_type, value):
+        if value:
+            self.winreg.SetValueEx(self._key, name, 0, reg_type, value)
+        else:
+            self.winreg.DeleteValue(self._key, name)
+
+class WindowsEnv(object):
+    """Utility class to get/set windows environment variable"""
+    HWND_BROADCAST = 0xFFFF
+    WM_SETTINGCHANGE = 0x1A
+    NO_DEFAULT_PROVIDED = object()
+    SendMessage = ctypes.windll.user32.SendMessageW
+    SendMessage.argtypes = HWND, UINT, WPARAM, LPVOID
+    SendMessage.restype = LRESULT
+
+    def __init__(self, scope):
+        log.debug('Python version: 0x%0.8X' % sys.hexversion)
+        if sys.hexversion > 0x03000000:
+            import winreg #IGNORE:import-error
+        else:
+            import _winreg as winreg #IGNORE:import-error
+        self.winreg = winreg
         assert scope in ('user', 'system')
         self.scope = scope
         if scope == 'user':
-            self.root = winreg.HKEY_CURRENT_USER
+            self.root = self.winreg.HKEY_CURRENT_USER
             self.subkey = 'Environment'
         else:
-            self.root = winreg.HKEY_LOCAL_MACHINE
-            self.subkey = r'SYSTEM\CurrentControlSet\Control\Session Manager\Environment'
+            self.root = self.winreg.HKEY_LOCAL_MACHINE
+            self.subkey = 'SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment'
 
     def get(self, name, default=None):
-        with self.winreg.OpenKey(self.root, self.subkey, 0, self.winreg.KEY_READ) as key:
-            try:
-                value, _ = self.winreg.QueryValueEx(key, name)
-            except WindowsError:
-                value = default
-            return value
+        with RegistryKey(self.root, self.subkey) as key:
+            return key.get(name, default)
 
     def set(self, name, value):
-        # Note: for 'system' scope, you must run this as Administrator
-        with self.winreg.OpenKey(self.root, self.subkey, 0, self.winreg.KEY_ALL_ACCESS) as key:
-            self.winreg.SetValueEx(
-                key, name, 0, self.winreg.REG_EXPAND_SZ, value)
+        with RegistryKey(self.root, self.subkey) as key:
+            return key.set(name, self.winreg.REG_EXPAND_SZ, value)
 
-        import win32api #IGNORE:import-error
-        import win32con #IGNORE:import-error
-        assert win32api.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')
-
-        """
-        # For some strange reason, calling SendMessage from the current process
-        # doesn't propagate environment changes at all.
-        # TODO: handle CalledProcessError (for assert)
-        subprocess.check_call('''\"%s" -c "import win32api, win32con; assert win32api.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')"''' % sys.executable)
-        """
+    def notify(self):
+        self.SendMessage(self.HWND_BROADCAST, self.WM_SETTINGCHANGE, 0, 'Environment')
 
 def getVSVars(vspath, arch='x86', batfile=None, env=ENV):
     '''

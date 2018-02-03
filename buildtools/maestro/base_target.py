@@ -62,7 +62,17 @@ class BuildTarget(object):
                 self.build()
 
     def clean(self):
-        pass
+        with log.info('Cleaning %s...', self.name):
+            for filename in self.provides():
+                if os.path.isfile(filename):
+                    log.info('<red>RM    </red> %s',filename)
+                    os.remove(filename)
+
+    def failed(self):
+        self.built = False
+        log.warn('Cleaning build artifacts due to failure...')
+        self.clean()
+
 
     def get_config(self):
         return {}
