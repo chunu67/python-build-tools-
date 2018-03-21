@@ -47,6 +47,9 @@ _COLORS={
     'cyan':    36,
     'white':   37,
 }
+
+INDENT = 0
+
 def encodeColor(colorID):
     return _COLORSTART+str(colorID)+_COLOREND
 
@@ -63,19 +66,23 @@ class IndentLogger(object):
     '''
     Indents stuff.
     '''
+
+    INDENT = 0
+
     def __init__(self, logger=None):
-        self.indent = 0
         self.log = logger
         self.useAnsiColors=False
+        if isinstance(self.log, str):
+            self.log = logging.getLogger(self.log)
         if self.log is None:
             self.log = logging.getLogger()
 
     def __enter__(self):
-        self.indent += 1
+        self.INDENT += 1
         return self
 
     def __exit__(self, type, value, traceback):
-        self.indent -= 1
+        self.INDENT -= 1
         return False
 
     def enableANSIColors(self,on=True):
@@ -164,7 +171,7 @@ class IndentLogger(object):
         if self.useAnsiColors:
             msg=colorize(msg)
         if isinstance(msg, str):
-            indent = self.indent * '  '
+            indent = self.INDENT * '  '
             self.log._log(level, indent + msg, args, exc_info, extra)
         else:
             self.log._log(level, msg, args, exc_info, extra)
