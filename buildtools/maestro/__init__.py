@@ -264,9 +264,9 @@ class BuildMaestro(object):
                             #log.info('%s provides %s, which %s needs', obt.name, depend, bt.name)
                             providers += [obt]
                     if len(providers) > 1:
-                        log.warn('Build target %s has %d providers for dependency %s: %r',bt.name,len(providers),depend,[x.name for x in providers])
+                        log.warning('Build target %s has %d providers for dependency %s: %r',bt.name,len(providers),depend,[x.name for x in providers])
                     elif len(providers) == 0:
-                        log.error('Build target %s has no providers for dependency %s: %r',bt.name,depend,[x.name for x in providers])
+                        log.critical('Build target %s has no providers for dependency %s: %r',bt.name,depend,[x.name for x in providers])
                         sys.exit(1)
                     refs.append(providers[-1].ID)
                 with log.debug('Dependency tree:'):
