@@ -52,8 +52,9 @@ def DownloadFile(url, filename, log_after=True, print_status=True, log_before=Tr
     '''
     #kwargs['headers'] = dict(DEFAULT_HEADERS, **kwargs.get('headers', {}))
     r = None
+    session = kwargs.get('session', requests)
     try:
-        r = requests.get(url, stream=True, **kwargs)
+        r = session.get(url, stream=True, **kwargs)
     except requests.exceptions.ConnectionError as e:
         logging.warning(e)
         return False
