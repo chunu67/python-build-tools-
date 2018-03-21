@@ -33,11 +33,12 @@ class SCSSBuildTarget(SingleBuildTarget):
     BT_TYPE = 'SCSS'
     BT_LABEL = 'SCSS'
 
-    def __init__(self, target=None, files=[], dependencies=[], compass=False, import_paths=[], output_style='compact', sass_path=None):
+    def __init__(self, target=None, files=[], dependencies=[], compass=False, import_paths=[], output_style='compact', sass_path=None, imported=[]):
         super(SCSSBuildTarget, self).__init__(target, files, dependencies)
         self.compass = compass
         self.import_paths = import_paths
         self.output_style = output_style
+        self.imported = imported
 
         if sass_path is None:
             sass_path = os_utils.which('sass')
@@ -45,11 +46,15 @@ class SCSSBuildTarget(SingleBuildTarget):
                 log.warn('Unable to find sass on this OS.  Is it in PATH?  Remember to run `gem install sass compass`!')
         self.sass_path = sass_path
 
+    def is_stale(self):
+        return self.checkMTimes(self.files+self.dependencies+self.imported, self.provides(), config=self.get_config())
+
     def serialize(self):
         dat = super(SCSSBuildTarget, self).serialize()
         dat['compass'] = self.compass
         dat['imports'] = self.import_paths
         dat['style'] = self.output_style
+        dat['imported'] = self.imported
         return dat
 
     def deserialize(self, data):
@@ -57,6 +62,7 @@ class SCSSBuildTarget(SingleBuildTarget):
         self.compass = data.get('compass', False)
         self.import_paths = data.get('imports', [])
         self.output_style = data.get('style', 'compact')
+        self.imported = data.get('imported', [])
 
     def get_config(self):
         return {'compass': self.compass, 'import-paths': self.import_paths, 'output-style': self.output_style}
