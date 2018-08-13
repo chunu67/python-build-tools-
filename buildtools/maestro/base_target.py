@@ -64,9 +64,12 @@ class BuildTarget(object):
     def clean(self):
         with log.info('Cleaning %s...', self.name):
             for filename in self.provides():
-                if os.path.isfile(filename):
-                    log.info('<red>RM    </red> %s',filename)
-                    os.remove(filename)
+                self.removeFile(filename)
+
+    def removeFile(self, filename):
+        if os.path.isfile(filename):
+            log.info('<red>RM    </red> %s',filename)
+            os.remove(filename)
 
     def failed(self):
         self.built = False
