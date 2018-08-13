@@ -145,16 +145,10 @@ class BuildMaestro(object):
         self.run()
 
     def clean(self):
+        older_files = []
         if os.path.isfile(self.all_targets_file):
             with open(self.all_targets_file, 'r', encoding='utf-8') as f:
-                for targetfile in sorted(yaml.load(f)):
-                    targetfile = os.path.normpath(targetfile)
-                    if os.path.isfile(targetfile):
-                        if self.colors:
-                            log.info('<red>RM</red> %s', targetfile)
-                        else:
-                            log.info('RM %s', targetfile)
-                        os.remove(targetfile)
+                older_files = sorted(yaml.load(f))
         for bt in self.alltargets:
             bt.maestro = self
             bt.clean()
@@ -164,6 +158,15 @@ class BuildMaestro(object):
             else:
                 log.info('RMTREE %s (build system stuff)', self.builddir)
             shutil.rmtree(self.builddir, ignore_errors=True)
+        with log.info('Cleaning up old unclaimed files...'):
+            for targetfile in older_files:
+                targetfile = os.path.normpath(targetfile)
+                if os.path.isfile(targetfile):
+                    if self.colors:
+                        log.info('<red>RM</red> %s', targetfile)
+                    else:
+                        log.info('RM %s', targetfile)
+                    os.remove(targetfile)
 
     @staticmethod
     def RecognizeType(cls):
