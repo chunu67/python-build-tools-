@@ -1,5 +1,5 @@
 '''
-NodeJS-related BuildTargets.
+Package management BuildTargets.
 
 Copyright (c) 2015 - 2018 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
@@ -23,12 +23,14 @@ SOFTWARE.
 
 '''
 import os
-from buildtools import os_utils
+from buildtools import os_utils, utils
 from buildtools.maestro.base_target import SingleBuildTarget
 
 
 class _NPMLikeBuildTarget(SingleBuildTarget):
-    def __init__(self, base_command, working_dir='.', opts=[], files=[], target=None, dependencies=[], exe_path=None):
+    def __init__(self, base_command, working_dir='.', opts=[], files=[], target=None, dependencies=[], exe_path=None, specfile=None, lockfile=None):
+        self.specfile = specfile
+        self.lockfile = lockfile
         self.working_dir = working_dir
         self.opts = opts
         self.exe_path = exe_path
@@ -36,11 +38,24 @@ class _NPMLikeBuildTarget(SingleBuildTarget):
             self.exe_path = os_utils.which(base_command)
         super().__init__(target=target, files=files, dependencies=dependencies)
 
+    def get_lockfile(self):
+        return self.lockfile
+    def get_specfile(self):
+        return self.specfile
+
     def get_config(self):
         return {
             'working-dir': self.working_dir,
             'opts': self.opts,
-            'exe-path': self.exe_path
+            'exe-path': self.exe_path,
+            'specfile': {
+                'filename': self.get_specfile(),
+                'md5': utils.md5sum(self.get_specfile()) if self.get_specfile() is not None else None,
+            },
+            'lockfile': {
+                'filename': self.get_lockfile(),
+                'md5': utils.md5sum(self.get_lockfile()) if self.get_lockfile() is not None else None,
+            }
         }
 
     def build(self):
@@ -53,7 +68,7 @@ class _NPMLikeBuildTarget(SingleBuildTarget):
 class YarnBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'Yarn'
     BT_LABEL = 'YARN'
-    def __init__(self, working_dir='.', opts=[], modules_dir='node_modules', target=None, dependencies=[], yarn_path=None):
+    def __init__(self, working_dir='.', opts=[], modules_dir='node_modules', target=None, dependencies=[], yarn_path=None, lockfile=None):
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.yarn-integrity')
         super().__init__('yarn', working_dir=working_dir, opts=opts, target=target, exe_path=yarn_path, files=[os.path.join(working_dir, 'package.json')], dependencies=[])
@@ -88,10 +103,14 @@ class GruntBuildTarget(_NPMLikeBuildTarget):
 class ComposerBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'Composer'
     BT_LABEL = 'COMPOSER'
-    def __init__(self, working_dir='.', opts=['install'], modules_dir='vendor', target=None, dependencies=[], composer_path=None):
+    def __init__(self, working_dir='.', opts=['install'], modules_dir='vendor', target=None, dependencies=[], composer_path=None, composer_json=None, composer_lock=None):
+        if composer_json is None:
+            composer_json = os.path.join(working_dir, 'composer.json')
+        if composer_lock is None:
+            composer_lock = os.path.join(working_dir, 'composer.lock')
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.composer.target')
-        super().__init__('composer', working_dir=working_dir, opts=opts, target=target, exe_path=composer_path, files=[os.path.join(working_dir, 'composer.json')], dependencies=[])
+        super().__init__('composer', working_dir=working_dir, opts=opts, target=target, exe_path=composer_path, files=[], dependencies=[], specfile=composer_json, lockfile=composer_lock)
 
 class BrowserifyBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'Browserify'

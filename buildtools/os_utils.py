@@ -516,7 +516,7 @@ def optree(fromdir, todir, op, ignore=None, **op_args):
             leave=True,
             ascii=sys.platform.startswith('win'), # *shakes fist*
             unit='file')
-            
+
     for fromfile, newroot in gen:
         if not os.path.isdir(newroot):
             if op_args.get('verbose', False):
