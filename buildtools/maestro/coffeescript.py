@@ -24,6 +24,7 @@ SOFTWARE.
 '''
 import codecs
 import os
+import yaml
 from tqdm import tqdm
 
 from buildtools import log, os_utils
@@ -34,20 +35,51 @@ class CoffeeBuildTarget(SingleBuildTarget):
     BT_TYPE = 'CoffeeScript'
     BT_LABEL = 'COFFEE'
 
-    def __init__(self, target=None, files=[], dependencies=[], coffee_opts=['--no-header','-bcM'], coffee_executable=None):
+    def __init__(self, target=None, files=[], dependencies=[], coffee_opts=['--no-header','-bcM'], coffee_executable=None, make_map=False, coffee_concat_executable=None):
         if coffee_executable is None:
             coffee_executable = os_utils.which('coffee')
-            if coffee_executable is None:
-                log.warn('Unable to find coffee on this OS.  Is it in PATH?  Remember to run `gem install -g coffee-script`!')
+        if coffee_executable is None:
+            log.warn('Unable to find coffee on this OS.  Is it in PATH?  Remember to run `gem install -g coffee-script`!')
+
+        if coffee_concat_executable is None:
+            coffee_concat_executable = os_utils.which('coffee-concat')
+        if coffee_concat_executable is None:
+            log.warn('Unable to find coffee-concat on this OS.  Is it in PATH? Remember to run `yarn global add coffee-concat`!')
+
         self.coffee_executable = coffee_executable
+        self.coffee_concat_executable = coffee_concat_executable
+        self.make_map = make_map
         super(CoffeeBuildTarget, self).__init__(target, files, dependencies)
         self.coffee_opts=coffee_opts
 
     def get_config(self):
         return {
-            'opts': self.coffee_opts,
-            'exec': self.coffee_executable,
+            'opts':                     self.coffee_opts,
+            'exec':                     self.coffee_executable,
+            'coffee_concat_executable': self.coffee_concat_executable,
+            'make_map':                 self.make_map,
         }
+
+    def getCoffeeFile(self):
+        os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
+        coffeefile = os.path.join('tmp', self.target)
+        coffeefile, _ = os.path.splitext(coffeefile)
+        coffeefile += '.coffee'
+        coffeefile = os.path.abspath(coffeefile)
+        return coffeefile
+
+    def getCoffeeMapFile(self):
+        os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
+        coffeefile = os.path.join('tmp', self.target)
+        coffeefile, _ = os.path.splitext(coffeefile)
+        coffeefile += '.yml'
+        coffeefile = os.path.abspath(coffeefile)
+        return coffeefile
+
+    def clean(self):
+        #self.removeFile(self.getCoffeeFile())
+        self.removeFile(self.getCoffeeFile()+'.CoffeeBuildTarget.yml')
+        self.removeFile(self.getCoffeeMapFile())
 
     def build(self):
         os_utils.ensureDirExists(os.path.dirname(self.target))
@@ -56,19 +88,17 @@ class CoffeeBuildTarget(SingleBuildTarget):
             os.remove(self.target)
         coffeefile = self.files[0]
         if len(self.files) > 1:
-            os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
-            coffeefile = os.path.join('tmp', self.target)
-            coffeefile, _ = os.path.splitext(coffeefile)
-            coffeefile += '.coffee'
-            coffeefile = os.path.abspath(coffeefile)
+            coffeefile = self.getCoffeeFile()
             if os.path.isfile(coffeefile):
                 os.remove(coffeefile)
             with codecs.open(coffeefile, 'w', encoding='utf-8-sig') as outf:
                 tq = tqdm(self.files, desc='Concatenating...', leave=False)
                 for infilename in tq:
+                    outf.write('\n# FILE: {}\n'.format(infilename))
                     with codecs.open(infilename, 'r', encoding='utf-8-sig') as inf:
                         for line in inf:
                             outf.write(line.rstrip() + "\n")
+                    #outf.write('\n`//# sourceURL={}\n`\n'.format(infilename))
                 tq.close()
         os_utils.cmd([self.coffee_executable] + self.coffee_opts + ['-o', os.path.dirname(self.target), coffeefile], critical=True, echo=False, show_output=True)
 
