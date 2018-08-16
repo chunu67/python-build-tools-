@@ -70,7 +70,7 @@ class DartSCSSBuildTarget(SingleBuildTarget):
         sass_cmd = []
 
         sass_cmd = [self.sass_path]
-        args = ['---no-color', '-q', '--stop-on-error', '--embed-sources', '--embed-source-maps', '-s', self.output_style]
+        args = ['--no-color', '-q', '--stop-on-error', '--embed-sources', '--embed-source-map', '-s', self.output_style]
         for import_path in self.import_paths:
             args += ['-I', import_path]
 
