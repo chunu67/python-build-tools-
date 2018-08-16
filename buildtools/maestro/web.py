@@ -28,13 +28,62 @@ import re
 from buildtools import log, os_utils, utils
 from buildtools.maestro.base_target import SingleBuildTarget
 
+class DartSCSSBuildTarget(SingleBuildTarget):
+    BT_TYPE = 'DART-SCSS'
+    BT_LABEL = 'DART SCSS'
 
-class SCSSBuildTarget(SingleBuildTarget):
-    BT_TYPE = 'SCSS'
-    BT_LABEL = 'SCSS'
+    def __init__(self, target=None, files=[], dependencies=[], import_paths=[], output_style='compact', sass_path=None, imported=[]):
+        super(DartSCSSBuildTarget, self).__init__(target, files, dependencies)
+        #self.compass = compass
+        self.import_paths = import_paths
+        self.output_style = output_style
+        self.imported = imported
+
+        if sass_path is None:
+            sass_path = os_utils.which('sass')
+            if sass_path is None:
+                log.warn('Unable to find sass on this OS.  Is it in PATH?  Remember to run `npm install -g sass`!')
+        self.sass_path = sass_path
+
+    def is_stale(self):
+        return self.checkMTimes(self.files+self.dependencies+self.imported, self.provides(), config=self.get_config())
+
+    def serialize(self):
+        dat = super(DartSCSSBuildTarget, self).serialize()
+        #dat['compass'] = self.compass
+        dat['imports'] = self.import_paths
+        dat['style'] = self.output_style
+        dat['imported'] = self.imported
+        return dat
+
+    def deserialize(self, data):
+        super(DartSCSSBuildTarget, self).deserialize(data)
+        #self.compass = data.get('compass', False)
+        self.import_paths = data.get('imports', [])
+        self.output_style = data.get('style', 'compact')
+        self.imported = data.get('imported', [])
+
+    def get_config(self):
+        return {'import-paths': self.import_paths, 'output-style': self.output_style}
+
+    def build(self):
+        sass_cmd = []
+
+        sass_cmd = [self.sass_path]
+        args = ['---no-color', '-q', '--stop-on-error', '--embed-sources', '--embed-source-maps', '-s', self.output_style]
+        for import_path in self.import_paths:
+            args += ['-I', import_path]
+
+        #os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
+        os_utils.ensureDirExists(os.path.dirname(self.target))
+        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=False, show_output=True)
+
+class RubySCSSBuildTarget(SingleBuildTarget):
+    BT_TYPE = 'RUBY-SCSS'
+    BT_LABEL = 'RUBY SCSS'
 
     def __init__(self, target=None, files=[], dependencies=[], compass=False, import_paths=[], output_style='compact', sass_path=None, imported=[]):
-        super(SCSSBuildTarget, self).__init__(target, files, dependencies)
+        super(RubySCSSBuildTarget, self).__init__(target, files, dependencies)
         self.compass = compass
         self.import_paths = import_paths
         self.output_style = output_style
@@ -50,7 +99,7 @@ class SCSSBuildTarget(SingleBuildTarget):
         return self.checkMTimes(self.files+self.dependencies+self.imported, self.provides(), config=self.get_config())
 
     def serialize(self):
-        dat = super(SCSSBuildTarget, self).serialize()
+        dat = super(RubySCSSBuildTarget, self).serialize()
         dat['compass'] = self.compass
         dat['imports'] = self.import_paths
         dat['style'] = self.output_style
@@ -58,7 +107,7 @@ class SCSSBuildTarget(SingleBuildTarget):
         return dat
 
     def deserialize(self, data):
-        super(SCSSBuildTarget, self).deserialize(data)
+        super(RubySCSSBuildTarget, self).deserialize(data)
         self.compass = data.get('compass', False)
         self.import_paths = data.get('imports', [])
         self.output_style = data.get('style', 'compact')
