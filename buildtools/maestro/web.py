@@ -45,8 +45,8 @@ class DartSCSSBuildTarget(SingleBuildTarget):
                 log.warn('Unable to find sass on this OS.  Is it in PATH?  Remember to run `npm install -g sass`!')
         self.sass_path = sass_path
 
-    def is_stale(self):
-        return self.checkMTimes(self.files+self.dependencies+self.imported, self.provides(), config=self.get_config())
+    def getFilesToCompare(self):
+        return super().getFilesToCompare()+self.imported
 
     def serialize(self):
         dat = super(DartSCSSBuildTarget, self).serialize()
@@ -76,7 +76,7 @@ class DartSCSSBuildTarget(SingleBuildTarget):
 
         #os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
         os_utils.ensureDirExists(os.path.dirname(self.target))
-        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=False, show_output=True)
+        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=True, show_output=True)
 
 class RubySCSSBuildTarget(SingleBuildTarget):
     BT_TYPE = 'RUBY-SCSS'
@@ -95,8 +95,8 @@ class RubySCSSBuildTarget(SingleBuildTarget):
                 log.warn('Unable to find sass on this OS.  Is it in PATH?  Remember to run `gem install sass compass`!')
         self.sass_path = sass_path
 
-    def is_stale(self):
-        return self.checkMTimes(self.files+self.dependencies+self.imported, self.provides(), config=self.get_config())
+    def getFilesToCompare(self):
+        return super().getFilesToCompare()+self.imported
 
     def serialize(self):
         dat = super(RubySCSSBuildTarget, self).serialize()
@@ -133,7 +133,7 @@ class RubySCSSBuildTarget(SingleBuildTarget):
 
         #os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
         os_utils.ensureDirExists(os.path.dirname(self.target))
-        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=False, show_output=True)
+        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=True, show_output=True)
 
 
 class SCSSConvertTarget(SingleBuildTarget):

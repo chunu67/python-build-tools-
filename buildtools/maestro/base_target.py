@@ -38,6 +38,9 @@ class BuildTarget(object):
     BT_COLOR = 'cyan'
     BT_LABEL = None
 
+    #           YYYYMMDDhhmm
+    CACHE_VER = 201808240346
+
     def __init__(self, targets=None, files=[], dependencies=[], provides=[], name=''):
         self._all_provides = targets if isinstance(targets, list) else [targets]+provides
         self.name = ''
@@ -54,12 +57,22 @@ class BuildTarget(object):
         self.dirty = False
 
         self._lambdas_called=False
+        # Used for detection of changed files.
+        self._file_mtimes={}
+
+        # Cache stuff
+        self.lastConfigHash=''
+        self.lastTargetHash=''
+        self.lastFileTimes={}
+        self.lastConfig={}
 
     def try_build(self):
         self.files = callLambda(self.files)
+        self.readCache()
         if self.is_stale():
             with self.logStart():
                 self.build()
+                self.writeCache()
 
     def clean(self):
         with log.info('Cleaning %s...', self.name):
@@ -81,7 +94,15 @@ class BuildTarget(object):
         return {}
 
     def is_stale(self):
-        return self.checkMTimes(self.files+self.dependencies, self.provides(), config=self.get_config())
+        if self.getTargetHash() != self.lastTargetHash:
+            log.debug('Target hash changed')
+            return True
+        if self.getConfigHash() != self.lastConfigHash:
+            log.debug('Config hash changed')
+            return True
+        if self.haveFilesChanged(): #self.checkMTimes(self.files+self.dependencies, self.provides(), config=self.get_config())
+            return True
+        return False
 
     def build(self):
         pass
@@ -124,6 +145,16 @@ class BuildTarget(object):
             'provides': self.provides()
         }
 
+    def getFilesToCompare(self):
+        return [os.path.abspath(__file__)]+callLambda(self.files)+self.provides()+self.dependencies
+
+    def serialize_file_times(self):
+        file_mtimes={}
+        for filename in self.getFilesToCompare():
+            if os.path.isfile(filename):
+                file_mtimes[os.path.abspath(filename)]=os.path.getmtime(filename)
+        return file_mtimes
+
     def genVirtualTarget(self, vid=None):
         if vid is None:
             vid = self.name
@@ -134,6 +165,84 @@ class BuildTarget(object):
         self.files = data.get('files', [])
         self.dependencies = data.get('dependencies', [])
         self._all_provides = data.get('provides', [])
+
+    def getCacheFile(self):
+        filename = hashlib.sha256(self.name.encode('utf-8')).hexdigest()+'.yml'
+        return os.path.join(self.maestro.builddir, 'cache', filename)
+
+    def getConfigHash(self):
+        return hashlib.sha256(yaml.dump(self.get_config()).encode('utf-8')).hexdigest()
+
+    def getTargetHash(self):
+        return hashlib.sha256(';'.join(self.provides()).encode('utf-8')).hexdigest()
+
+    def writeCache(self):
+        configHash = self.getConfigHash()
+        targetHash = self.getTargetHash()
+        os_utils.ensureDirExists(os.path.dirname(self.getCacheFile()))
+        with open(self.getCacheFile(), 'w') as f:
+            yaml.dump_all([self.CACHE_VER, configHash, targetHash, self.serialize_file_times(), self.get_config()], f)
+
+    def readCache(self):
+        self.lastConfigHash=''
+        self.lastTargetHash=''
+        self.lastFileTimes={}
+        self.lastConfig={}
+        if os.path.isfile(self.getCacheFile()):
+            try:
+                with open(self.getCacheFile(), 'r') as f:
+                    cachedata = list(yaml.load_all(f))
+                    if len(cachedata)==5 and cachedata[0] == self.CACHE_VER:
+                        _, _CH, _TH, _LFT, _CFG = cachedata
+                        self.lastConfigHash=_CH
+                        self.lastTargetHash=_TH
+                        self.lastFileTimes=_LFT
+                        self.lastConfig=_CFG
+            except:
+                pass
+
+    def haveFilesChanged(self):
+        if self.lastTargetHash == '':
+            self.readCache()
+        curFileTimes = self.serialize_file_times()
+        for filename, mtime in self.lastFileTimes.items():
+            filename=os.path.abspath(filename)
+            if filename not in curFileTimes.keys():
+                log.debug('File %s is currently missing.', filename)
+                return True
+            if curFileTimes[filename] != mtime:
+                log.debug('File %s has a changed mtime.', filename)
+                return True
+        for filename, mtime in curFileTimes.items():
+            filename=os.path.abspath(filename)
+            if filename not in self.lastFileTimes.keys():
+                log.debug('File %s is new.', filename)
+                return True
+        return False
+
+    def getChangedFiles(self):
+        '''
+        Slower than haveFilesChanged.
+        '''
+        if self.lastTargetHash == '':
+            self.readCache()
+        o = []
+        curFileTimes = self.serialize_file_times()
+        for filename, mtime in self.lastFileTimes.items():
+            filename=os.path.abspath(filename)
+            if filename not in curFileTimes.keys():
+                log.debug('File %s is currently missing.', filename)
+                o += [filename]
+            if curFileTimes[filename] != mtime:
+                log.debug('File %s has a changed mtime.', filename)
+                o += [filename]
+        for filename, mtime in curFileTimes.items():
+            filename=os.path.abspath(filename)
+            if filename not in self.lastFileTimes.keys():
+                log.debug('File %s is new.', filename)
+                o += [filename]
+        return o
+
 
     def checkMTimes(self, inputs, targets, config=None):
         inputs=callLambda(inputs)

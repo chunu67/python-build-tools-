@@ -223,19 +223,8 @@ class CopyFilesTarget(SingleBuildTarget):
     def provides(self):
         return [self.target]+self.provided_files
 
-    def getLatestMTimeIn(self, dirpath):
-        latest = 0
-        for root, _, filenames in os.walk(dirpath):
-            for basefilename in filenames:
-                filename = os.path.join(root, basefilename)
-                latest = max(os.stat(filename).st_mtime, latest)
-        return latest
-
     def get_config(self):
         return [self.source, self.destination, self.ignore, self.provided_files]
-
-    def is_stale(self):
-        return not os.path.isdir(self.destination) or self.getLatestMTimeIn(self.source) > self.getLatestMTimeIn(self.destination) or self.checkMTimes([os.path.abspath(__file__)], [self.target], [self.destination])
 
     def build(self):
         os_utils.copytree(self.source, self.destination, verbose=self.verbose, ignore=self.ignore, progress=self.show_progress)

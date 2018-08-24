@@ -35,7 +35,7 @@ class CoffeeBuildTarget(SingleBuildTarget):
     BT_TYPE = 'CoffeeScript'
     BT_LABEL = 'COFFEE'
 
-    def __init__(self, target=None, files=[], dependencies=[], coffee_opts=['--no-header','-bcM'], coffee_executable=None, make_map=False, coffee_concat_executable=None):
+    def __init__(self, target=None, files=[], dependencies=[], coffee_opts=['--no-header','-bc'], coffee_executable=None, make_map=False, coffee_concat_executable=None):
         if coffee_executable is None:
             coffee_executable = os_utils.which('coffee')
         if coffee_executable is None:
@@ -48,7 +48,8 @@ class CoffeeBuildTarget(SingleBuildTarget):
 
         self.coffee_executable = coffee_executable
         self.coffee_concat_executable = coffee_concat_executable
-        self.make_map = make_map
+        if make_map:
+            coffee_opts += ['-M']
         super(CoffeeBuildTarget, self).__init__(target, files, dependencies)
         self.coffee_opts=coffee_opts
 
@@ -56,8 +57,7 @@ class CoffeeBuildTarget(SingleBuildTarget):
         return {
             'opts':                     self.coffee_opts,
             'exec':                     self.coffee_executable,
-            'coffee_concat_executable': self.coffee_concat_executable,
-            'make_map':                 self.make_map,
+            'coffee_concat_executable': self.coffee_concat_executable
         }
 
     def getCoffeeFile(self):
@@ -77,9 +77,9 @@ class CoffeeBuildTarget(SingleBuildTarget):
         return coffeefile
 
     def clean(self):
-        #self.removeFile(self.getCoffeeFile())
         self.removeFile(self.getCoffeeFile()+'.CoffeeBuildTarget.yml')
         self.removeFile(self.getCoffeeMapFile())
+        self.removeFile(self.target)
 
     def build(self):
         os_utils.ensureDirExists(os.path.dirname(self.target))
@@ -94,7 +94,7 @@ class CoffeeBuildTarget(SingleBuildTarget):
             with codecs.open(coffeefile, 'w', encoding='utf-8-sig') as outf:
                 tq = tqdm(self.files, desc='Concatenating...', leave=False)
                 for infilename in tq:
-                    outf.write('\n# FILE: {}\n'.format(infilename))
+                    outf.write('\n`// FILE: {}`\n'.format(infilename))
                     with codecs.open(infilename, 'r', encoding='utf-8-sig') as inf:
                         for line in inf:
                             outf.write(line.rstrip() + "\n")
