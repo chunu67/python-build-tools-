@@ -31,10 +31,11 @@ class CommandBuildTarget(BuildTarget):
     BT_LABEL = 'SHELL'
     #BT_COLOR = 'red'
 
-    def __init__(self, targets, files, cmd, show_output=False, echo=False, dependencies=[], provides=[], name=None):
+    def __init__(self, targets, files, cmd, show_output=False, echo=None, dependencies=[], provides=[], name=None, globbify=False):
         self.cmd = cmd
         self.show_output = show_output
         self.echo = echo
+        self.globbify = globbify
         newt = []
         for x in targets:
             if x.startswith('@'):
@@ -50,6 +51,6 @@ class CommandBuildTarget(BuildTarget):
         }
 
     def build(self):
-        os_utils.cmd(self.cmd, show_output=self.show_output, echo=self.echo, critical=True, globbify=False)
+        os_utils.cmd(self.cmd, show_output=self.show_output, echo=self.should_echo_commands() if self.echo is None else self.echo, critical=True, globbify=self.globbify)
         for t in self.provides():
             self.touch(t)

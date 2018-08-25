@@ -60,7 +60,7 @@ class _NPMLikeBuildTarget(SingleBuildTarget):
 
     def build(self):
         with os_utils.Chdir(self.working_dir):
-            os_utils.cmd([self.exe_path] + self.opts, show_output=True, echo=True, critical=True)
+            os_utils.cmd([self.exe_path] + self.opts, show_output=True, echo=self.should_echo_commands(), critical=True)
         if not os.path.isfile(self.target):
             self.touch(self.target)
 

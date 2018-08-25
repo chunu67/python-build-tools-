@@ -100,7 +100,7 @@ class CoffeeBuildTarget(SingleBuildTarget):
                             outf.write(line.rstrip() + "\n")
                     #outf.write('\n`//# sourceURL={}\n`\n'.format(infilename))
                 tq.close()
-        os_utils.cmd([self.coffee_executable] + self.coffee_opts + ['-o', os.path.dirname(self.target), coffeefile], critical=True, echo=False, show_output=True)
+        os_utils.cmd([self.coffee_executable] + self.coffee_opts + ['-o', os.path.dirname(self.target), coffeefile], critical=True, echo=self.should_echo_commands(), show_output=True)
 
 class JS2CoffeeBuildTarget(SingleBuildTarget):
     BT_TYPE = 'JS2Coffee'
@@ -122,7 +122,7 @@ class JS2CoffeeBuildTarget(SingleBuildTarget):
 
     def build(self):
         os_utils.ensureDirExists(os.path.dirname(self.target))
-        stdout, stderr = os_utils.cmd_output([self.js2coffee_path]+self.files+self.js2coffee_opts, echo=False, critical=True)
+        stdout, stderr = os_utils.cmd_output([self.js2coffee_path]+self.files+self.js2coffee_opts, echo=self.should_echo_commands(), critical=True)
         if stderr.strip() != '':
             log.error(stderr)
         with codecs.open(self.target, 'w', encoding='utf-8-sig') as outf:

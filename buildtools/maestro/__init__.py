@@ -92,6 +92,7 @@ class TarjanGraph(object):
         for vertex in self.vertices.values():
             if vertex.disc == -1:
                 self._sccutil(vertex, stack)
+
 class BuildMaestro(object):
     ALL_TYPES = {}
 
@@ -102,6 +103,7 @@ class BuildMaestro(object):
 
         self.verbose = False
         self.colors = False
+        self.show_commands = False
 
         self.builddir = hidden_build_dir
         self.all_targets_file = os.path.join(self.builddir, hidden_build_dir)
@@ -112,13 +114,13 @@ class BuildMaestro(object):
         self.targets += bt.provides()
         return bt
 
-
     def build_argparser(self):
         import argparse
         argp = argparse.ArgumentParser()
         argp.add_argument('--clean', action='store_true', help='Cleans everything.')
         argp.add_argument('--no-colors', action='store_true', help='Disables colors.')
         argp.add_argument('--rebuild', action='store_true', help='Clean rebuild of project.')
+        argp.add_argument('--show-commands', action='store_true', help='Echoes the line used to execute commands. (echo=True in os_utils.cmd())')
         argp.add_argument('--verbose', action='store_true', help='Show hidden buildsteps.')
         return argp
 
@@ -133,6 +135,7 @@ class BuildMaestro(object):
             log.log.setLevel(logging.DEBUG)
             self.verbose = True
 
+        self.show_commands = args.show_commands
         self.colors = not args.no_colors
 
         if self.colors:

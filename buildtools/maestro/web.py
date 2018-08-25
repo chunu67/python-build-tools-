@@ -113,7 +113,7 @@ class DartSCSSBuildTarget(_BaseSCSSBuildTarget):
 
         #os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
         os_utils.ensureDirExists(os.path.dirname(self.target))
-        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=True, show_output=True)
+        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=self.should_echo_commands(), show_output=True)
 
 class RubySCSSBuildTarget(_BaseSCSSBuildTarget):
     BT_TYPE = 'RUBY-SCSS'
@@ -161,7 +161,7 @@ class RubySCSSBuildTarget(_BaseSCSSBuildTarget):
 
         #os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
         os_utils.ensureDirExists(os.path.dirname(self.target))
-        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=True, show_output=True)
+        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=self.should_echo_commands(), show_output=True)
 
 
 class SCSSConvertTarget(SingleBuildTarget):
@@ -189,7 +189,7 @@ class SCSSConvertTarget(SingleBuildTarget):
         args = ['-F', 'css', '-T', 'scss', '-C']
         #os_utils.ensureDirExists(os.path.join('tmp', os.path.dirname(self.target)))
         os_utils.ensureDirExists(os.path.dirname(self.target))
-        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=False, show_output=True)
+        os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=self.should_echo_commands(), show_output=True)
 
 
 class SVG2PNGBuildTarget(SingleBuildTarget):
@@ -212,7 +212,7 @@ class SVG2PNGBuildTarget(SingleBuildTarget):
 
     def build(self):
         os_utils.ensureDirExists(os.path.dirname(self.target))
-        os_utils.cmd([self.inkscape, '-z', '-e', self.target, '-h', str(self.height), '-w', str(self.width), self.files[0]], critical=True, echo=False, show_output=True)
+        os_utils.cmd([self.inkscape, '-z', '-e', self.target, '-h', str(self.height), '-w', str(self.width), self.files[0]], critical=True, echo=self.should_echo_commands(), show_output=True)
 
 
 class ICOBuildTarget(SingleBuildTarget):
@@ -233,7 +233,7 @@ class ICOBuildTarget(SingleBuildTarget):
         command_line = [self.convert_executable]
         command_line += [os.path.relpath(x, os.getcwd()) for x in self.files]
         command_line += [os.path.relpath(self.target, os.getcwd())]
-        os_utils.cmd(command_line, critical=True, echo=False, show_output=True)
+        os_utils.cmd(command_line, critical=True, echo=self.should_echo_commands(), show_output=True)
 
 
 class UglifyJSTarget(SingleBuildTarget):
@@ -259,7 +259,7 @@ class UglifyJSTarget(SingleBuildTarget):
 
     def build(self):
         cmdline = [self.uglifyjs_executable] + self.options + ['-o', self.target, self.files[0]]
-        os_utils.cmd(cmdline, critical=True, echo=False)
+        os_utils.cmd(cmdline, critical=True, echo=self.should_echo_commands())
 
 
 class MinifySVGTarget(SingleBuildTarget):
@@ -278,7 +278,7 @@ class MinifySVGTarget(SingleBuildTarget):
 
     def build(self):
         os_utils.ensureDirExists(os.path.dirname(self.target))
-        os_utils.cmd([self.svgo_cmd, '-i', self.source, '-o', self.target] + self.svgo_opts, echo=False, show_output=True, critical=True)
+        os_utils.cmd([self.svgo_cmd, '-i', self.source, '-o', self.target] + self.svgo_opts, echo=self.should_echo_commands(), show_output=True, critical=True)
 
 
 REG_IMAGEURL = re.compile(r'url\("([^"]+)"\)')
@@ -302,7 +302,7 @@ class DatafyImagesTarget(SingleBuildTarget):
     def __init__(self, target, infile, basedir, dependencies=[]):
         self.infile = infile
         self.basedir = basedir
-        super(DatafyImagesTarget, self).__init__(target, dependencies=dependencies, files=[infile, os.path.abspath(__file__)])
+        super().__init__(target, dependencies=dependencies, files=[infile, os.path.abspath(__file__)])
 
     def build(self):
         convert_imgurls_to_dataurls(self.infile, self.target, self.basedir)

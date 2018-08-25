@@ -53,12 +53,12 @@ class BuildTarget(object):
 
         self.maestro = None
 
+        self.show_commands = False
+
         #: This target was rebuilt. (Files changed)
         self.dirty = False
 
         self._lambdas_called=False
-        # Used for detection of changed files.
-        self._file_mtimes={}
 
         # Cache stuff
         self.lastConfigHash=''
@@ -92,6 +92,9 @@ class BuildTarget(object):
 
     def get_config(self):
         return {}
+
+    def should_echo_commands(self):
+        return self.maestro.show_commands or self.show_commands
 
     def is_stale(self):
         if self.getTargetHash() != self.lastTargetHash:
@@ -142,7 +145,8 @@ class BuildTarget(object):
             'name': self.name,
             'files': callLambda(self.files),
             'dependencies': self.dependencies,
-            'provides': self.provides()
+            'provides': self.provides(),
+            'show_commands': self.show_commands
         }
 
     def getFilesToCompare(self):
@@ -218,7 +222,7 @@ class BuildTarget(object):
             if filename in self.maestro.targetsDirty:
                 log.debug('File %s was dirtied by another BuildTarget.', filename)
                 return True
-                
+
             if filename not in self.lastFileTimes.keys():
                 log.debug('File %s is new.', filename)
                 return True
