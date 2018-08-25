@@ -28,28 +28,50 @@ import re
 from buildtools import log, os_utils, utils
 from buildtools.maestro.base_target import SingleBuildTarget
 
-class DartSCSSBuildTarget(SingleBuildTarget):
-    BT_TYPE = 'DART-SCSS'
-    BT_LABEL = 'DART SCSS'
-
+REG_SCSS_IMPORT = re.compile(r"@import '([^']+)';")
+class _BaseSCSSBuildTarget(SingleBuildTarget):
     def __init__(self, target=None, files=[], dependencies=[], import_paths=[], output_style='compact', sass_path=None, imported=[]):
-        super(DartSCSSBuildTarget, self).__init__(target, files, dependencies)
+        super().__init__(target, files, dependencies)
+
         #self.compass = compass
         self.import_paths = import_paths
         self.output_style = output_style
         self.imported = imported
-
-        if sass_path is None:
-            sass_path = os_utils.which('sass')
-            if sass_path is None:
-                log.warn('Unable to find sass on this OS.  Is it in PATH?  Remember to run `npm install -g sass`!')
         self.sass_path = sass_path
 
     def getFilesToCompare(self):
-        return super().getFilesToCompare()+self.imported
+        o = super().getFilesToCompare()+self.imported
+        for filename in self.files:
+            o += self.detectFilesImportedBy(filename)
+        return list(set(o))
+
+    def detectFilesImportedBy(self, filename):
+        imports=[]
+        DIR_CONTEXT = os.path.abspath(os.path.dirname(filename))
+        with open(filename, 'r') as f:
+            for line in f:
+                line=line.strip()
+                m = REG_SCSS_IMPORT.match(line)
+                if m is not None:
+                    for context in [DIR_CONTEXT]+self.import_paths:
+                        unprefixed_filename = os.path.join(context, m.group(1))
+                        dirname = os.path.dirname(unprefixed_filename)
+                        prefixed_basename = '_'+os.path.basename(unprefixed_filename)+'.scss'
+                        prefixed_filename = os.path.join(dirname, prefixed_basename)
+                        if os.path.isfile(prefixed_filename):
+                            imports += [prefixed_filename]
+                            imports += self.detectFilesImportedBy(prefixed_filename)
+                            break
+        if len(imports)==0:
+            log.debug('%s imported 0 files.', filename)
+        else:
+            with log.debug('%s imported %d files:', filename, len(imports)):
+                for i in imports:
+                    log.debug(i)
+        return imports
 
     def serialize(self):
-        dat = super(DartSCSSBuildTarget, self).serialize()
+        dat = super().serialize()
         #dat['compass'] = self.compass
         dat['imports'] = self.import_paths
         dat['style'] = self.output_style
@@ -57,14 +79,29 @@ class DartSCSSBuildTarget(SingleBuildTarget):
         return dat
 
     def deserialize(self, data):
-        super(DartSCSSBuildTarget, self).deserialize(data)
+        super().deserialize(data)
         #self.compass = data.get('compass', False)
         self.import_paths = data.get('imports', [])
         self.output_style = data.get('style', 'compact')
         self.imported = data.get('imported', [])
 
     def get_config(self):
-        return {'import-paths': self.import_paths, 'output-style': self.output_style}
+        return {
+            'import-paths': self.import_paths,
+            'output-style': self.output_style,
+            'imported': self.imported
+        }
+
+class DartSCSSBuildTarget(_BaseSCSSBuildTarget):
+    BT_TYPE = 'DART-SCSS'
+    BT_LABEL = 'DART SCSS'
+
+    def __init__(self, target=None, files=[], dependencies=[], import_paths=[], output_style='compact', sass_path=None, imported=[]):
+        if sass_path is None:
+            sass_path = os_utils.which('sass')
+            if sass_path is None:
+                log.warn('Unable to find sass on this OS.  Is it in PATH?  Remember to run `npm install -g sass`!')
+        super().__init__(target, files, dependencies, import_paths=import_paths, output_style=output_style, sass_path=sass_path, imported=imported)
 
     def build(self):
         sass_cmd = []
@@ -78,43 +115,34 @@ class DartSCSSBuildTarget(SingleBuildTarget):
         os_utils.ensureDirExists(os.path.dirname(self.target))
         os_utils.cmd(sass_cmd + args + self.files + [self.target], critical=True, echo=True, show_output=True)
 
-class RubySCSSBuildTarget(SingleBuildTarget):
+class RubySCSSBuildTarget(_BaseSCSSBuildTarget):
     BT_TYPE = 'RUBY-SCSS'
     BT_LABEL = 'RUBY SCSS'
 
     def __init__(self, target=None, files=[], dependencies=[], compass=False, import_paths=[], output_style='compact', sass_path=None, imported=[]):
-        super(RubySCSSBuildTarget, self).__init__(target, files, dependencies)
-        self.compass = compass
-        self.import_paths = import_paths
-        self.output_style = output_style
-        self.imported = imported
-
         if sass_path is None:
             sass_path = os_utils.which('sass')
             if sass_path is None:
                 log.warn('Unable to find sass on this OS.  Is it in PATH?  Remember to run `gem install sass compass`!')
-        self.sass_path = sass_path
+        super().__init__(target, files, dependencies, import_paths=import_paths, output_style=output_style, sass_path=sass_path, imported=imported)
+        self.compass = compass
 
     def getFilesToCompare(self):
         return super().getFilesToCompare()+self.imported
 
     def serialize(self):
-        dat = super(RubySCSSBuildTarget, self).serialize()
+        dat = super().serialize()
         dat['compass'] = self.compass
-        dat['imports'] = self.import_paths
-        dat['style'] = self.output_style
-        dat['imported'] = self.imported
         return dat
 
     def deserialize(self, data):
-        super(RubySCSSBuildTarget, self).deserialize(data)
+        super().deserialize(data)
         self.compass = data.get('compass', False)
-        self.import_paths = data.get('imports', [])
-        self.output_style = data.get('style', 'compact')
-        self.imported = data.get('imported', [])
 
     def get_config(self):
-        return {'compass': self.compass, 'import-paths': self.import_paths, 'output-style': self.output_style}
+        data = super().get_config()
+        data['compass'] = self.compass
+        return data
 
     def build(self):
         sass_cmd = []
