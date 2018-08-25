@@ -215,6 +215,10 @@ class BuildTarget(object):
                 return True
         for filename, mtime in curFileTimes.items():
             filename=os.path.abspath(filename)
+            if filename in self.maestro.targetsDirty:
+                log.debug('File %s was dirtied by another BuildTarget.', filename)
+                return True
+                
             if filename not in self.lastFileTimes.keys():
                 log.debug('File %s is new.', filename)
                 return True
