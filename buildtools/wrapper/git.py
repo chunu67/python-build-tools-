@@ -35,7 +35,7 @@ class Git(object):
             addtl_flags = []
             if short: addtl_flags.append('--short')
             stdout, stderr = cmd_output(['git', 'rev-parse'] + addtl_flags + [ref], echo=not quiet, critical=True)
-            return (stdout + stderr).strip()
+            return (stdout + stderr).decode('utf-8').strip()
             # rev = subprocess.Popen(['git', 'rev-parse'] + addtl_flags + [ref], stdout=subprocess.PIPE).communicate()[0][:-1]
             # if rev:
             #    return rev.decode('utf-8')
@@ -52,7 +52,9 @@ class Git(object):
             args.append(ref)
         try:
             ret = cmd_output(['git', 'ls-remote'] + args, echo=not quiet, critical=True)
-            if not ret: return None
+            if not ret:
+                print(repr(ret))
+                return None
             stderr, stdout = ret
             o = {}
             for line in (stdout + stderr).decode('utf-8').split('\n'):
@@ -70,7 +72,7 @@ class Git(object):
     def GetBranch(cls, quiet=True):
         try:
             stderr, stdout = cmd_output(["git", "rev-parse", "--abbrev-ref", 'HEAD'], echo=not quiet, critical=True)
-            return (stderr + stdout).strip()
+            return (stderr + stdout).decode('utf-8').strip()
             # branch = subprocess.Popen(["git", "rev-parse", "--abbrev-ref", 'HEAD'], stdout=subprocess.PIPE).communicate()[0][:-1]
             # if branch:
             #    return branch.decode('utf-8')
@@ -85,7 +87,7 @@ class Git(object):
             # branch = subprocess.Popen(['git', 'ls-files', '-m', '-o', '-d', '--exclude-standard'], stdout=subprocess.PIPE).communicate()[0][:-1]
             # if branch:
             stderr, stdout = cmd_output(['git', 'ls-files', '-m', '-o', '-d', '--exclude-standard'], echo=not quiet, critical=True)
-            for line in (stderr + stdout).split('\n'):
+            for line in (stderr + stdout).decode('utf-8').split('\n'):
                 line = line.strip()
                 if line != '': return True
             return False

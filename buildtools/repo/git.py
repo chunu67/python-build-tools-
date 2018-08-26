@@ -55,7 +55,7 @@ class GitRepository(SCMRepository):
     def _git(self, args, echo=False):
         ret = cmd_output(['git'] + args, echo=echo, env=self.noPasswordEnv)
 
-    def _getRemoteInfo(self, remoteID):
+    def _getRemoteInfo(self, remoteID, quiet=True):
         '''
         $ git remote show origin
         * remote origin
@@ -68,52 +68,66 @@ class GitRepository(SCMRepository):
           https://github.com/d3athrow/vgstation13.git
         '''
 
-        stdout, stderr = cmd_output(['git', 'remote', 'show', remoteID], echo=not self.quiet, env=self.noPasswordEnv)
+        stdout, stderr = cmd_output(['git', 'remote', 'show', remoteID], echo=not self.quiet or quiet, env=self.noPasswordEnv)
         for line in (stdout + stderr).decode('utf-8').split('\n'):
             line = line.strip()
+            if not self.quiet and not quiet:
+                print(line)
             components = line.split()
             if line.startswith('Fetch URL:'):
                 # self.remotes[remoteID]=line[2]
                 return line[2]
 
-    def UpdateRemotes(self,remote=None):
+    def UpdateRemotes(self,remote=None,quiet=True):
         if remote is not None:
-            self.remotes[remote]=self._getRemoteInfo(remote)
+            self.remotes[remote]=self._getRemoteInfo(remote, quiet=quiet)
             return True
-        stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=not self.quiet, env=self.noPasswordEnv)
+        stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=not self.quiet or not quiet, env=self.noPasswordEnv)
         for line in (stdout + stderr).decode('utf-8').split('\n'):
             line = line.strip()
+            if not self.quiet or not quiet:
+                print(line)
             if line == '':
                 continue
             if line.startswith('fatal:'):
                 log.error('[git] ' + line)
                 return False
-            self.remotes[line] = self._getRemoteInfo(line)
+            self.remotes[line] = self._getRemoteInfo(line, quiet=quiet)
         return True
 
-    def GetRepoState(self,remote=None):
+    def GetRepoState(self,remote=None, quiet=True):
+        self.current_branch = None
+        self.current_commit = None
+        if not os.path.isdir(self.path):
+            log.warn('Could not find %s.', self.path)
+            return
         with Chdir(self.path, quiet=self.quiet):
-            if self.UpdateRemotes(remote):
-                self.current_branch = Git.GetBranch()
-                self.current_commit = Git.GetCommit(short=False)
+            if self.UpdateRemotes(remote, quiet=quiet):
+                self.current_branch = Git.GetBranch(quiet=not self.quiet or not quiet)
+                self.current_commit = Git.GetCommit(short=False,quiet=not self.quiet or not quiet)
 
-    def GetRemoteState(self, remote='origin', branch='master'):
+    def GetRemoteState(self, remote='origin', branch='master', quiet=True):
         with Chdir(self.path, quiet=self.quiet):
-            ret = cmd_output(['git', 'fetch', '-q'], echo=not self.quiet, env=self.noPasswordEnv)
+            ret = cmd_output(['git', 'fetch', '-q'], echo=not self.quiet or not quiet, env=self.noPasswordEnv)
             if not ret:
                 return False
             stdout, stderr = ret
             for line in (stdout + stderr).decode('utf-8').split('\n'):
+                #if not self.quiet or not quiet:
+                #    print(line)
                 line = line.strip()
                 if line == '':
                     continue
                 if line.startswith('fatal:'):
                     log.error('[git] ' + line)
                     return False
-            remoteinfo = Git.LSRemote(remote, branch)
+            remoteinfo = Git.LSRemote(remote, branch, quiet=not self.quiet or not quiet)
             if remoteinfo is None:
                 return False
-            ref = 'refs/heads/' + branch
+            if branch == 'HEAD':
+                ref = 'HEAD'
+            else:
+                ref = 'refs/heads/' + branch
             if ref in remoteinfo:
                 self.remote_commit = remoteinfo[ref]
         return True
@@ -145,14 +159,14 @@ class GitRepository(SCMRepository):
         if tag is not None:
             commit=self.ResolveTag(tag)
         with log:
-            self.GetRepoState(remote)
-            if not self.GetRemoteState(remote, branch):
+            self.GetRepoState(remote, quiet=quiet)
+            if not self.GetRemoteState(remote, branch, quiet=quiet):
                 return False
-            if self.current_branch != branch:
+            if branch is not None and self.current_branch != branch:
                 if not quiet:
                     log.info('Branch is wrong! %s (L) != %s (R)', self.current_branch, branch)
                 return True
-            targetCommit = commit or self.remote_commit
+            targetCommit = commit is not None or self.remote_commit
             if self.current_commit != targetCommit:
                 if not quiet:
                     log.info('Commit is out of date! %s (L) != %s (R)', self.current_commit, targetCommit)
