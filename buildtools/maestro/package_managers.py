@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
+import json
 import os
 from buildtools import os_utils, utils
 from buildtools.maestro.base_target import SingleBuildTarget
@@ -44,6 +45,7 @@ class _NPMLikeBuildTarget(SingleBuildTarget):
 
     def get_lockfile(self):
         return self.lockfile
+
     def get_specfile(self):
         return self.specfile
 
@@ -65,7 +67,7 @@ class _NPMLikeBuildTarget(SingleBuildTarget):
         }
 
     def buildOpts(self):
-        return [self.exe_path]+self.opts
+        return [self.exe_path] + self.opts
 
     def build(self):
         opts = self.buildOpts()
@@ -78,6 +80,7 @@ class _NPMLikeBuildTarget(SingleBuildTarget):
 class YarnBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'Yarn'
     BT_LABEL = 'YARN'
+
     def __init__(self, base_command=None, working_dir='.', opts=[], modules_dir='node_modules', target=None, dependencies=[], yarn_path=None, lockfile=None):
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.yarn-integrity')
@@ -87,6 +90,7 @@ class YarnBuildTarget(_NPMLikeBuildTarget):
 class NPMBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'NPM'
     BT_LABEL = 'NPM'
+
     def __init__(self, base_command=None, working_dir='.', opts=[], modules_dir='node_modules', target=None, dependencies=[], npm_path=None):
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.npm.target')
@@ -96,6 +100,7 @@ class NPMBuildTarget(_NPMLikeBuildTarget):
 class BowerBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'Bower'
     BT_LABEL = 'BOWER'
+
     def __init__(self, base_command=None, working_dir='.', opts=[], modules_dir='bower_components', target=None, dependencies=[], bower_path=None):
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.bower.target')
@@ -105,14 +110,17 @@ class BowerBuildTarget(_NPMLikeBuildTarget):
 class GruntBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'Grunt'
     BT_LABEL = 'GRUNT'
+
     def __init__(self, base_command=None, working_dir='.', opts=[], target=None, dependencies=[], grunt_path=None):
         if target is None:
             target = os.path.join(working_dir, 'tmp', '.grunt.target')
         super().__init__('grunt', working_dir=working_dir, opts=opts, target=target, exe_path=grunt_path, files=[os.path.join(working_dir, 'Gruntfile.js')], dependencies=[])
 
+
 class ComposerBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'Composer'
     BT_LABEL = 'COMPOSER'
+
     def __init__(self, base_command='install', working_dir='.', opts=[], modules_dir=None, target=None, dependencies=[], composer_path=None, composer_json=None, composer_lock=None, composer_bin_dir=None):
         if composer_json is None:
             composer_json = os.path.join(working_dir, 'composer.json')
@@ -121,16 +129,31 @@ class ComposerBuildTarget(_NPMLikeBuildTarget):
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.composer.target')
         self.modules_dir = modules_dir
-        self.composer_bin_dir=composer_bin_dir
-
+        self.composer_bin_dir = composer_bin_dir
         super().__init__('composer', base_command=base_command, working_dir=working_dir, opts=opts, target=target, exe_path=composer_path, files=[], dependencies=[], specfile=composer_json, lockfile=composer_lock)
+        self.detectAutoloadedFiles()
 
     def processOpts(self):
-        o = [self.exe_path, self.base_command]+self.opts
+        o = [self.exe_path, self.base_command] + self.opts
         o += ['-d', self.working_dir]
         return o
 
+    def detectAutoloadedFiles(self):
+        packagedata = None
+        with open(self.specfile, 'r') as f:
+            packagedata = json.load(f)
+
+        for autoload_type, autoload_namespaces in packagedata.get('autoload', {}).items():
+            if autoload_type == 'psr-4':
+                for nspath in autoload_namespaces.values():
+                    for filename in os_utils.get_file_list(nspath, '.'):
+                        phpfn = os.path.abspath(filename)
+                        self.files += [phpfn]
+
+        self.files = list(set(self.files))
+
     def build(self):
+
         env = os_utils.ENV.clone()
         env.set('COMPOSER', self.specfile, noisy=self.should_echo_commands())
         if self.modules_dir is not None:
@@ -139,13 +162,13 @@ class ComposerBuildTarget(_NPMLikeBuildTarget):
             env.set('COMPOSER_BIN_DIR', self.composer_bin_dir, noisy=self.should_echo_commands())
         cmdline = self.processOpts()
         os_utils.cmd(cmdline, show_output=True, echo=self.should_echo_commands(), critical=True, env=env)
-        if not os.path.isfile(self.target):
+        if os.path.isfile(self.target):
             self.touch(self.target)
-
 
 
 class BrowserifyBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'Browserify'
     BT_LABEL = 'BROWSERIFY'
+
     def __init__(self, base_command=None, working_dir='.', opts=[], target=None, files=[], dependencies=[], browserify_path=None):
         super().__init__('browserify', working_dir=working_dir, opts=opts, target=target, exe_path=browserify_path, files=files, dependencies=[])
