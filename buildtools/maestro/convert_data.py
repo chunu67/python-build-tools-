@@ -46,10 +46,10 @@ class ConvertDataBuildTarget(SingleBuildTarget):
         self.indent_chars=indent_chars
         self.pretty_print=pretty_print
 
-        super().__init__(target, [filename], [os.path.abspath(__file__)]+dependencies)
+        super().__init__(target, [filename, os.path.abspath(__file__)], dependencies)
 
     def get_label(self):
-        return '{} {} -> {}'.format(self.BT_LABEL, self.from_type, self.to_type)
+        return '{} {} -> {}'.format(self.BT_LABEL, self.from_type.name, self.to_type.name)
 
     def get_config(self):
         return {
