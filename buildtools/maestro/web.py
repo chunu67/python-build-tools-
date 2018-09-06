@@ -25,6 +25,7 @@ SOFTWARE.
 import codecs
 import os
 import re
+import json
 from buildtools import log, os_utils, utils
 from buildtools.maestro.base_target import SingleBuildTarget
 
@@ -306,3 +307,52 @@ class DatafyImagesTarget(SingleBuildTarget):
 
     def build(self):
         convert_imgurls_to_dataurls(self.infile, self.target, self.basedir)
+
+class CacheBashifyFiles(SingleBuildTarget):
+    BT_TYPE = 'CacheBashify'
+    BT_LABEL = 'CACHE BASH'
+
+    def __init__(self, destdir, source, manifest, basedir='.', dependencies=[]):
+        self.source = source
+        self.destdir = destdir
+        self.basedir = basedir
+        self.manifest = manifest
+        super().__init__(target=self.genVirtualTarget(self.source.replace(os.sep, '_').replace('.','_')), dependencies=dependencies, files=[source, os.path.abspath(__file__)])
+
+    def clean(self):
+        manifest_data={}
+        if os.path.isfile(self.manifest):
+            with open(self.manifest, 'r') as f:
+                manifest_data = json.load(f)
+            for dest in manifest_data.values():
+                self.removeFile(dest)
+            self.removeFile(self.manifest)
+
+    def build(self):
+        srchash = utils.md5sum(self.source)
+        sourcefilerel = os.path.relpath(self.source, self.basedir)
+        dirname = os.path.dirname(sourcefilerel)
+        basename, ext = os.path.splitext(os.path.basename(sourcefilerel))
+        outfile = os.path.join(dirname, f'{basename}-{srchash}{ext}')
+        absoutfile = os.path.join(self.destdir, outfile)
+
+        sourcefilerel = sourcefilerel.replace(os.sep, '/')
+        outfile = outfile.replace(os.sep, '/')
+        
+        manifest_data={
+            sourcefilerel: outfile
+        }
+        if os.path.isfile(self.manifest):
+            with open(self.manifest, 'r') as f:
+                manifest_data = json.load(f)
+
+        if sourcefilerel in manifest_data and os.path.isfile(manifest_data[sourcefilerel]):
+            self.removeFile(manifest_data[sourcefilerel])
+
+        os_utils.single_copy(self.source, absoutfile, verbose=True)
+
+        manifest_data[sourcefilerel] = outfile
+
+        os_utils.ensureDirExists(os.path.dirname(self.manifest), noisy=True)
+        with open(self.manifest, 'w') as f:
+            json.dump(manifest_data, f, indent=2)
