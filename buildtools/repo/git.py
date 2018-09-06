@@ -108,9 +108,10 @@ class GitRepository(SCMRepository):
 
     def GetRemoteState(self, remote='origin', branch='master', quiet=True):
         with Chdir(self.path, quiet=self.quiet):
-            ret = cmd_output(['git', 'fetch', '-q'], echo=not self.quiet or not quiet, env=self.noPasswordEnv)
+            ret = cmd_output(['git', 'fetch', '-q', '--all'], echo=not self.quiet or not quiet, env=self.noPasswordEnv)
             if not ret:
                 return False
+
             stdout, stderr = ret
             for line in (stdout + stderr).decode('utf-8').split('\n'):
                 #if not self.quiet or not quiet:

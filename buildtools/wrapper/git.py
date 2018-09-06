@@ -53,15 +53,19 @@ class Git(object):
         try:
             ret = cmd_output(['git', 'ls-remote'] + args, echo=not quiet, critical=True)
             if not ret:
-                print(repr(ret))
                 return None
+            print(repr(ret))
             stderr, stdout = ret
             o = {}
             for line in (stdout + stderr).decode('utf-8').split('\n'):
                 line = line.strip()
-                if line == '': continue
-                hashid, ref = line.split()
-                o[ref] = hashid
+                print(line)
+                if line == '':
+                    continue
+                line_chunks = line.split()
+                if len(line_chunks) == 2:
+                    hashid, ref = line_chunks
+                    o[ref] = hashid
             return o
         except Exception as e:
             print(e)
