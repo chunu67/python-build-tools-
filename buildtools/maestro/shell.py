@@ -1,5 +1,5 @@
 '''
-BLURB GOES HERE.
+Buildtarget for executing arbitrary shell commands.
 
 Copyright (c) 2015 - 2018 Rob "N3X15" Nelson <nexisentertainment@gmail.com>
 
@@ -31,8 +31,9 @@ class CommandBuildTarget(BuildTarget):
     BT_LABEL = 'SHELL'
     #BT_COLOR = 'red'
 
-    def __init__(self, targets, files, cmd, show_output=False, echo=None, dependencies=[], provides=[], name=None, globbify=False):
+    def __init__(self, targets, files, cmd, show_output=False, echo=None, dependencies=[], provides=[], name=None, globbify=False, cwd='.'):
         self.cmd = cmd
+        self.cwd = cwd
         self.show_output = show_output
         self.echo = echo
         self.globbify = globbify
@@ -46,11 +47,13 @@ class CommandBuildTarget(BuildTarget):
     def get_config(self):
         return {
             'cmd': self.cmd,
+            'cwd': self.cwd,
             'show_output': self.show_output,
             'echo': self.echo
         }
 
     def build(self):
-        os_utils.cmd(self.cmd, show_output=self.show_output, echo=self.should_echo_commands() if self.echo is None else self.echo, critical=True, globbify=self.globbify)
+        with os_utils.Chdir(self.cwd):
+            os_utils.cmd(self.cmd, show_output=self.show_output, echo=self.should_echo_commands() if self.echo is None else self.echo, critical=True, globbify=self.globbify)
         for t in self.provides():
             self.touch(t)

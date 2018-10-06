@@ -24,7 +24,8 @@ SOFTWARE.
 '''
 import os
 import re
-from buildtools import log, os_utils, utils
+import shutil
+from buildtools import log, os_utils, utils, error
 from buildtools.maestro.base_target import SingleBuildTarget
 from buildtools.repo.git import GitRepository
 from buildtools.wrapper.git import Git
@@ -121,6 +122,24 @@ class GitSubmoduleCheckTarget(SingleBuildTarget):
                     branch = repoconf.get('branch', 'HEAD' if tag is None else None)
                     log.info('path = %s', pathspec)
         for repoID, repoconf in gitmodules.items():
+            if repoID not in gitconfig.keys():
+                with log.warn('Submodule %s is present in .gitmodules but not .git/config!', repoID):
+                    pathspec = repoconf.get('path', repoID)
+                    path = os.path.abspath(pathspec)
+                    tag = repoconf.get('tag', None)
+                    branch = repoconf.get('branch', 'HEAD' if tag is None else None)
+                    opts = []
+                    if branch != 'HEAD':
+                        opts += ['-b', branch]
+                    log.info('path = %s', pathspec)
+                    if os.path.isdir(path):
+                        log.warn('Removing existing %s directory.', path)
+                        shutil.rmtree(path)
+                    cmd = ['git', 'submodule', 'add']+opts+['-f', '--name', repoID, '--', repoconf.get('url'), pathspec]
+                    os_utils.cmd(cmd, critical=True, echo=self.should_echo_commands(), show_output=True)
+                    #log.error('Would exec: %s', ' '.join(cmd))
+
+        for repoID, repoconf in gitmodules.items():
             with log.info('Checking %s...', repoID):
                 pathspec = repoconf.get('path', repoID)
                 path = os.path.abspath(pathspec)
@@ -128,19 +147,25 @@ class GitSubmoduleCheckTarget(SingleBuildTarget):
                 branch = repoconf.get('branch', 'HEAD' if tag is None else None)
                 if os.path.isdir(path):
                     desired_commit = ''
-                    stdout, stderr = os_utils.cmd_output(['git', 'ls-tree', Git.GetBranch(), pathspec], echo=self.should_echo_commands(), critical=True)
+                    cmdline = ['git', 'ls-tree', Git.GetBranch(), pathspec]
+                    stdout, stderr = os_utils.cmd_output(cmdline, echo=self.should_echo_commands(), critical=True)
+                    skip_this = False
                     for line in (stdout+stderr).decode('utf-8').splitlines():
-                        #print(repr(line))
+                        if line.startswith('error:') or line.startswith('fatal:'):
+                            log.critical(line)
+                            raise error.SubprocessThrewError(cmdline, line)
                         line,repoID = line.strip().split('\t')
                         _, _, desired_commit = line.split(' ')
-                    with os_utils.Chdir(path, quiet=not self.should_echo_commands()):
-                        cur_commit = Git.GetCommit(short=False, quiet=not self.should_echo_commands())
-                        #log.info(desired_commit)
-                        #log.info(cur_commit)
-                        if cur_commit == desired_commit:
-                            log.info('Commits are synced, skipping.')
-                            continue
-                repo = GitRepository(path, origin_uri=repoconf['url'])
+                    if not skip_this:
+                        with os_utils.Chdir(path, quiet=not self.should_echo_commands()):
+                            cur_commit = Git.GetCommit(short=False, quiet=not self.should_echo_commands())
+                            #log.info(desired_commit)
+                            #log.info(cur_commit)
+                            if cur_commit == desired_commit:
+                                log.info('Commits are synced, skipping.')
+                                continue
+
+                repo = GitRepository(path, origin_uri=repoconf['url'], submodule=True)
                 if repo.CheckForUpdates(branch=branch, quiet=False):
                     if os.path.isdir(path):
                         os_utils.cmd(['git', 'submodule', 'sync', '--', pathspec], critical=True, echo=self.should_echo_commands(), show_output=True)

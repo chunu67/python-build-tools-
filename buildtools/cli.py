@@ -72,7 +72,7 @@ def getInputLine(prompt, choices=None, default=None):
 def pressAnyKey(prompt='Press any key to continue.'):
     print(prompt)
     getChar()
-    
+
 
 def _find_getch():
     try:

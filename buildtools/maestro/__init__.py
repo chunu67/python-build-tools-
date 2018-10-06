@@ -108,6 +108,9 @@ class BuildMaestro(object):
         self.builddir = hidden_build_dir
         self.all_targets_file = os.path.join(self.builddir, hidden_build_dir)
 
+        # This will get Maestro to delete the listed directories, if they are present during --clean.
+        self.other_dirs_to_clean=[]
+
     def add(self, bt):
         bt.ID = len(self.alltargets)
         self.alltargets.append(bt)
@@ -155,6 +158,13 @@ class BuildMaestro(object):
         for bt in self.alltargets:
             bt.maestro = self
             bt.clean()
+        for xtradir in self.other_dirs_to_clean:
+            if os.path.isdir(xtradir):
+                if self.colors:
+                    log.info('<red>RMTREE</red> %s <red>(other_dirs_to_clean)</red>', xtradir)
+                else:
+                    log.info('RMTREE %s (other_dirs_to_clean)', xtradir)
+                shutil.rmtree(xtradir, ignore_errors=True)
         if os.path.isdir(self.builddir):
             if self.colors:
                 log.info('<red>RMTREE</red> %s <red>(build system stuff)</red>', self.builddir)

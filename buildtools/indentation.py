@@ -53,7 +53,7 @@ class IndentWriter(object):
         self.indent_level -= 1
 
 
-def countIndents(line):
+def countIndents(line, div=1):
     i = 0
     for c in line:
         if c == ' ':
@@ -62,7 +62,7 @@ def countIndents(line):
             i += 4
         else:
             return i
-    return i
+    return i/div
 
 
 def getIndentChars(line):
@@ -80,7 +80,7 @@ def GenIndentDeltas(lines):
     currentIndent = 0
     diff = 0
     lineInfo = []
-    for ln in xrange(len(lines)):
+    for ln in range(len(lines)):
         line = lines[ln]
         currentIndent = countIndents(line)
         if ln == 0:
@@ -115,7 +115,7 @@ def writeGivenIndentData(writefunc, lines, writeIndentedLine, offsets=0, overrid
         innerwriteindented = override_writeindented
     nLines = len(lines)
     lastLineIndented = False
-    for i in xrange(nLines):
+    for i in range(nLines):
         diff, currentIndent, line = lines[i]
         ndiff = None
         ndiffidx = 1

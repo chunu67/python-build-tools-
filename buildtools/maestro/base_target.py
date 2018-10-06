@@ -116,6 +116,9 @@ class BuildTarget(object):
     def get_label(self):
         return self.BT_LABEL or self.BT_TYPE.upper() or type(self).__class__.__name__
 
+    def get_displayed_name(self):
+        return self.name
+
     def verboseLogEntry(self, color):
         if self.maestro.colors:
             return f'Running target <{color}>{self.name}</{color}>...'
@@ -125,9 +128,9 @@ class BuildTarget(object):
     def standardLogEntry(self, color):
         padded_label = self.get_label().ljust(self.maestro.get_max_label_length())
         if self.maestro.colors:
-            return f'<{color}>{padded_label}</{color}> {self.name}'
+            return f'<{color}>{padded_label}</{color}> {self.get_displayed_name()}'
         else:
-            return f'{padded_label} {self.name}'
+            return f'{padded_label} {self.get_displayed_name()}'
 
     def logStart(self):
         color = self.BT_COLOR or 'cyan'
@@ -215,7 +218,7 @@ class BuildTarget(object):
                 log.debug('File %s is currently missing.', filename)
                 return True
             if curFileTimes[filename] != mtime:
-                log.debug('File %s has a changed mtime.', filename)
+                log.debug('File %s has a changed mtime. (%d != %d)', filename, curFileTimes[filename], mtime)
                 return True
         for filename, mtime in curFileTimes.items():
             filename=os.path.abspath(filename)

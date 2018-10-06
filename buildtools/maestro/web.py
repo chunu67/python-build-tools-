@@ -26,6 +26,7 @@ import codecs
 import os
 import re
 import json
+import enum
 from buildtools import log, os_utils, utils
 from buildtools.maestro.base_target import SingleBuildTarget
 
@@ -97,7 +98,10 @@ class DartSCSSBuildTarget(_BaseSCSSBuildTarget):
     BT_TYPE = 'DART-SCSS'
     BT_LABEL = 'DART SCSS'
 
-    def __init__(self, target=None, files=[], dependencies=[], import_paths=[], output_style='compact', sass_path=None, imported=[]):
+    def __init__(self, target=None, files=[], dependencies=[], import_paths=[], output_style='expanded', sass_path=None, imported=[], source_map=None):
+        self.source_map = source_map
+        if self.source_map is None:
+            self.source_map = output_style == 'expanded'
         if sass_path is None:
             sass_path = os_utils.which('sass')
             if sass_path is None:
@@ -108,7 +112,9 @@ class DartSCSSBuildTarget(_BaseSCSSBuildTarget):
         sass_cmd = []
 
         sass_cmd = [self.sass_path]
-        args = ['--no-color', '-q', '--stop-on-error', '--embed-sources', '--embed-source-map', '-s', self.output_style]
+        args = ['--no-color', '-q', '--stop-on-error', '-s', self.output_style]
+        if self.source_map:
+            args += ['--embed-sources', '--embed-source-map']
         for import_path in self.import_paths:
             args += ['-I', import_path]
 
@@ -260,6 +266,7 @@ class UglifyJSTarget(SingleBuildTarget):
 
     def build(self):
         cmdline = [self.uglifyjs_executable] + self.options + ['-o', self.target, self.files[0]]
+        os_utils.ensureDirExists(os.path.dirname(self.target))
         os_utils.cmd(cmdline, critical=True, echo=self.should_echo_commands())
 
 
@@ -308,16 +315,33 @@ class DatafyImagesTarget(SingleBuildTarget):
     def build(self):
         convert_imgurls_to_dataurls(self.infile, self.target, self.basedir)
 
+class EBashLayoutFlags(enum.IntFlag):
+    PREFIX  = 1
+    NAME    = 2
+    HASHDIR = 4
+
 class CacheBashifyFiles(SingleBuildTarget):
     BT_TYPE = 'CacheBashify'
     BT_LABEL = 'CACHE BASH'
 
-    def __init__(self, destdir, source, manifest, basedir='.', dependencies=[]):
-        self.source = source
-        self.destdir = destdir
-        self.basedir = basedir
-        self.manifest = manifest
-        super().__init__(target=self.genVirtualTarget(self.source.replace(os.sep, '_').replace('.','_')), dependencies=dependencies, files=[source, os.path.abspath(__file__)])
+    def __init__(self, destdir, source, manifest, basedirsrc='.', basedirdest=None, dependencies=[], flags=None):
+        self.source      = source
+        self.destdir     = destdir
+        self.basedirsrc  = basedirsrc
+        self.basedirdest = basedirdest
+        self.manifest    = manifest
+        self.flags       = flags if flags is not None else (EBashLayoutFlags.PREFIX|EBashLayoutFlags.NAME)
+        target = self.genVirtualTarget(self.source.replace(os.sep, '_').replace('.','_'))
+        super().__init__(target=target, dependencies=dependencies, files=[source, os.path.abspath(__file__)])
+
+    def get_config(self):
+        return {
+            'source': self.source,
+            'destdir': self.destdir,
+            'basedirsrc': self.basedirsrc,
+            'basedirdest': self.basedirdest,
+            'manifest': self.manifest,
+        }
 
     def clean(self):
         manifest_data={}
@@ -327,18 +351,50 @@ class CacheBashifyFiles(SingleBuildTarget):
             for dest in manifest_data.values():
                 self.removeFile(dest)
             self.removeFile(self.manifest)
+        super().clean()
 
-    def build(self):
+    def calcFilename(self):
         srchash = utils.md5sum(self.source)
-        sourcefilerel = os.path.relpath(self.source, self.basedir)
+        sourcefilerel = os.path.relpath(self.source, self.basedirsrc)
         dirname = os.path.dirname(sourcefilerel)
         basename, ext = os.path.splitext(os.path.basename(sourcefilerel))
-        outfile = os.path.join(dirname, f'{basename}-{srchash}{ext}')
+
+        newbnparts = []
+        if self.basedirdest is not None:
+            if (self.flags & EBashLayoutFlags.PREFIX) == EBashLayoutFlags.PREFIX:
+                newbnparts += dirname.replace(os.sep, '_').replace('.', '_').split('_')
+        if (self.flags & EBashLayoutFlags.NAME) == EBashLayoutFlags.NAME:
+            newbnparts += basename.replace(os.sep, '_').replace('.', '_').split('_')
+        basename = '_'.join([x for x in newbnparts if x != ''])
+        basedestdir = self.basedirdest or dirname
+        if (self.flags & EBashLayoutFlags.HASHDIR) == EBashLayoutFlags.HASHDIR:
+            a = srchash[0:2]
+            b = srchash[3:4]
+            basedestdir = os.path.join(basedestdir, a, b)
+            srchash = srchash[4:]
+        outfile = os.path.join(basedestdir, f'{basename}-{srchash}{ext}')
         absoutfile = os.path.join(self.destdir, outfile)
+        return sourcefilerel, os.path.relpath(absoutfile, self.destdir), absoutfile
+
+    def get_displayed_name(self):
+        relfilename = self.target
+        if os.path.isfile(self.source):
+            _, relfilename, _ = self.calcFilename()
+        return relfilename
+
+    def provides(self):
+        o = super().provides()
+        #o += [self.manifest]
+        if os.path.isfile(self.source):
+            o += [self.get_displayed_name()]
+        return o
+
+    def build(self):
+        sourcefilerel, reloutfile, absoutfile = self.calcFilename()
 
         sourcefilerel = sourcefilerel.replace(os.sep, '/')
-        outfile = outfile.replace(os.sep, '/')
-        
+        outfile = reloutfile.replace(os.sep, '/')
+
         manifest_data={
             sourcefilerel: outfile
         }
@@ -346,13 +402,20 @@ class CacheBashifyFiles(SingleBuildTarget):
             with open(self.manifest, 'r') as f:
                 manifest_data = json.load(f)
 
-        if sourcefilerel in manifest_data and os.path.isfile(manifest_data[sourcefilerel]):
-            self.removeFile(manifest_data[sourcefilerel])
+        if sourcefilerel in manifest_data.keys():
+            oldfilename = os.path.normpath(os.path.join(self.destdir, manifest_data[sourcefilerel]))
+            #log.info(oldfilename)
+            #log.info(absoutfile)
+            if oldfilename != absoutfile:
+                self.removeFile(oldfilename)
 
-        os_utils.single_copy(self.source, absoutfile, verbose=True)
+        os_utils.ensureDirExists(os.path.dirname(absoutfile), noisy=True)
+        os_utils.single_copy(self.source, absoutfile, verbose=False)
 
         manifest_data[sourcefilerel] = outfile
 
         os_utils.ensureDirExists(os.path.dirname(self.manifest), noisy=True)
         with open(self.manifest, 'w') as f:
             json.dump(manifest_data, f, indent=2)
+        self.touch(absoutfile)
+        self.touch(self.target)

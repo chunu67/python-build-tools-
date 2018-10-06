@@ -23,13 +23,13 @@ SOFTWARE.
 
 '''
 import json
-import os
+import os, shutil
 from buildtools import os_utils, utils
 from buildtools.maestro.base_target import SingleBuildTarget
 
 
 class _NPMLikeBuildTarget(SingleBuildTarget):
-    def __init__(self, invocation, base_command=None, working_dir='.', opts=[], files=[], target=None, dependencies=[], exe_path=None, specfile=None, lockfile=None):
+    def __init__(self, invocation, base_command=None, working_dir='.', opts=[], files=[], target=None, dependencies=[], exe_path=None, specfile=None, lockfile=None, modules_dir=None):
         self.specfile = specfile
         self.lockfile = lockfile
 
@@ -38,6 +38,8 @@ class _NPMLikeBuildTarget(SingleBuildTarget):
         self.exe_path = exe_path
         self.base_command = base_command
         self.invocation = invocation
+
+        self.modules_dir = modules_dir
 
         if self.exe_path is None:
             self.exe_path = os_utils.which(invocation)
@@ -48,6 +50,13 @@ class _NPMLikeBuildTarget(SingleBuildTarget):
 
     def get_specfile(self):
         return self.specfile
+
+    def clean(self):
+        super().clean()
+        if self.modules_dir is not None and os.path.isdir(self.modules_dir):
+            for filename in os_utils.get_file_list(self.modules_dir):
+                self.removeFile(filename)
+            shutil.rmtree(self.modules_dir)
 
     def get_config(self):
         return {
@@ -84,7 +93,7 @@ class YarnBuildTarget(_NPMLikeBuildTarget):
     def __init__(self, base_command=None, working_dir='.', opts=[], modules_dir='node_modules', target=None, dependencies=[], yarn_path=None, lockfile=None):
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.yarn-integrity')
-        super().__init__('yarn', working_dir=working_dir, opts=opts, target=target, exe_path=yarn_path, files=[os.path.join(working_dir, 'package.json')], dependencies=[])
+        super().__init__('yarn', modules_dir=modules_dir, working_dir=working_dir, opts=opts, target=target, exe_path=yarn_path, files=[os.path.join(working_dir, 'package.json')], dependencies=[])
 
 
 class NPMBuildTarget(_NPMLikeBuildTarget):
@@ -94,7 +103,7 @@ class NPMBuildTarget(_NPMLikeBuildTarget):
     def __init__(self, base_command=None, working_dir='.', opts=[], modules_dir='node_modules', target=None, dependencies=[], npm_path=None):
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.npm.target')
-        super().__init__('npm', working_dir=working_dir, opts=opts, target=target, exe_path=npm_path, files=[os.path.join(working_dir, 'package.json')], dependencies=[])
+        super().__init__('npm', working_dir=working_dir, modules_dir=modules_dir, opts=opts, target=target, exe_path=npm_path, files=[os.path.join(working_dir, 'package.json')], dependencies=[])
 
 
 class BowerBuildTarget(_NPMLikeBuildTarget):
@@ -104,7 +113,7 @@ class BowerBuildTarget(_NPMLikeBuildTarget):
     def __init__(self, base_command=None, working_dir='.', opts=[], modules_dir='bower_components', target=None, dependencies=[], bower_path=None):
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.bower.target')
-        super().__init__('bower', working_dir=working_dir, opts=opts, target=target, exe_path=bower_path, files=[os.path.join(working_dir, 'bower.json')], dependencies=[])
+        super().__init__('bower', working_dir=working_dir, modules_dir=modules_dir, opts=opts, target=target, exe_path=bower_path, files=[os.path.join(working_dir, 'bower.json')], dependencies=[])
 
 
 class GruntBuildTarget(_NPMLikeBuildTarget):
@@ -121,16 +130,15 @@ class ComposerBuildTarget(_NPMLikeBuildTarget):
     BT_TYPE = 'Composer'
     BT_LABEL = 'COMPOSER'
 
-    def __init__(self, base_command='install', working_dir='.', opts=[], modules_dir=None, target=None, dependencies=[], composer_path=None, composer_json=None, composer_lock=None, composer_bin_dir=None):
+    def __init__(self, base_command='install', working_dir='.', opts=[], modules_dir='vendor', target=None, dependencies=[], composer_path=None, composer_json=None, composer_lock=None, composer_bin_dir=None):
         if composer_json is None:
             composer_json = os.path.join(working_dir, 'composer.json')
         if composer_lock is None:
             composer_lock = os.path.join(working_dir, 'composer.lock')
         if target is None:
             target = os.path.join(working_dir, modules_dir, '.composer.target')
-        self.modules_dir = modules_dir
         self.composer_bin_dir = composer_bin_dir
-        super().__init__('composer', base_command=base_command, working_dir=working_dir, opts=opts, target=target, exe_path=composer_path, files=[], dependencies=[], specfile=composer_json, lockfile=composer_lock)
+        super().__init__('composer', base_command=base_command, modules_dir=modules_dir, working_dir=working_dir, opts=opts, target=target, exe_path=composer_path, files=[], dependencies=[], specfile=composer_json, lockfile=composer_lock)
         self.detectAutoloadedFiles()
 
     def processOpts(self):
@@ -139,9 +147,10 @@ class ComposerBuildTarget(_NPMLikeBuildTarget):
         return o
 
     def detectAutoloadedFiles(self):
-        packagedata = None
-        with open(self.specfile, 'r') as f:
-            packagedata = json.load(f)
+        packagedata = {}
+        if os.path.isfile(self.specfile):
+            with open(self.specfile, 'r') as f:
+                packagedata = json.load(f)
 
         for autoload_type, autoload_namespaces in packagedata.get('autoload', {}).items():
             if autoload_type == 'psr-4':

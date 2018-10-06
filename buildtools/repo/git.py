@@ -23,25 +23,46 @@ SOFTWARE.
 
 @author: Rob
 '''
-import os
-import sys
 import glob
+import os
 import subprocess
-
+import sys
 from buildtools.bt_logging import log
-from buildtools.os_utils import cmd_output, Chdir, cmd, ENV
-from buildtools.wrapper.git import Git
+from buildtools.os_utils import ENV, Chdir, cmd, cmd_output
 from buildtools.repo.base import SCMRepository
+from buildtools.wrapper.git import Git
+
+
+class GitRemoteInfo(object):
+    def __init__(self):
+        self.id = ''
+        self.fetch_uri = ''
+        self.push_uri = ''
+        self.head_branch = 'master'
+        self.branches = []
+        self.fetched=False
+
+    def findBranch(self, name):
+        if name == 'HEAD':
+            name = self.head_branch
+        elif '/' not in name:
+            return self.findBranch('refs/heads/'+name)
+        return name
 
 
 class GitRepository(SCMRepository):
     '''Logical representation of a git repository.'''
 
-    def __init__(self, path, origin_uri, quiet=True, noisy_clone=False):
+    def __init__(self, path, origin_uri, quiet=True, noisy_clone=False, submodule=False):
         super(GitRepository, self).__init__(path, quiet=quiet, noisy_clone=noisy_clone)
 
         # Known remotes.
-        self.remotes = self.orig_remotes = {'origin': origin_uri}
+        origin = GitRemoteInfo()
+        origin.id = 'origin'
+        origin.fetch_uri = origin.push_uri = origin_uri
+        origin.head_branch = 'HEAD'
+        self.remotes = self.orig_remotes = {'origin': origin}
+        self.submodule=submodule
         # Git configuration variables.
         self.config_vars = {}
 
@@ -50,12 +71,12 @@ class GitRepository(SCMRepository):
         self.remote_commit = None
 
         self.noPasswordEnv = ENV.clone().env
-        self.noPasswordEnv['GIT_TERMINAL_PROMPT']='0'
+        self.noPasswordEnv['GIT_TERMINAL_PROMPT'] = '0'
 
     def _git(self, args, echo=False):
-        ret = cmd_output(['git'] + args, echo=echo, env=self.noPasswordEnv)
+        return cmd_output(['git'] + args, echo=echo, env=self.noPasswordEnv)
 
-    def _getRemoteInfo(self, remoteID, quiet=True):
+    def _syncRemote(self, remoteID, quiet=None):
         '''
         $ git remote show origin
         * remote origin
@@ -65,37 +86,55 @@ class GitRepository(SCMRepository):
           Remote branches:
             Bleeding-Edge                                         tracked
         returns:
-          https://github.com/d3athrow/vgstation13.git
+          GitRemoteInfo()
         '''
-
-        stdout, stderr = cmd_output(['git', 'remote', 'show', remoteID], echo=not self.quiet or quiet, env=self.noPasswordEnv)
-        for line in (stdout + stderr).decode('utf-8').split('\n'):
-            line = line.strip()
-            if not self.quiet and not quiet:
-                print(line)
+        o = GitRemoteInfo()
+        o.id = remoteID
+        if quiet is None:
+            quiet = self.quiet
+        stdout, stderr = cmd_output(['git', 'remote', 'show', remoteID], echo=not quiet, env=self.noPasswordEnv)
+        in_branches = False
+        for oline in (stdout + stderr).decode('utf-8').split('\n'):
+            line = oline.strip()
+            if not quiet:
+                print(oline)
             components = line.split()
-            if line.startswith('Fetch URL:'):
-                # self.remotes[remoteID]=line[2]
-                return line[2]
+            if not in_branches:
+                if line.startswith('Fetch URL:'):
+                    o.fetch_uri = components[2]
+                if line.startswith('Push URL:'):
+                    o.push_uri = components[2]
+                if line.startswith('HEAD branch:'):
+                    o.head_branch = components[2]
+                if line.startswith('Remote branches:'):
+                    in_branches = True
+            else:
+                o.branches.append(line.split(' ')[0])
+        o.fetched=True
+        return o
 
-    def UpdateRemotes(self,remote=None,quiet=True):
+    def UpdateRemotes(self, remote=None, quiet=None):
+        if quiet is None:
+            quiet = self.quiet
         if remote is not None:
-            self.remotes[remote]=self._getRemoteInfo(remote, quiet=quiet)
+            self.remotes[remote] = self._syncRemote(remote, quiet=quiet)
             return True
-        stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=not self.quiet or not quiet, env=self.noPasswordEnv)
-        for line in (stdout + stderr).decode('utf-8').split('\n'):
-            line = line.strip()
-            if not self.quiet or not quiet:
-                print(line)
+        stdout, stderr = cmd_output(['git', 'remote', 'show'], echo=not quiet, env=self.noPasswordEnv)
+        for oline in (stdout + stderr).decode('utf-8').split('\n'):
+            line = oline.strip()
+            if not quiet or not quiet:
+                print(oline)
             if line == '':
                 continue
             if line.startswith('fatal:'):
                 log.error('[git] ' + line)
                 return False
-            self.remotes[line] = self._getRemoteInfo(line, quiet=quiet)
+            self.remotes[line] = self._syncRemote(line, quiet=quiet)
         return True
 
-    def GetRepoState(self,remote=None, quiet=True):
+    def GetRepoState(self, remote=None, quiet=None):
+        if quiet is None:
+            quiet = self.quiet
         self.current_branch = None
         self.current_commit = None
         if not os.path.isdir(self.path):
@@ -103,18 +142,20 @@ class GitRepository(SCMRepository):
             return
         with Chdir(self.path, quiet=self.quiet):
             if self.UpdateRemotes(remote, quiet=quiet):
-                self.current_branch = Git.GetBranch(quiet=not self.quiet or not quiet)
-                self.current_commit = Git.GetCommit(short=False,quiet=not self.quiet or not quiet)
+                self.current_branch = Git.GetBranch(quiet=not quiet)
+                self.current_commit = Git.GetCommit(short=False, quiet=not quiet)
 
-    def GetRemoteState(self, remote='origin', branch='master', quiet=True):
+    def GetRemoteState(self, remote='origin', branch='HEAD', quiet=None):
+        if quiet is None:
+            quiet = self.quiet
         with Chdir(self.path, quiet=self.quiet):
-            ret = cmd_output(['git', 'fetch', '-q', '--all'], echo=not self.quiet or not quiet, env=self.noPasswordEnv)
+            ret = cmd_output(['git', 'fetch', '-q', '--all', '--prune', '--tags'], echo=not quiet, env=self.noPasswordEnv)
             if not ret:
                 return False
 
             stdout, stderr = ret
             for line in (stdout + stderr).decode('utf-8').split('\n'):
-                #if not self.quiet or not quiet:
+                # if not quiet:
                 #    print(line)
                 line = line.strip()
                 if line == '':
@@ -122,12 +163,17 @@ class GitRepository(SCMRepository):
                 if line.startswith('fatal:'):
                     log.error('[git] ' + line)
                     return False
-            remoteinfo = Git.LSRemote(remote, branch, quiet=not self.quiet or not quiet)
+            for _remote in self.remotes.values():
+                _remote.fetched=False
+            self.UpdateRemotes(remote=remote, quiet=quiet)
+            if branch == 'HEAD':
+                branch = self.remotes[remote].findBranch(branch)
+            remoteinfo = Git.LSRemote(remote, branch, quiet=quiet)
             if remoteinfo is None:
                 return False
             if branch == 'HEAD':
                 ref = 'HEAD'
-            else:
+            elif '/' not in branch:
                 ref = 'refs/heads/' + branch
             if ref in remoteinfo:
                 self.remote_commit = remoteinfo[ref]
@@ -137,8 +183,10 @@ class GitRepository(SCMRepository):
         with Chdir(self.path, quiet=self.quiet):
             return self._resolveTagNoChdir(tag)
 
-    def _resolveTagNoChdir(self, tag):
-        ret = cmd_output(['git', 'rev-list', '-n', '1', 'refs/tags/{}'.format(tag)], echo=not self.quiet, env=self.noPasswordEnv)
+    def _resolveTagNoChdir(self, tag, quiet=None):
+        if quiet is None:
+            quiet = self.quiet
+        ret = cmd_output(['git', 'rev-list', '-n', '1', 'refs/tags/{}'.format(tag)], echo=not quiet, env=self.noPasswordEnv)
         if not ret:
             return None
         stdout, stderr = ret
@@ -152,13 +200,15 @@ class GitRepository(SCMRepository):
             return line.strip()
         return None
 
-    def CheckForUpdates(self, remote='origin', branch='master', commit=None, tag=None, quiet=True):
+    def CheckForUpdates(self, remote='origin', branch='HEAD', commit=None, tag=None, quiet=None):
+        if quiet is None:
+            quiet = self.quiet
         if not quiet:
             log.info('Checking %s for updates...', self.path)
         if not os.path.isdir(self.path):
             return True
         if tag is not None:
-            commit=self.ResolveTag(tag)
+            commit = self.ResolveTag(tag)
         with log:
             self.GetRepoState(remote, quiet=quiet)
             if not self.GetRemoteState(remote, branch, quiet=quiet):
@@ -175,7 +225,7 @@ class GitRepository(SCMRepository):
         return False
 
     def UsesLFS(self):
-        gitattributes = os.path.join(self.path,'.gitattributes')
+        gitattributes = os.path.join(self.path, '.gitattributes')
         if os.path.isfile(gitattributes):
             #*.zip filter=lfs diff=lfs merge=lfs -text
             with open(gitattributes, 'r') as f:
@@ -188,9 +238,14 @@ class GitRepository(SCMRepository):
                         return True
         return False
 
-    def Pull(self, remote='origin', branch='master', commit=None, tag=None, cleanup=False):
+    def Pull(self, remote='origin', branch='HEAD', commit=None, tag=None, cleanup=False):
+        if branch == 'HEAD':
+            branch = self.remotes[remote].head_branch
+        if self.submodule:
+            log.error('Submodules should not call Pull!')
+            return
         if not os.path.isdir(self.path):
-            cmd(['git', 'clone', self.remotes[remote], self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone, env=self.noPasswordEnv)
+            cmd(['git', 'clone', self.remotes[remote].fetch_uri, self.path], echo=not self.quiet or self.noisy_clone, critical=True, show_output=not self.quiet or self.noisy_clone, env=self.noPasswordEnv)
         with Chdir(self.path, quiet=self.quiet):
             if cleanup:
                 cmd(['git', 'clean', '-fdx'], echo=not self.quiet, critical=True)
@@ -199,7 +254,7 @@ class GitRepository(SCMRepository):
                 ref = 'remotes/{}/{}'.format(remote, branch)
                 cmd(['git', 'checkout', '-B', branch, ref, '--'], echo=not self.quiet, critical=True)
             if tag is not None:
-                commit=self._resolveTagNoChdir(tag)
+                commit = self._resolveTagNoChdir(tag)
             if commit is not None:
                 cmd(['git', 'checkout', commit], echo=not self.quiet, critical=True)
             else:

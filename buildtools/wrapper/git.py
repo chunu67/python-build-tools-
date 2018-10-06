@@ -25,7 +25,7 @@ SOFTWARE.
 import os, sys, glob, subprocess
 
 from buildtools.bt_logging import log
-from buildtools.os_utils import cmd_output, Chdir, cmd
+from buildtools.os_utils import cmd_output, Chdir, cmd, _args2str
 from logging import critical
 
 class Git(object):
@@ -54,12 +54,13 @@ class Git(object):
             ret = cmd_output(['git', 'ls-remote'] + args, echo=not quiet, critical=True)
             if not ret:
                 return None
-            print(repr(ret))
+            #print(repr(ret))
             stderr, stdout = ret
             o = {}
             for line in (stdout + stderr).decode('utf-8').split('\n'):
                 line = line.strip()
-                print(line)
+                if not quiet:
+                    print(line)
                 if line == '':
                     continue
                 line_chunks = line.split()
@@ -73,17 +74,28 @@ class Git(object):
         return None
 
     @classmethod
+    def OutputIsFatal(cls, output):
+        for line in output.splitlines():
+            if line.startswith('fatal:'):
+                log.critical(output)
+                return True
+        return False
+
+    @classmethod
     def GetBranch(cls, quiet=True):
         try:
-            stderr, stdout = cmd_output(["git", "rev-parse", "--abbrev-ref", 'HEAD'], echo=not quiet, critical=True)
-            return (stderr + stdout).decode('utf-8').strip()
-            # branch = subprocess.Popen(["git", "rev-parse", "--abbrev-ref", 'HEAD'], stdout=subprocess.PIPE).communicate()[0][:-1]
-            # if branch:
-            #    return branch.decode('utf-8')
+            cmd = ["git", "symbolic-ref", "--short", 'HEAD']
+            #stderr, stdout = cmd_output(["git", "rev-parse", "--abbrev-ref", 'HEAD', '--'], echo=not quiet, critical=True)
+            stderr, stdout = cmd_output(cmd, echo=not quiet, critical=True)
+            o = (stderr + stdout).decode('utf-8').strip()
+            if cls.OutputIsFatal(o):
+                log.error(_args2str(cmd))
+                return None
+            return o.strip()
         except Exception as e:
             print(e)
             pass
-        return '[UNKNOWN]'
+        return None
 
     @classmethod
     def IsDirty(cls, quiet=True):

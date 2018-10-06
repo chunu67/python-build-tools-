@@ -679,6 +679,43 @@ def get_file_list(root_dir: str, start: str = None, prefix: str='') -> list:
             output += [rpath]
     return output
 
+def detect_encoding(filename, detect_only=False):
+    import codecs, chardet, ftfy
+    toread = min(32, os.path.getsize(filename))
+    raw = b''
+    with open(filename, 'rb') as f:
+        raw = f.read(toread)
+    encoding = 'utf-8-sig'
+    bom = False
+    if raw.startswith(codecs.BOM_UTF8):
+        bom=True
+        encoding = 'utf-8-sig'
+    else:
+        result = chardet.detect(raw)
+        encoding = result['encoding']
+        if encoding in ('utf-8', 'ascii'):
+            encoding = 'utf-8-sig'
+        if encoding in ('cp1252', 'Windows-1252'):
+            encoding = 'cp1252'
+    #log.info('chardet guesses: {}'.format(encoding))
+    if encoding in ('utf-8-sig', 'cp1252') and not detect_only:
+        with codecs.open(filename, 'r', encoding=encoding) as inf:
+            with codecs.open(filename + '.utf8', 'w', encoding='utf-8-sig') as outf:
+                for line in ftfy.fix_file(inf, fix_entities=False, fix_latin_ligatures=False, fix_character_width=False, uncurl_quotes=False):
+                    outf.write(line)
+        # This is here because Windows 10 was locking files randomly.
+        attempt=0
+        while attempt<5:
+            attempt += 1
+            try:
+                if os.path.isfile(filename):
+                    os.remove(filename)
+                break
+            except PermissionError:
+                log.error("[%d/%d] Failed to delete %s, trying again in 1s.", attempt,5,filename)
+                time.sleep(0.5)
+        shutil.move(filename + '.utf8', filename)
+    return encoding
 
 def is_windows():
     return platform.system() == 'Windows'

@@ -71,8 +71,12 @@ class ConvertDataBuildTarget(SingleBuildTarget):
                 data=toml.load(inf)
         with open(self.target, 'w', encoding='utf-8') as outf:
             if self.to_type == EDataType.YAML:
-                yaml.dump(data, outf, default_flow_style=not self.pretty_print, indent=len(self.indent_chars) if self.pretty_print and self.indent_chars is not None else 0)
+                kwargs = {}
+                kwargs['default_flow_style']=not self.pretty_print
+                if self.indent_chars is not None and self.pretty_print:
+                    kwargs['indent']=self.indent_chars
+                yaml.dump(data, outf, **kwargs)
             if self.to_type == EDataType.JSON:
-                json.dump(data, outf, indent=len(self.indent_chars) if self.pretty_print and self.indent_chars is not None else None)
+                json.dump(data, outf, indent=self.indent_chars if self.pretty_print and self.indent_chars is not None else None)
             if self.to_type == EDataType.TOML:
                 toml.dump(data, outf)

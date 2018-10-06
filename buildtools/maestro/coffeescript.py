@@ -94,13 +94,18 @@ class CoffeeBuildTarget(SingleBuildTarget):
             with codecs.open(coffeefile, 'w', encoding='utf-8-sig') as outf:
                 tq = tqdm(self.files, desc='Concatenating...', leave=False)
                 for infilename in tq:
-                    outf.write('\n`// FILE: {}`\n'.format(infilename))
+                    #outf.write('\n`// FILE: {}`\n'.format(infilename))
                     with codecs.open(infilename, 'r', encoding='utf-8-sig') as inf:
                         for line in inf:
                             outf.write(line.rstrip() + "\n")
                     #outf.write('\n`//# sourceURL={}\n`\n'.format(infilename))
                 tq.close()
+        coffeefile_basename, _ = os.path.splitext(os.path.basename(coffeefile))
         os_utils.cmd([self.coffee_executable] + self.coffee_opts + ['-o', os.path.dirname(self.target), coffeefile], critical=True, echo=self.should_echo_commands(), show_output=True)
+        coffee_output_file = os.path.join(os.path.dirname(self.target), coffeefile_basename+'.js')
+        if coffee_output_file != self.target:
+            log.info('Renaming %s to %s...', coffee_output_file, self.target)
+            os.rename(coffee_output_file, self.target)
 
 class JS2CoffeeBuildTarget(SingleBuildTarget):
     BT_TYPE = 'JS2Coffee'
