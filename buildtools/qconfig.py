@@ -42,10 +42,7 @@ class QConfig(ConfigFile):
             # print('WARN: {} is null?!'.format(qvar.type()))
             return None
         elif qvar.canConvert(QVariant.String) and qvar.type() == QVariant.String:
-            try:
-                return str(qvar.toString())
-            except UnicodeEncodeError:
-                return unicode(qvar.toString())
+            return str(qvar.toString())
         elif qvar.canConvert(QVariant.ByteArray):
             return qvar.toByteArray()
         elif qvar.canConvert(QVariant.Int):
@@ -59,7 +56,7 @@ class QConfig(ConfigFile):
         if os.path.isfile(filename):
             os.remove(filename)  # Ensure we don't merge.
         qset = QSettings(filename, QSettings.IniFormat)
-        for k, v in flattenDict(self.cfg).iteritems():
+        for k, v in flattenDict(self.cfg).items():
             #print('{}={}'.format(k, v))
             qset.setValue(k, v)
         del qset  # Forces write

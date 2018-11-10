@@ -28,7 +28,7 @@ import os
 
 from pathlib import Path
 
-from buildtools import os_utils
+from buildtools import os_utils, utils
 from buildtools.bt_logging import log
 from buildtools.maestro.utils import callLambda
 
@@ -39,7 +39,10 @@ class BuildTarget(object):
     BT_LABEL = None
 
     #           YYYYMMDDhhmm
-    CACHE_VER = 201808240346
+    CACHE_VER = 201811101012
+
+    CHECK_MTIMES = True
+    CHECK_HASHES = True
 
     def __init__(self, targets=None, files=[], dependencies=[], provides=[], name=''):
         self._all_provides = targets if isinstance(targets, list) else [targets]+provides
@@ -64,6 +67,7 @@ class BuildTarget(object):
         self.lastConfigHash=''
         self.lastTargetHash=''
         self.lastFileTimes={}
+        self.lastFileHashes={}
         self.lastConfig={}
 
     def try_build(self):
@@ -162,6 +166,13 @@ class BuildTarget(object):
                 file_mtimes[os.path.abspath(filename)]=os.path.getmtime(filename)
         return file_mtimes
 
+    def serialize_file_hashes(self):
+        file_hashes={}
+        for filename in self.getFilesToCompare():
+            if os.path.isfile(filename):
+                file_hashes[os.path.abspath(filename)]=utils.hashfile(filename, hashlib.sha256())
+        return file_hashes
+
     def genVirtualTarget(self, vid=None):
         if vid is None:
             vid = self.name
@@ -188,22 +199,24 @@ class BuildTarget(object):
         targetHash = self.getTargetHash()
         os_utils.ensureDirExists(os.path.dirname(self.getCacheFile()))
         with open(self.getCacheFile(), 'w') as f:
-            yaml.dump_all([self.CACHE_VER, configHash, targetHash, self.serialize_file_times(), self.get_config()], f)
+            yaml.dump_all([self.CACHE_VER, configHash, targetHash, self.serialize_file_times(), self.serialize_file_hashes(), self.get_config()], f)
 
     def readCache(self):
         self.lastConfigHash=''
         self.lastTargetHash=''
         self.lastFileTimes={}
+        self.lastFileHashes={}
         self.lastConfig={}
         if os.path.isfile(self.getCacheFile()):
             try:
                 with open(self.getCacheFile(), 'r') as f:
                     cachedata = list(yaml.load_all(f))
-                    if len(cachedata)==5 and cachedata[0] == self.CACHE_VER:
-                        _, _CH, _TH, _LFT, _CFG = cachedata
+                    if len(cachedata)==6 and cachedata[0] == self.CACHE_VER:
+                        _, _CH, _TH, _LFT, _LFH, _CFG = cachedata
                         self.lastConfigHash=_CH
                         self.lastTargetHash=_TH
                         self.lastFileTimes=_LFT
+                        self.lastFileHashes=_LFH
                         self.lastConfig=_CFG
             except:
                 pass
@@ -212,14 +225,25 @@ class BuildTarget(object):
         if self.lastTargetHash == '':
             self.readCache()
         curFileTimes = self.serialize_file_times()
-        for filename, mtime in self.lastFileTimes.items():
-            filename=os.path.abspath(filename)
-            if filename not in curFileTimes.keys():
-                log.debug('File %s is currently missing.', filename)
-                return True
-            if curFileTimes[filename] != mtime:
-                log.debug('File %s has a changed mtime. (%d != %d)', filename, curFileTimes[filename], mtime)
-                return True
+        if self.CHECK_MTIMES:
+            for filename, mtime in self.lastFileTimes.items():
+                filename=os.path.abspath(filename)
+                if filename not in curFileTimes.keys():
+                    log.debug('File %s is currently missing.', filename)
+                    return True
+                if curFileTimes[filename] != mtime:
+                    log.debug('File %s has a changed mtime. (%d != %d)', filename, curFileTimes[filename], mtime)
+                    return True
+        if self.CHECK_HASHES:
+            curFileHashes = self.serialize_file_hashes()
+            for filename, hashed in self.lastFileHashes.items():
+                filename=os.path.abspath(filename)
+                if filename not in curFileHashes.keys():
+                    log.debug('File %s is currently missing.', filename)
+                    return True
+                if curFileHashes[filename] != hashed:
+                    log.debug('File %s has a changed hash. (%s != %s)', filename, curFileHashes[filename], hashed)
+                    return True
         for filename, mtime in curFileTimes.items():
             filename=os.path.abspath(filename)
             if filename in self.maestro.targetsDirty:
@@ -238,15 +262,26 @@ class BuildTarget(object):
         if self.lastTargetHash == '':
             self.readCache()
         o = []
-        curFileTimes = self.serialize_file_times()
-        for filename, mtime in self.lastFileTimes.items():
-            filename=os.path.abspath(filename)
-            if filename not in curFileTimes.keys():
-                log.debug('File %s is currently missing.', filename)
-                o += [filename]
-            if curFileTimes[filename] != mtime:
-                log.debug('File %s has a changed mtime.', filename)
-                o += [filename]
+        if self.CHECK_MTIMES:
+            curFileTimes = self.serialize_file_times()
+            for filename, mtime in self.lastFileTimes.items():
+                filename=os.path.abspath(filename)
+                if filename not in curFileTimes.keys():
+                    log.debug('File %s is currently missing.', filename)
+                    o += [filename]
+                if curFileTimes[filename] != mtime:
+                    log.debug('File %s has a changed mtime.', filename)
+                    o += [filename]
+        if self.CHECK_HASHES:
+            curFileHashes = self.serialize_file_hashes()
+            for filename, hashed in self.lastFileHashes.items():
+                filename=os.path.abspath(filename)
+                if filename not in curFileHashes.keys():
+                    log.debug('File %s is currently missing.', filename)
+                    o += [filename]
+                if curFileHashes[filename] != hashed:
+                    log.debug('File %s has a changed hash.', filename)
+                    o += [filename]
         for filename, mtime in curFileTimes.items():
             filename=os.path.abspath(filename)
             if filename not in self.lastFileTimes.keys():

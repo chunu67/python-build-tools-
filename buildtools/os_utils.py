@@ -33,6 +33,8 @@ import tarfile
 import time
 import tqdm
 import zipfile
+import typing
+import codecs
 from buildtools.bt_logging import log
 from functools import reduce
 from subprocess import CalledProcessError
@@ -58,10 +60,11 @@ def getElapsed(start):
     return '%d:%02d:%02d.%03d' % reduce(lambda ll, b: divmod(ll[0], b) + ll[1:], [((clock() - start) * 1000,), 1000, 60, 60])
 
 
-def secondsToStr(t):
-    return "%d:%02d:%02d.%03d" % \
-        reduce(lambda ll, b: divmod(ll[0], b) + ll[1:],
-               [(t * 1000,), 1000, 60, 60])
+def secondsToStr(t: int) -> str:
+    '''
+    Take integer seconds, return formatted string.
+    '''
+    return "%d:%02d:%02d.%03d" % reduce(lambda ll, b: divmod(ll[0], b) + ll[1:], [(t * 1000,), 1000, 60, 60])
 
 
 class BuildEnv(object):
@@ -104,7 +107,7 @@ class BuildEnv(object):
         key = self.getKey(key)
         if noisy:
             log.info('Build env: {1} prepended to {0}'.format(key, value))
-        self.env[key] = delim.join([value] + ENV.env.get(key, '').split(delim))
+        self.env[key] = delim.join([value] + self.env.get(key, '').split(delim))
 
     def appendTo(self, key, value, delim=';', noisy=None):
         if noisy is None:
@@ -112,7 +115,7 @@ class BuildEnv(object):
         key = self.getKey(key)
         if noisy:
             log.info('Build env: {1} appended to {0}'.format(key, value))
-        self.env[key] = delim.join(ENV.env.get(key, '').split(delim) + [value])
+        self.env[key] = delim.join(self.env.get(key, '').split(delim) + [value])
 
     def clone(self):
         return BuildEnv(self.env.copy())
@@ -120,7 +123,7 @@ class BuildEnv(object):
     def dumpToLog(self, keys=None):
         if keys is None:
             keys = self.env.keys()
-        ENV.dump(self.env, keys)
+        self.dump(self.env, keys)
 
     def which(self, program, skip_paths=[]):
         fpath, _ = os.path.split(program)
@@ -167,7 +170,7 @@ class BuildEnv(object):
 
     @classmethod
     def dump(cls, env, keys=None):
-        for key, value in sorted(env.iteritems()):
+        for key, value in sorted(env.items()):
             if keys is not None and key not in keys:
                 continue
             log.info('+{0}="{1}"'.format(key, value))
@@ -679,8 +682,11 @@ def get_file_list(root_dir: str, start: str = None, prefix: str='') -> list:
             output += [rpath]
     return output
 
-def detect_encoding(filename, detect_only=False):
-    import codecs, chardet, ftfy
+def detect_encoding(filename: str) -> typing.List:
+    '''
+    Attempts to detect encoding of filename using chardet.
+    '''
+    import chardet
     toread = min(32, os.path.getsize(filename))
     raw = b''
     with open(filename, 'rb') as f:
@@ -697,8 +703,11 @@ def detect_encoding(filename, detect_only=False):
             encoding = 'utf-8-sig'
         if encoding in ('cp1252', 'Windows-1252'):
             encoding = 'cp1252'
+    return encoding
+
+def fix_encoding(filename, encoding='utf-8-sig'):
     #log.info('chardet guesses: {}'.format(encoding))
-    if encoding in ('utf-8-sig', 'cp1252') and not detect_only:
+    if encoding in ('utf-8-sig', 'cp1252'):
         with codecs.open(filename, 'r', encoding=encoding) as inf:
             with codecs.open(filename + '.utf8', 'w', encoding='utf-8-sig') as outf:
                 for line in ftfy.fix_file(inf, fix_entities=False, fix_latin_ligatures=False, fix_character_width=False, uncurl_quotes=False):

@@ -54,6 +54,9 @@ else:
         return str(b)
 
 def hashfile(afile, hasher, blocksize=65536):
+    if isinstance(afile, str):
+        with open(afile, 'rb') as f:
+            return hashfile(f,hasher,blocksize)
     buf = afile.read(blocksize)
     while len(buf) > 0:
         hasher.update(buf)

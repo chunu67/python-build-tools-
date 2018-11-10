@@ -274,10 +274,12 @@ class MinifySVGTarget(SingleBuildTarget):
     BT_TYPE = 'MinifySVG'
     BT_LABEL = 'SVGO'
 
-    def __init__(self, target, source, dependencies=[], svgo_opts=['-q']):
+    def __init__(self, target, source, dependencies=[], svgo_opts=['-q'], svgo_executable=None):
         self.source = source
         self.svgo_opts = svgo_opts
         self.svgo_cmd = os_utils.which('svgo')
+        if svgo_executable is not None:
+            self.svgo_cmd = svgo_executable
         if self.svgo_cmd is None:
             log.warn('Unable to find svgo on this OS.  Is it in PATH?  Remember to run `npm install -g svgo`!')
 
@@ -316,9 +318,10 @@ class DatafyImagesTarget(SingleBuildTarget):
         convert_imgurls_to_dataurls(self.infile, self.target, self.basedir)
 
 class EBashLayoutFlags(enum.IntFlag):
-    PREFIX  = 1
-    NAME    = 2
-    HASHDIR = 4
+    PREFIX   = 1
+    NAME     = 2
+    HASHDIR  = 4
+    HIDENAME = 8
 
 class CacheBashifyFiles(SingleBuildTarget):
     BT_TYPE = 'CacheBashify'
@@ -372,7 +375,10 @@ class CacheBashifyFiles(SingleBuildTarget):
             b = srchash[3:4]
             basedestdir = os.path.join(basedestdir, a, b)
             srchash = srchash[4:]
-        outfile = os.path.join(basedestdir, f'{basename}-{srchash}{ext}')
+        if (self.flags & EBashLayoutFlags.HIDENAME) == EBashLayoutFlags.HIDENAME:
+            outfile = os.path.join(basedestdir, f'{srchash}{ext}')
+        else:
+            outfile = os.path.join(basedestdir, f'{basename}-{srchash}{ext}')
         absoutfile = os.path.join(self.destdir, outfile)
         return sourcefilerel, os.path.relpath(absoutfile, self.destdir), absoutfile
 
@@ -388,6 +394,11 @@ class CacheBashifyFiles(SingleBuildTarget):
         if os.path.isfile(self.source):
             o += [self.get_displayed_name()]
         return o
+
+    def is_stale(self):
+        _, _, absoutfile = self.calcFilename()
+        #print(absoutfile)
+        return not os.path.isfile(absoutfile)
 
     def build(self):
         sourcefilerel, reloutfile, absoutfile = self.calcFilename()
