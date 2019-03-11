@@ -372,7 +372,7 @@ class CacheBashifyFiles(SingleBuildTarget):
         basedestdir = self.basedirdest or dirname
         if (self.flags & EBashLayoutFlags.HASHDIR) == EBashLayoutFlags.HASHDIR:
             a = srchash[0:2]
-            b = srchash[3:4]
+            b = srchash[2:4]
             basedestdir = os.path.join(basedestdir, a, b)
             srchash = srchash[4:]
         if (self.flags & EBashLayoutFlags.HIDENAME) == EBashLayoutFlags.HIDENAME:
@@ -380,7 +380,7 @@ class CacheBashifyFiles(SingleBuildTarget):
         else:
             outfile = os.path.join(basedestdir, f'{basename}-{srchash}{ext}')
         absoutfile = os.path.join(self.destdir, outfile)
-        return sourcefilerel, os.path.relpath(absoutfile, self.destdir), absoutfile
+        return sourcefilerel, os.path.relpath(absoutfile, self.destdir), os.path.abspath(absoutfile)
 
     def get_displayed_name(self):
         relfilename = self.target
@@ -426,6 +426,7 @@ class CacheBashifyFiles(SingleBuildTarget):
         manifest_data[sourcefilerel] = outfile
 
         os_utils.ensureDirExists(os.path.dirname(self.manifest), noisy=True)
+        print(self.manifest)
         with open(self.manifest, 'w') as f:
             json.dump(manifest_data, f, indent=2)
         self.touch(absoutfile)

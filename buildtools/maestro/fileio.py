@@ -211,6 +211,9 @@ class CopyFilesTarget(SingleBuildTarget):
         super(CopyFilesTarget, self).__init__(target, dependencies=dependencies, files=[self.source, self.destination, os.path.abspath(__file__)])
         self.name = f'{source} -> {destination}'
 
+    def is_stale(self):
+        return True
+
     def serialize(self):
         data = super(CopyFilesTarget, self).serialize()
         data['files'] = [self.source, self.destination]
@@ -228,4 +231,60 @@ class CopyFilesTarget(SingleBuildTarget):
 
     def build(self):
         os_utils.copytree(self.source, self.destination, verbose=self.verbose, ignore=self.ignore, progress=self.show_progress)
+        self.touch(self.target)
+
+class RSyncRemoteTarget(SingleBuildTarget):
+    BT_LABEL = 'RSYNC'
+
+    def __init__(self, sources, destination, rsync_executable=None, progress=False, delete=False, opts=['-Rruavp'], chmod=0o755, chown=None, chgrp=None, show_output=False, dependencies=[], provides=[], name='rsync', keyfile=None):
+        self.rsync_executable = rsync_executable or os_utils.which('rsync')
+        self.opts = opts
+        self.progress = progress
+        self.chmod = chmod
+        self.chown = chown
+        self.chgrp = chgrp
+        self.show_output = show_output
+        self.progress = progress
+        self.sources = sources
+        self.delete = delete
+        self.destination = destination
+        self.keyfile = keyfile
+        files = []
+        for source in sources:
+            with log.info('Scanning %s...', source):
+                if os.path.isdir(source):
+                    files += os_utils.get_file_list(source)
+                if os.path.isfile(source):
+                    files += [source]
+        super().__init__(target=self.genVirtualTarget(name.replace('\\', '_').replace('/', '_')), files=files, dependencies=dependencies, provides=provides, name=name)
+
+    def is_stale(self):
+        return True
+
+    def build(self):
+        # call rsync -Rrav --progress *.mp3 root@ss13.nexisonline.net:/host/ss13.nexisonline.net/htdocs/media/
+        cmd = [self.rsync_executable]
+        cmd += self.opts
+        if self.progress:
+            cmd += ['--progress']
+        if self.delete:
+            cmd += ['--delete', '--delete-before']
+        if self.chmod != None:
+            cmd += [f'--chmod={self.chmod:o}']
+        if self.chown != None:
+            chown = self.chown
+            if self.chgrp is not None:
+                chown += ':' + self.chgrp
+            cmd += [f'--chown={chown}']
+        if self.keyfile != None:
+            keypath = self.keyfile
+            os_utils.cmd(['chmod','400',keypath], echo=False, show_output=True, critical=True)
+            if os_utils.is_windows() and ':' in keypath:
+                #keypath = os_utils.cygpath(keypath)
+                keypath = keypath.replace('\\','/')
+            cmd += ['-e', f"ssh -i {keypath}"]
+        cmd += [x.replace('\\', '/') for x in self.sources]
+        cmd += [self.destination]
+
+        os_utils.cmd(cmd, show_output=self.show_output, echo=True or self.should_echo_commands(), critical=True, acceptable_exit_codes=[0, 23])
         self.touch(self.target)

@@ -341,7 +341,7 @@ class BuildMaestro(object):
         #progress = tqdm(total=len(self.targets), unit='target', desc='Building', leave=False)
         self.targetsCompleted = []
         self.targetsDirty = []
-        while len(self.targets) > len(self.targetsCompleted) and loop < 10:
+        while len(self.targets) > len(self.targetsCompleted) and loop < 100:
             loop += 1
             for bt in self.alltargets:
                 bt.maestro = self
@@ -364,10 +364,11 @@ class BuildMaestro(object):
                         log.critical('Cancelled via KeyboardInterrupt.')
                         return
                     bt.built=True
-            log.debug('%d > %d',len(self.targets), len(self.targetsCompleted))
+            log.debug('%d > %d, loop = %d',len(self.targets), len(self.targetsCompleted), loop)
+        log.debug('%d > %d, loop = %d',len(self.targets), len(self.targetsCompleted), loop)
         # progress.close()
         self._write_targets()
-        if loop >= 10:
+        if loop >= 100:
             incompleteTargets=[t for t in self.targets if t not in self.targetsCompleted]
             if len(incompleteTargets)>0:
                 with log.critical("Failed to resolve dependencies.  The following targets are left unresolved. Exiting."):

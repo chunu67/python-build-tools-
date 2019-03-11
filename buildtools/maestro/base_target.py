@@ -115,7 +115,7 @@ class BuildTarget(object):
         pass
 
     def provides(self):
-        return self._all_provides
+        return list(set(self._all_provides))
 
     def get_label(self):
         return self.BT_LABEL or self.BT_TYPE.upper() or type(self).__class__.__name__
@@ -324,7 +324,7 @@ class BuildTarget(object):
         for infilename in targets:
             infilename = callLambda(infilename)
             if os.path.isfile(infilename):
-                c_mtime = os.stat(infilename).st_mtime
+                c_mtime = os.path.getmtime(infilename)
                 # log.info("%d",input_mtime-target_mtime)
                 if c_mtime > target_mtime:
                     target_mtime = c_mtime
@@ -332,7 +332,7 @@ class BuildTarget(object):
         for infilename in inputs:
             infilename = callLambda(infilename)
             if os.path.isfile(infilename):
-                c_mtime = os.stat(infilename).st_mtime
+                c_mtime = os.path.getmtime(infilename)
                 # log.info("%d",input_mtime-target_mtime)
                 if c_mtime > inputs_mtime:
                     inputs_mtime = c_mtime
@@ -356,6 +356,7 @@ class BuildTarget(object):
             if dep not in maestro.targetsCompleted:
                 log.debug('%s: Waiting on %s.',self.name,dep)
                 return False
+        log.debug('%s: CAN BUILD!',self.name)
         return True
 
     def touch(self, filename):

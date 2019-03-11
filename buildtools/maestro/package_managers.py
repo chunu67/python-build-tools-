@@ -132,11 +132,11 @@ class ComposerBuildTarget(_NPMLikeBuildTarget):
 
     def __init__(self, base_command='install', working_dir='.', opts=[], modules_dir='vendor', target=None, dependencies=[], composer_path=None, composer_json=None, composer_lock=None, composer_bin_dir=None):
         if composer_json is None:
-            composer_json = os.path.join(working_dir, 'composer.json')
+            composer_json = os.path.abspath(os.path.join(working_dir, 'composer.json'))
         if composer_lock is None:
-            composer_lock = os.path.join(working_dir, 'composer.lock')
+            composer_lock = os.path.abspath(os.path.join(working_dir, 'composer.lock'))
         if target is None:
-            target = os.path.join(working_dir, modules_dir, '.composer.target')
+            target = os.path.abspath(os.path.join(working_dir, modules_dir, '.composer.target'))
         self.composer_bin_dir = composer_bin_dir
         super().__init__('composer', base_command=base_command, modules_dir=modules_dir, working_dir=working_dir, opts=opts, target=target, exe_path=composer_path, files=[], dependencies=[], specfile=composer_json, lockfile=composer_lock)
         self.detectAutoloadedFiles()

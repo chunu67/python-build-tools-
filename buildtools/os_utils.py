@@ -448,15 +448,21 @@ def old_copytree(src, dst, symlinks=False, ignore=None):
         if os.path.isdir(s):
             copytree(s, d, symlinks, ignore)
         else:
-            if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(dst).st_mtime > 1:
+            if not os.path.exists(d) or os.path.getmtime(src) - os.path.getmtime(dst) > 1:
                 shutil.copy2(s, d)
 
 
 def canCopy(src, dest, **op_args):
-    return not os.path.isfile(dest) or op_args.get('ignore_mtime', False) or (os.stat(src).st_mtime - os.stat(dest).st_mtime > 1)
+    return not os.path.isfile(dest) or op_args.get('ignore_mtime', False) or (os.path.getmtime(src) - os.path.getmtime(dest) > 1)
 
 
-def single_copy(fromfile, newroot, **op_args):
+def single_copy(fromfile: str, newroot: str, **op_args):
+    '''
+    :param as_file bool:
+        Copy to new name rather than to new directory. False by default.
+    :param verbose bool:
+        Log copying action.
+    '''
     newfile = os.path.join(newroot, os.path.basename(fromfile))
     if op_args.get('as_file', False) or '.' in newroot:
         newfile = newroot
