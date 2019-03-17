@@ -154,6 +154,16 @@ class BuildEnv(object):
                     return exe_file
         return None
 
+    def assertWhich(self, program, fail_raise=False, skip_paths=[]):
+        fullpath = ENV.which(program, skip_paths)
+        with log.info('Checking if %s exists...', program):
+            if fullpath is None:
+                errmsg = '{executable} is not in PATH!'.format(executable=program)
+                raise RuntimeError(errmsg)
+            else:
+                log.info('Found: %s', fullpath)
+        return fullpath
+
     def removeDuplicatedEntries(self, key, noisy=None, delim=os.pathsep):
         if noisy is None:
             noisy = self.noisy
@@ -255,18 +265,7 @@ def which(program):
 
 
 def assertWhich(program, fail_raise=False):
-    fullpath = ENV.which(program)
-    with log.info('Checking if %s exists...', program):
-        if fullpath is None:
-            errmsg = '{executable} is not in PATH!'.format(executable=program)
-            if fail_raise:
-                raise RuntimeError(errmsg)
-            else:
-                log.critical(errmsg)
-                sys.exit(1)
-        else:
-            log.info('Found: %s', fullpath)
-    return fullpath
+    return ENV.assertWhich(program, fail_raise)
 
 
 def _cmd_handle_env(env):
