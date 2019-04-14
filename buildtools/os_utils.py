@@ -155,7 +155,7 @@ class BuildEnv(object):
         return None
 
     def assertWhich(self, program, fail_raise=False, skip_paths=[]):
-        fullpath = ENV.which(program, skip_paths)
+        fullpath = self.which(program, skip_paths)
         with log.info('Checking if %s exists...', program):
             if fullpath is None:
                 errmsg = '{executable} is not in PATH!'.format(executable=program)
