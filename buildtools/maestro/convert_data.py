@@ -64,7 +64,7 @@ class ConvertDataBuildTarget(SingleBuildTarget):
         data = {}
         with open(self.files[0],'r', encoding='utf-8-sig') as inf:
             if self.from_type == EDataType.YAML:
-                data=yaml.load(inf)
+                data=yaml.full_load(inf)
             if self.from_type == EDataType.JSON:
                 data=json.load(inf)
             if self.from_type == EDataType.TOML:

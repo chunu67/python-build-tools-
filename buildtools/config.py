@@ -231,7 +231,7 @@ class YAMLConfig(ConfigFile):
 
     def load_from_string(self, string):
         import yaml
-        loader = yaml.Loader(string)
+        loader = yaml.FullLoader(string)
         if self._ordered_dicts:
             loader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, self.dict_constructor)
         try:

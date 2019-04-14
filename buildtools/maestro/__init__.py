@@ -154,7 +154,7 @@ class BuildMaestro(object):
         older_files = []
         if os.path.isfile(self.all_targets_file):
             with open(self.all_targets_file, 'r', encoding='utf-8') as f:
-                older_files = sorted(yaml.load(f))
+                older_files = sorted(yaml.full_load(f))
         for bt in self.alltargets:
             bt.maestro = self
             bt.clean()
@@ -248,7 +248,7 @@ class BuildMaestro(object):
     def addFromRules(self, context, yamlbuf):
         # print(repr(yamlbuf))
         if yamlbuf.strip() != '':
-            yml = yaml.load(yamlbuf)
+            yml = yaml.full_load(yamlbuf)
             for k, v in yml.items():
                 context[k] = v
         cls = self.ALL_TYPES[context['type']]
