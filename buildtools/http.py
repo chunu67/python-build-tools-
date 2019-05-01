@@ -81,16 +81,17 @@ def DownloadFile(url, filename, log_after=True, print_status=True, log_before=Tr
         file_size_dl = 0
         block_sz = 8192
 
-        progress = tqdm(total=file_size, unit='B', leave=False) if print_status else None
+        progress = tqdm(total=file_size, unit_scale=True, unit_divisor=1024, unit='B', leave=False) if print_status else None
         for buf in r.iter_content(block_sz):
             if not buf or file_size == file_size_dl:
                 break
 
-            file_size_dl += len(buf)
+            buf_len = len(buf)
+            file_size_dl += buf_len
             f.write(buf)
             if print_status:
                 #status = r"%10d/%10d  [%3.2f%%]" % (file_size_dl, file_size, file_size_dl * 100. / file_size)
-                progress.update(file_size_dl)
+                progress.update(buf_len)
                 #status = status + chr(8) * (len(status) + 1)  - pre-2.6 method
                 #print(status, end='\r')
         if progress is not None:
