@@ -84,6 +84,12 @@ class SimpleDelayer(IDelayer):
     def TimeLeft(self):
         return math.ceil(self.minDelay - (time.time() - self.lastCheck))
 
+    def deserialize(self, data):
+        self.lastCheck=float(data)
+
+    def serialize(self):
+        return self.lastCheck
+
 
 def SimpleDelayRepresenter(dumper, data):
     return dumper.represent_scalar('!simpledelay', '{}@{}'.format(data.id, data.lastCheck))
@@ -112,14 +118,14 @@ class DelayCollection(object):
     def serialize(self):
         o = {}
         for k, v in self.delayCollection.items():
-            o[k] = v
+            o[k] = v.serialize()
         return o
 
     def deserialize(self, data):
         self.delayCollection.clear()
         for k, v in data.items():
-            self.delayCollection[k] = v
-            self.delayCollection[k].minDelay = self.minDelay
+            self.delayCollection[k] = SimpleDelayer(k, min_delay=self.minDelay)
+            self.delayCollection[k].deserialize(v)
 
     def _toIDString(self, _id):
         # return '.'.join(self.id.split('.') + id)
