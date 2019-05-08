@@ -35,6 +35,7 @@ import tqdm
 import zipfile
 import typing
 import codecs
+import filecmp
 from buildtools.bt_logging import log
 from functools import reduce
 from subprocess import CalledProcessError
@@ -452,7 +453,23 @@ def old_copytree(src, dst, symlinks=False, ignore=None):
 
 
 def canCopy(src, dest, **op_args):
-    return not os.path.isfile(dest) or op_args.get('ignore_mtime', False) or (os.path.getmtime(src) - os.path.getmtime(dest) > 1)
+    '''
+    :param ignore_mtime bool:
+        Ignore file modification timestamps.
+    :param ignore_filecmp bool:
+        Disable byte-to-byte comparison AND os.stat checks.
+    :param ignore_bytecmp bool:
+        Do not check each file byte-for-byte, perform shallow os.stat checks.
+    '''
+    if not os.path.isfile(dest):
+        return True
+    if not op_args.get('ignore_mtime', False):
+        if os.path.getmtime(src) - os.path.getmtime(dest) > 1.0:
+            return True
+    if not op_args.get('ignore_filecmp', False):
+        if not filecmp.cmp(src, dest, op_args.get('ignore_bytecmp', False)):
+            return True
+    return False
 
 
 def single_copy(fromfile: str, newroot: str, **op_args):
@@ -461,6 +478,12 @@ def single_copy(fromfile: str, newroot: str, **op_args):
         Copy to new name rather than to new directory. False by default.
     :param verbose bool:
         Log copying action.
+    :param ignore_mtime bool:
+        Ignore file modification timestamps.
+    :param ignore_filecmp bool:
+        Disable byte-to-byte comparison AND os.stat checks.
+    :param ignore_bytecmp bool:
+        Do not check each file byte-for-byte, perform shallow os.stat checks.
     '''
     newfile = os.path.join(newroot, os.path.basename(fromfile))
     if op_args.get('as_file', False) or '.' in newroot:
