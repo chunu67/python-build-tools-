@@ -96,7 +96,7 @@ class TarjanGraph(object):
 class BuildMaestro(object):
     ALL_TYPES = {}
 
-    def __init__(self, all_targets_file='.alltargets.yml', hidden_build_dir='.build'):
+    def __init__(self, hidden_build_dir='.build'):
         self.alltargets = []
         self.targets = []
         self.targetsCompleted = []
@@ -106,7 +106,7 @@ class BuildMaestro(object):
         self.show_commands = False
 
         self.builddir = hidden_build_dir
-        self.all_targets_file = os.path.join(self.builddir, hidden_build_dir)
+        self.all_targets_file = os.path.join(self.builddir, 'all_targets.yml')
 
         # This will get Maestro to delete the listed directories, if they are present during --clean.
         self.other_dirs_to_clean=[]
@@ -151,10 +151,10 @@ class BuildMaestro(object):
         self.run()
 
     def clean(self):
-        older_files = []
+        older_files = set()
         if os.path.isfile(self.all_targets_file):
             with open(self.all_targets_file, 'r', encoding='utf-8') as f:
-                older_files = sorted(yaml.full_load(f))
+                older_files = set(sorted(yaml.safe_load(f)))
         for bt in self.alltargets:
             bt.maestro = self
             bt.clean()
@@ -310,7 +310,7 @@ class BuildMaestro(object):
                     alltargets.add(targetfile)
         os_utils.ensureDirExists(os.path.dirname(self.all_targets_file))
         with open(self.all_targets_file, 'w', encoding='utf-8') as f:
-            yaml.dump(alltargets, f, default_flow_style=False)
+            yaml.dump(list(alltargets), f, default_flow_style=False)
 
     def run(self, verbose=None):
         if verbose is not None:

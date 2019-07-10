@@ -316,4 +316,4 @@ class Properties(object):
         return self.properties.__getitem__(key)
 
     def __setitem__(self, key, value):
-        return self.properties.__setitem__(key)
+        return self.properties.__setitem__(key, value)

@@ -39,7 +39,7 @@ class BuildTarget(object):
     BT_LABEL = None
 
     #           YYYYMMDDhhmm
-    CACHE_VER = 201811101012
+    CACHE_VER = 201906171527
 
     CHECK_MTIMES = True
     CHECK_HASHES = True
@@ -170,7 +170,7 @@ class BuildTarget(object):
         file_hashes={}
         for filename in self.getFilesToCompare():
             if os.path.isfile(filename):
-                file_hashes[os.path.abspath(filename)]=utils.hashfile(filename, hashlib.sha256())
+                file_hashes[os.path.abspath(filename)]=utils.hashfile(filename, hashlib.md5())
         return file_hashes
 
     def genVirtualTarget(self, vid=None):
@@ -185,14 +185,14 @@ class BuildTarget(object):
         self._all_provides = data.get('provides', [])
 
     def getCacheFile(self):
-        filename = hashlib.sha256(self.name.encode('utf-8')).hexdigest()+'.yml'
+        filename = hashlib.md5(self.name.encode('utf-8')).hexdigest()+'.yml'
         return os.path.join(self.maestro.builddir, 'cache', filename)
 
     def getConfigHash(self):
-        return hashlib.sha256(yaml.dump(self.get_config()).encode('utf-8')).hexdigest()
+        return hashlib.md5(yaml.dump(self.get_config()).encode('utf-8')).hexdigest()
 
     def getTargetHash(self):
-        return hashlib.sha256(';'.join(self.provides()).encode('utf-8')).hexdigest()
+        return hashlib.md5(';'.join(self.provides()).encode('utf-8')).hexdigest()
 
     def writeCache(self):
         configHash = self.getConfigHash()
@@ -210,7 +210,7 @@ class BuildTarget(object):
         if os.path.isfile(self.getCacheFile()):
             try:
                 with open(self.getCacheFile(), 'r') as f:
-                    cachedata = list(yaml.load_all(f, Loader=yaml.BaseLoader()))
+                    cachedata = list(yaml.safe_load(f))
                     if len(cachedata)==6 and cachedata[0] == self.CACHE_VER:
                         _, _CH, _TH, _LFT, _LFH, _CFG = cachedata
                         self.lastConfigHash=_CH
@@ -298,8 +298,8 @@ class BuildTarget(object):
                 return True
 
         if config is not None:
-            configHash = hashlib.sha256(yaml.dump(config).encode('utf-8')).hexdigest()
-            targetHash = hashlib.sha256(';'.join(targets).encode('utf-8')).hexdigest()
+            configHash = hashlib.md5(yaml.dump(config).encode('utf-8')).hexdigest()
+            targetHash = hashlib.md5(';'.join(targets).encode('utf-8')).hexdigest()
 
             def writeHash():
                 with open(configcachefile, 'w') as f:

@@ -49,10 +49,12 @@ def DownloadFile(url, filename, log_after=True, print_status=True, log_before=Tr
         Produce a log statement before the download starts.
     :param print_status:
         Prints live-updated status of the download progress. (May not work very well for piped or redirected output.)
+    :param session:
+        Requests session.
     '''
     #kwargs['headers'] = dict(DEFAULT_HEADERS, **kwargs.get('headers', {}))
     r = None
-    session = kwargs.get('session', requests)
+    session = kwargs.pop('session', requests)
     try:
         r = session.get(url, stream=True, **kwargs)
     except requests.exceptions.ConnectionError as e:

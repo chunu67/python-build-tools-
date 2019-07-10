@@ -177,7 +177,6 @@ class IndentLogger(object):
             self.log._log(level, msg, args, exc_info, extra)
 
 
-
 logging.basicConfig(
     format='%(asctime)s [%(levelname)-8s]: %(message)s',
     datefmt='%m/%d/%Y %I:%M:%S %p',

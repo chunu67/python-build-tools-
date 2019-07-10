@@ -52,7 +52,8 @@ class GenerateEnumTarget(SingleBuildTarget):
     def build(self):
         definition = {}
         with open(self.filename, 'r') as r:
-            definition=yaml.base_load(r)['enum']
+            definition=yaml.safe_load(r)['enum']
+            
         if 'auto-value' in definition:
             autoval = definition['auto-value']
             i=autoval.get('start',0)
