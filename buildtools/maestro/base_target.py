@@ -231,8 +231,8 @@ class BuildTarget(object):
                 if filename not in curFileTimes.keys():
                     log.debug('File %s is currently missing.', filename)
                     return True
-                if curFileTimes[filename] != mtime:
-                    log.debug('File %s has a changed mtime. (%d != %d)', filename, curFileTimes[filename], mtime)
+                if abs(curFileTimes[filename] - mtime) > 0.1:
+                    log.debug('File %s has a changed mtime. abs(%d - %d) > 1', filename, curFileTimes[filename], mtime)
                     return True
         if self.CHECK_HASHES:
             curFileHashes = self.serialize_file_hashes()
