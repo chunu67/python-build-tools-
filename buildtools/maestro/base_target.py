@@ -101,11 +101,15 @@ class BuildTarget(object):
         return self.maestro.show_commands or self.show_commands
 
     def is_stale(self):
+        if self.lastTargetHash == '':
+            self.readCache()
         if self.getTargetHash() != self.lastTargetHash:
-            log.debug('Target hash changed')
+            with log.debug('[is stale] Target hash changed'):
+                log.debug('self.getTargetHash(): %r', self.getTargetHash())
+                log.debug('self.lastTargetHash:  %r', self.lastTargetHash)
             return True
         if self.getConfigHash() != self.lastConfigHash:
-            log.debug('Config hash changed')
+            log.debug('[is stale] Config hash changed')
             return True
         if self.haveFilesChanged(): #self.checkMTimes(self.files+self.dependencies, self.provides(), config=self.get_config())
             return True
@@ -210,7 +214,7 @@ class BuildTarget(object):
         if os.path.isfile(self.getCacheFile()):
             try:
                 with open(self.getCacheFile(), 'r') as f:
-                    cachedata = list(yaml.safe_load(f))
+                    cachedata = list(yaml.full_load_all(f))
                     if len(cachedata)==6 and cachedata[0] == self.CACHE_VER:
                         _, _CH, _TH, _LFT, _LFH, _CFG = cachedata
                         self.lastConfigHash=_CH
@@ -218,7 +222,8 @@ class BuildTarget(object):
                         self.lastFileTimes=_LFT
                         self.lastFileHashes=_LFH
                         self.lastConfig=_CFG
-            except:
+            except Exception as e:
+                log.exception(e)
                 pass
 
     def haveFilesChanged(self):

@@ -379,4 +379,13 @@ class BuildMaestro(object):
                 with log.critical("Failed to resolve dependencies.  The following dependencies are orphaned. Exiting."):
                     for t in orphanDeps:
                         log.critical(t)
-            sys.exit(1)
+            #sys.exit(1)
+        with log.info('Cleaning up...'):
+            cachefiles = []
+            for bt in self.alltargets:
+                cachefiles.append(os.path.basename(bt.getCacheFile()))
+            for filename in os.listdir(os.path.join(self.builddir, 'cache')):
+                if filename not in cachefiles:
+                    filename = os.path.join(self.builddir, 'cache', filename)
+                    log.debug('<red>RM</red> %s', filename)
+                    os.remove(filename)
