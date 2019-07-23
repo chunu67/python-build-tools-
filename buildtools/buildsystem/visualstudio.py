@@ -28,6 +28,8 @@ import re
 import uuid
 import collections
 
+from typing import Tuple
+
 from lxml import etree
 from lxml.etree import QName
 
@@ -317,7 +319,7 @@ class VS2015Project(object):
         return child
 
 
-class ProjectType:
+class ProjectType(object):
     SOLUTION_FOLDER = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}'
     CSHARP_PROJECT = '{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}'
 
@@ -459,8 +461,8 @@ EndGlobal
     def LoadFromFile(self, filename):
         with codecs.open(filename, 'r', encoding='utf-8-sig') as f:
             state = 'Header'
-            project = None
-            section = None
+            project: SolutionProject = None
+            section: Tuple[str, str] = None
             for line in f:
                 oline = line
                 line = line.strip()
@@ -468,7 +470,7 @@ EndGlobal
                     if line.startswith('Microsoft Visual Studio Solution File'):
                         self.formatVersion = line.split(' ')[-1]
                     if line.startswith('# Visual Studio '):
-                        self.vsYear = line.split(' ')[-1]
+                        self.vsYear = ' '.join(line.split(' ')[2:])
                     if line.startswith('VisualStudioVersion = '):
                         self.vsVersion = line.split(' ')[-1]
                     if line.startswith('MinimumVisualStudioVersion = '):
@@ -618,7 +620,7 @@ class VisualStudio2012Solution(Solution):
     '''
 
     def __init__(self):
-        super(VisualStudio2012Solution, self).__init__()
+        super().__init__()
 
         self.formatVersion = '12.00'
         self.vsYear = '2013'
@@ -635,9 +637,25 @@ class VisualStudio2015Solution(Solution):
     '''
 
     def __init__(self):
-        super(VisualStudio2015Solution, self).__init__()
+        super().__init__()
 
         self.formatVersion = '12.00'
         self.vsYear = '14'  # WHY
         self.vsVersion = '14.0.25420.1'
+        self.minVSVersion = '10.0.40219.1'
+
+class VisualStudio2019Solution(Solution):
+    '''
+    Microsoft Visual Studio Solution File, Format Version 12.00
+    # Visual Studio Version 16
+    VisualStudioVersion = 16.0.29102.190
+    MinimumVisualStudioVersion = 10.0.40219.1
+    '''
+
+    def __init__(self):
+        super().__init__()
+
+        self.formatVersion = '12.00'
+        self.vsYear = 'Version 16'  # WHY
+        self.vsVersion = '16.0.29102.1'
         self.minVSVersion = '10.0.40219.1'
