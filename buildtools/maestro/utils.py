@@ -24,8 +24,9 @@ SOFTWARE.
 '''
 import codecs
 import yaml
-
+from buildtools.utils import img2blob
 class SerializableLambda(yaml.YAMLObject):
+    yaml_loader = yaml.Loader
     yaml_tag = '!lambda'
 
     def __init__(self, text):
@@ -34,19 +35,26 @@ class SerializableLambda(yaml.YAMLObject):
     def __call__(self, arg):
         return self.string
 
-class SerializableFileLambda(SerializableLambda):
+class SerializableFileLambda(yaml.YAMLObject):
+    yaml_loader = yaml.Loader
     yaml_tag = '!filelambda'
 
-    def __init__(self, filename, outformat='{FILEDATA}', encoding='utf-8-sig'):
-        self.filename=filename
-        self.outformat=outformat
-        self.encoding=encoding
+    def __init__(self, filename: str, outformat: str='{FILEDATA}', encoding: str='utf-8-sig', as_blob: bool=False):
+        self.filename = filename
+        self.outformat = outformat
+        self.encoding = encoding
+        self.as_blob = as_blob
 
     def __call__(self, arg):
+        if self.as_blob:
+            return self.outformat.format(FILEDATA=img2blob(self.filename).strip())
+
         with codecs.open(self.filename, 'r', encoding=self.encoding) as f:
             return self.outformat.format(FILEDATA=f.read())
 
 def callLambda(var):
     if isinstance(var, SerializableLambda):
+        var = var()
+    elif isinstance(var, SerializableFileLambda):
         var = var()
     return var

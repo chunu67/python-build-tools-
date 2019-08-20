@@ -214,7 +214,7 @@ class BuildTarget(object):
         if os.path.isfile(self.getCacheFile()):
             try:
                 with open(self.getCacheFile(), 'r') as f:
-                    cachedata = list(yaml.full_load_all(f))
+                    cachedata = list(yaml.load_all(f, Loader=yaml.Loader))
                     if len(cachedata)==6 and cachedata[0] == self.CACHE_VER:
                         _, _CH, _TH, _LFT, _LFH, _CFG = cachedata
                         self.lastConfigHash=_CH

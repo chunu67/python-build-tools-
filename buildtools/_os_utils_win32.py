@@ -130,5 +130,5 @@ def getVSVars(vspath, arch='x86', batfile=None, env=ENV):
         #print(line)
         if inVSVars and '=' in line:
             k,v=line.split('=',1)
-            ENV.set(k,v,noisy=True)
+            env.set(k,v,noisy=True)
         if line == '###': inVSVars=True
