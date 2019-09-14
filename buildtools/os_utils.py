@@ -40,6 +40,7 @@ from buildtools.bt_logging import log
 from functools import reduce
 from subprocess import CalledProcessError
 
+from typing import List, Any, Union, Tuple
 # package psutil
 import psutil
 
@@ -395,8 +396,7 @@ def cmd(command, echo=False, env=None, show_output=True, critical=False, globbif
         log.error(e)
         return False
 
-
-def cmd_output(command, echo=False, env=None, critical=False, globbify=True):
+def cmd_output(command, echo=False, env=None, critical=False, globbify=True) -> Tuple[bytes, bytes]:
     '''
     :returns List[2]: (stdout,stderr)
     '''
@@ -413,6 +413,22 @@ def cmd_output(command, echo=False, env=None, critical=False, globbify=True):
             raise e
         log.error(e)
     return False
+
+def cmd_out(command: Union[List[str], str], echo=False, env=None, critical=False, globbify=True, encoding: str='utf-8') -> str:
+    new_env = _cmd_handle_env(env)
+    command = _cmd_handle_args(command, globbify)
+    if echo:
+        log.info('$ ' + _args2str(command))
+
+    try:
+        p = subprocess.Popen(command, env=new_env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True)
+        return p.stdout.read().decode('utf-8')
+    except Exception as e:
+        log.error(repr(command))
+        if critical:
+            raise e
+        log.error(e)
+    return None
 
 
 def cmd_daemonize(command, echo=False, env=None, critical=False, globbify=True):

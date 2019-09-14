@@ -3,8 +3,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="pybuildtools",
-    version="0.2.1",
-    description=("Simple library implementing common processes and logging for buildsystems"),
+    version="0.2.2",
+    description=("Library implementing common processes and logging for buildsystems"),
     author="Rob Nelson",
     author_email="nexisentertainment@gmail.com",
     packages=find_packages(exclude=['testcopyright', '*-fixed', 'qc', 'build']),
