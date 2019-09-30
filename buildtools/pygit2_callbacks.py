@@ -34,7 +34,9 @@ class RemoteProgressCallbacks(pygit2.RemoteCallbacks):
 
     def __enter__(self):
         self.startup()
-    def __exit__(self):
+        return self
+
+    def __exit__(self, x_type, x_value, x_tb):
         self.shutdown()
 
     def startup(self):
