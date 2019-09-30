@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pybuildtools",
-    version="0.2.2",
+    version="0.2.3",
     description=("Library implementing common processes and logging for buildsystems"),
     author="Rob Nelson",
     author_email="nexisentertainment@gmail.com",
@@ -18,7 +18,8 @@ setup(
         "requests>=2.0",
         'six',
         'colorama',
-        'tqdm'
+        'tqdm',
+        'pygit2'
     ],
     tests_require=[
         "pytest",
