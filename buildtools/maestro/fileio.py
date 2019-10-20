@@ -70,7 +70,7 @@ class ReplaceTextTarget(SingleBuildTarget):
         self.read_encoding = read_encoding
         self.write_encoding = write_encoding
         self.display_progress = display_progress
-        super(ReplaceTextTarget, self).__init__(target, [filename], dependencies)
+        super().__init__(target, [filename], dependencies)
 
     def serialize(self):
         dat = super(ReplaceTextTarget, self).serialize()
