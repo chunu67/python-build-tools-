@@ -23,22 +23,29 @@ SOFTWARE.
 
 '''
 from buildtools import ENV, os_utils
+from typing import Dict
+
+
 class MSBuild(object):
     def __init__(self):
         # ["msbuild", self.__solution, "/m", "/property:Configuration=Release"]
-        self.solution=''
-        self.configuration=None
-        self.platform=None
+        self.solution: str = ''
+        self.configuration: str = None
+        self.platform: str = None
+        self.properties: Dict[str, str] = {}
 
-    def run(self, MSBUILD='msbuild', project=None, env=ENV):
-        cmd = ["msbuild", self.solution, "/m"]
-        props=[]
+    def set(self, k, v):
+        self.properties[k] = v
+
+    def run(self, MSBUILD='msbuild', project=None, env=ENV, echo=True, show_output=True):
+        cmd = [MSBUILD, self.solution, "/m"]
         if self.configuration is not None:
-            props.append("Configuration="+self.configuration)
+            self.properties['Configuration'] = self.configuration
         if self.platform is not None:
-            props.append('Platform='+self.platform)
-        if len(props)>0:
-            cmd.append('/p:'+';'.join(props))
+            self.properties['Platform'] = self.platform
+        props = [f'{k}={v}' for k, v in self.properties.items()]
+        if len(props) > 0:
+            cmd.append('/p:' + ';'.join(props))
         if project is not None:
-            cmd.append("/target:"+project)
-        os_utils.cmd(cmd,env=env,echo=True,critical=True,show_output=True)
+            cmd.append("/target:" + project)
+        os_utils.cmd(cmd, env=env, echo=echo, critical=True, show_output=show_output)
