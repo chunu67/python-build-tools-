@@ -25,6 +25,7 @@ SOFTWARE.
 import os
 import re
 import shutil
+import pygit2
 from buildtools import log, os_utils, utils, error
 from buildtools.maestro.base_target import SingleBuildTarget
 from buildtools.repo.git import GitRepository

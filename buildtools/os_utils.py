@@ -622,56 +622,54 @@ def _autoescape(string):
 def _args2str(cmdlist):
     return ' '.join([_autoescape(x) for x in cmdlist])
 
-
-def decompressFile(archive):
+PATH_7ZA: typing.Optional[str] = None
+def decompressFile(archive, to='.', env=None):
     '''
     Decompresses the file to the current working directory.
 
-    Uses 7z for .7z and .rar files.
+    Uses 7za for .7z and .rar files. (p7zip)
     '''
+    if env is None:
+        env = ENV
     #print('Trying to decompress ' + archive)
-    tarpath = ENV.which('tar', skip_paths=['mingw'])  # MinGW tar is broken, just throws errors (Jan 9 2016)
-    if archive.endswith('.tar.gz') or archive.endswith('.tgz'):
+    def get7ZA():
+        if PATH_7ZA is None:
+            PATH_7ZA = env.which('7za')
+        return PATH_7ZA
+    lc = archive.lower()
+    if lc.endswith('.tar.gz') or lc.endswith('.tgz'):
         with tarfile.open(archive, mode='r:gz') as arch:
-            arch.extractall('.')
+            arch.extractall(to)
         return True
-    elif archive.endswith('.bz2') or archive.endswith('.tbz'):
+    elif lc.endswith('.bz2') or lc.endswith('.tbz'):
         with tarfile.open(archive, mode='r:bz2') as arch:
-            arch.extractall('.')
+            arch.extractall(to)
         return True
-    elif archive.endswith('.tar.xz'):
-        if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
-            archive = cygpath(archive)
-        cmd([tarpath, 'xJf', archive], echo=True, show_output=False, critical=True)
+    elif lc.endswith('.tar.xz'):
+        with tarfile.open(archive, mode='r:xz') as arch:
+            arch.extractall(to)
         return True
-    elif archive.endswith('.tar.7z'):
-        cmd(['7za', 'x', '-aoa', archive], echo=True, show_output=False, critical=True)
-        if PLATFORM == 'Windows' and 'cygwin' in tarpath.lower():
-            archive = cygpath(archive)
-        #cmd([tarpath, 'xf', archive[:-3]], echo=True, show_output=False, critical=True)
+    elif lc.endswith('.tar.7z'):
+        cmd([get7ZA(), 'x', '-aoa', archive, '-o', to], echo=True, show_output=False, critical=True)
         with tarfile.open(archive[:-3], mode='r') as arch:
-            arch.extractall('.')
+            arch.extractall(to)
         os.remove(archive[:-3])
         return True
-    elif archive.endswith('.gz'):
+    elif lc.endswith('.gz'):
         with tarfile.open(archive, mode='r:gz') as arch:
-            arch.extractall('.')
-    elif archive.endswith('.7z'):
+            arch.extractall(to)
+    elif lc.endswith('.7z'):
         if PLATFORM == 'Windows':
             archive = cygpath(archive)
-        cmd(['7za', 'x', '-aoa', archive], echo=True, show_output=False, critical=True)
-    elif archive.endswith('.zip'):
-        # unzip is unstable on Windows.
-        #cmd(['unzip', archive[:-4]], echo=True, show_output=False, critical=True)
+        cmd([get7ZA(), 'x', '-aoa', archive, '-o', to], echo=True, show_output=False, critical=True)
+    elif lc.endswith('.zip'):
         with zipfile.ZipFile(archive) as arch:
-            arch.extractall('.')
+            arch.extractall(to)
         return True
-    elif archive.endswith('.rar'):
-        # if PLATFORM == 'Windows':
-        #    archive = cygpath(archive)
-        cmd(['7z', 'x', '-aoa', archive], echo=True, show_output=False, critical=True)
+    elif lc.endswith('.rar'):
+        cmd([get7ZA(), 'x', '-aoa', archive, '-o', to], echo=True, show_output=False, critical=True)
     else:
-        log.critical(u'Unknown file extension: %s', archive)
+        log.critical('decompressFile(): Unknown file extension: %s', archive)
     return False
 
 
