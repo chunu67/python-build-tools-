@@ -27,7 +27,10 @@ import os
 import re
 import json
 import enum
-from buildtools import log, os_utils, utils
+import requests
+import hashlib
+from urllib.request import urlparse
+from buildtools import log, os_utils, utils, http
 from buildtools.maestro.base_target import SingleBuildTarget
 
 REG_SCSS_IMPORT = re.compile(r"@import '([^']+)';")
@@ -431,3 +434,68 @@ class CacheBashifyFiles(SingleBuildTarget):
             json.dump(manifest_data, f, indent=2)
         self.touch(absoutfile)
         self.touch(self.target)
+
+class DownloadFileTarget(SingleBuildTarget):
+    BT_TYPE = 'DownloadFile'
+    BT_LABEL = 'DOWNLOAD'
+
+    def __init__(self, target, url, dependencies=[], cache=True):
+        self.url = url
+        self.urlchunks = urlparse(url)
+        self.cache: bool = cache
+
+        self.cache_dir: str = ''
+        self.fileid: str = ''
+        self.etagdir: str = ''
+        self.old_uri_id: str = ''
+        self.uri_id: str = ''
+        self.cached_dl: str = ''
+        self.etagfile: str = ''
+        super().__init__(target, dependencies=dependencies, files=[url, os.path.abspath(__file__)])
+
+
+    def get_displayed_name(self):
+        return '{} -> {}'.format(self.url, self.target)
+
+    def _updateCacheInfo(self) -> str:
+        self.cache_dir = os.path.join(self.maestro.builddir, 'DownloadFileTarget.cache')
+
+        fileid = hashlib.md5(self.urlchunks.path.encode('utf-8')).hexdigest()
+
+        self.etagdir = os.path.join(self.cache_dir, self.urlchunks.hostname, fileid[0:2], fileid[2:4])
+        #self.old_uri_id = hashlib.sha256(self.urlchunks.path.encode('utf-8')).hexdigest()+'.etags'
+        uri_id = fileid[4:]+'.etags'
+        self.cached_dl = os.path.join(self.etagdir, fileid[4:]+'.dat')
+
+        #if os.path.isfile(os.path.join(etagdir, old_uri_id)):
+        #    shutil.move(os.path.join(etagdir, old_uri_id), os.path.join(etagdir, uri_id))
+
+        self.etagfile = os.path.join(self.etagdir, uri_id)
+
+        os_utils.ensureDirExists(self.etagdir)
+
+    def is_stale(self):
+        etag = ''
+        if os.path.isfile(self.etagfile):
+            with open(self.etagfile, 'r') as f:
+                etag = f.read()
+        self._updateCacheInfo()
+        with log.info('Checking for changes to %s...', self.url):
+            res = requests.head(self.url, allow_redirects=True, headers={'If-None-Match':etag})
+            if res.status_code == 304:
+                log.info('304 - Not Modified')
+                return not os.path.exists(self.target)
+            res.raise_for_status()
+            with log.info('Response headers:'):
+                for k, v in res.headers.items():
+                    log.info('%s: %s', k, v)
+            log.info('HTTP %d', res.status_code)
+            with open(self.etagfile, 'w') as f:
+                f.write(res.headers.get('ETag'))
+        return True
+
+    def build(self):
+        http.DownloadFile(self.url, self.cached_dl, log_after=True, print_status=True, log_before=True)
+        os_utils.single_copy(self.cached_dl, self.target, as_file=True, verbose=True)
+        if not self.cache:
+            os.remove(self.cached_dl)

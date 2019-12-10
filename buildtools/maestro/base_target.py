@@ -179,7 +179,7 @@ class BuildTarget(object):
 
     def genVirtualTarget(self, vid=None):
         if vid is None:
-            vid = self.name
+            vid = self.getConfigHash()
         return os.path.join('.build', 'tmp', 'virtual-targets', vid)
 
     def deserialize(self, data):

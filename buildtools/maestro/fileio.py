@@ -27,6 +27,7 @@ import os
 import re
 import shutil
 import tqdm
+import zipfile
 
 from buildtools import log, os_utils, utils
 from buildtools.maestro.base_target import SingleBuildTarget
@@ -288,3 +289,20 @@ class RSyncRemoteTarget(SingleBuildTarget):
 
         os_utils.cmd(cmd, show_output=self.show_output, echo=True or self.should_echo_commands(), critical=True, acceptable_exit_codes=[0, 23])
         self.touch(self.target)
+
+class ExtractArchiveTarget(SingleBuildTarget):
+    BT_TYPE = 'ExtractArchive'
+    BT_LABEL = 'EXTRACT'
+    
+    def __init__(self, target_dir: str, archive: str, dependencies=[], provides=[]):
+        self.target_dir = target_dir
+        self.archive = archive
+        super().__init__(target=self.genVirtualTarget(), files=[self.archive, self.target_dir, os.path.abspath(__file__)], dependencies=dependencies, provides=provides)
+
+    def get_config(self):
+        return [self.archive, self.target_dir]
+    def build(self):
+        if self.archive.endswith('.zip'):
+            with log.info('Extracting %r as ZIP archive...', self.archive):
+                with zipfile.ZipFile(self.archive) as z:
+                    z.extractall(path=self.target_dir)
