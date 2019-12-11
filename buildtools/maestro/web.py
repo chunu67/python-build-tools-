@@ -475,16 +475,21 @@ class DownloadFileTarget(SingleBuildTarget):
         os_utils.ensureDirExists(self.etagdir)
 
     def is_stale(self):
+        if not os.path.isfile(self.target):
+            return True
+
+        self._updateCacheInfo()
         etag = ''
         if os.path.isfile(self.etagfile):
             with open(self.etagfile, 'r') as f:
                 etag = f.read()
-        self._updateCacheInfo()
         with log.info('Checking for changes to %s...', self.url):
             res = requests.head(self.url, allow_redirects=True, headers={'If-None-Match':etag})
             if res.status_code == 304:
                 log.info('304 - Not Modified')
-                return not os.path.exists(self.target)
+                return False
+            if etag == res.headers.get('ETag'):
+                return False
             res.raise_for_status()
             with log.info('Response headers:'):
                 for k, v in res.headers.items():
