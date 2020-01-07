@@ -143,6 +143,7 @@ if __name__ == '__main__':
     parser.add_argument('-L', '--license', type=str, help='License template. Jinja2 provides HOLDER, YEAR, and BLURB variables.')
     parser.add_argument('-H', '--holder', type=str, help='Name(s) of the copyright holder(s).')
     parser.add_argument('-Y', '--year', type=int, help='Year (can be a range)')
+    parser.add_argument('-x', '--ext', dest='exts', nargs='*', default=['.py'], help='Extensions to scan.')
     parser.add_argument('-s', '--start-tag', type=str, nargs='?', default="'''", help='What the beginning of a block comment looks like.')
     parser.add_argument('-e', '--end-tag', type=str, nargs='?', default="'''", help='What the end of a block comment looks like.')
 
@@ -155,8 +156,10 @@ if __name__ == '__main__':
         sys.exit(1)
 
     legal = CopyrightChecker(args.license, args.holder, args.year)
+    legal.begin_tag = args.start_tag
+    legal.end_tag = args.end_tag
     for path in args.path:
         if os.path.isdir(path):
-            legal.scanFiles(path)
+            legal.scanFiles(path, exts=args.exts)
         elif os.path.isfile(path):
             legal.scanFile(path, path + '.fixed')
