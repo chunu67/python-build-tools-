@@ -364,6 +364,9 @@ class CacheBashifyFiles(SingleBuildTarget):
         sourcefilerel = os.path.relpath(self.source, self.basedirsrc)
         dirname = os.path.dirname(sourcefilerel)
         basename, ext = os.path.splitext(os.path.basename(sourcefilerel))
+        if basename.endswith('.min'):
+            basename=basename[:-4]
+            ext = f'.min{ext}'
 
         newbnparts = []
         if self.basedirdest is not None:
@@ -399,9 +402,23 @@ class CacheBashifyFiles(SingleBuildTarget):
         return o
 
     def is_stale(self):
-        _, _, absoutfile = self.calcFilename()
+        '''
+        sourcefilerel, reloutfile, absoutfile = self.calcFilename()
         #print(absoutfile)
-        return not os.path.isfile(absoutfile)
+        #return not os.path.isfile(absoutfile)
+        if os.path.join(absoutfile) and os.path.isfile(self.manifest):
+            if os.path.isfile(self.manifest):
+                with open(self.manifest, 'r') as f:
+                    manifest_data = json.load(f)
+
+            sourcefilerel = sourcefilerel.replace(os.sep, '/')
+            outfile = reloutfile.replace(os.sep, '/')
+            manifest_data[sourcefilerel] = outfile
+            with open(self.manifest, 'w') as f:
+                json.dump(manifest_data, f, indent=2)
+            return False
+        '''
+        return True
 
     def build(self):
         sourcefilerel, reloutfile, absoutfile = self.calcFilename()
@@ -429,7 +446,7 @@ class CacheBashifyFiles(SingleBuildTarget):
         manifest_data[sourcefilerel] = outfile
 
         os_utils.ensureDirExists(os.path.dirname(self.manifest), noisy=True)
-        print(self.manifest)
+        #print(self.manifest)
         with open(self.manifest, 'w') as f:
             json.dump(manifest_data, f, indent=2)
         self.touch(absoutfile)
@@ -475,10 +492,10 @@ class DownloadFileTarget(SingleBuildTarget):
         os_utils.ensureDirExists(self.etagdir)
 
     def is_stale(self):
+        self._updateCacheInfo()
         if not os.path.isfile(self.target):
             return True
 
-        self._updateCacheInfo()
         etag = ''
         if os.path.isfile(self.etagfile):
             with open(self.etagfile, 'r') as f:
@@ -500,7 +517,48 @@ class DownloadFileTarget(SingleBuildTarget):
         return True
 
     def build(self):
+        os_utils.ensureDirExists(os.path.dirname(self.cached_dl))
         http.DownloadFile(self.url, self.cached_dl, log_after=True, print_status=True, log_before=True)
+        os_utils.ensureDirExists(os.path.dirname(self.target))
         os_utils.single_copy(self.cached_dl, self.target, as_file=True, verbose=True)
         if not self.cache:
             os.remove(self.cached_dl)
+
+import os
+from buildtools import os_utils
+from buildtools.maestro.base_target import SingleBuildTarget
+
+
+class WebifyTarget(SingleBuildTarget):
+    BT_TYPE = 'Webify'
+    BT_LABEL = 'Webify'
+
+    def __init__(self, destination, source, dependencies=[], webify_base_path='bin/', webify_win32='webify-win-32.exe', webify_linux='webify-linux-x86_64'):
+        executable = webify_win32 if os_utils.is_windows() else webify_linux
+        self.webify = os.path.abspath(os.path.join(webify_base_path, executable))
+        self.source = source
+        self.destination = destination
+        destbasename, _ = os.path.splitext(self.destination)
+        _, srcext = os.path.splitext(self.source)
+        self.intermediate_filename = destbasename + '.' + (srcext.strip('.'))
+        super().__init__(destination, dependencies=dependencies, files=[os.path.abspath(__file__), self.source, self.webify])
+
+    def get_config(self):
+        return {
+            'source': self.source,
+            'dest': self.destination,
+            'webify': self.webify,
+            'intermediate_filename': self.intermediate_filename,
+        }
+
+    def provides(self):
+        base,_ = os.path.splitext(self.intermediate_filename)
+        o=[]
+        for ext in ['eot', 'woff', 'ttf', 'svg']:
+            o += [base + '.' + ext]
+        return o
+
+    def build(self):
+        os_utils.ensureDirExists(os.path.dirname(self.destination), noisy=True)
+        os_utils.single_copy(self.source, self.intermediate_filename, verbose=True)
+        os_utils.cmd([self.webify, self.intermediate_filename], echo=True, critical=True)

@@ -103,7 +103,9 @@ class BuildEnv(object):
     def merge(self, newvars):
         self.env = dict(self.env, **newvars)
 
-    def prependTo(self, key, value, delim=';', noisy=None):
+    def prependTo(self, key, value, delim=None, noisy=None):
+        if delim is None:
+            delim = os.pathsep
         if noisy is None:
             noisy = self.noisy
         key = self.getKey(key)
@@ -415,6 +417,9 @@ def cmd_output(command, echo=False, env=None, critical=False, globbify=True) -> 
     return False
 
 def cmd_out(command: Union[List[str], str], echo=False, env=None, critical=False, globbify=True, encoding: str='utf-8') -> str:
+    '''
+    :returns str: stderr and stdout, piped into one string and decoded as UTF-8.
+    '''
     new_env = _cmd_handle_env(env)
     command = _cmd_handle_args(command, globbify)
     if echo:
@@ -690,8 +695,10 @@ def del_empty_dirs(src_dir: str, quiet=False) -> int:
         ndeleted = 0
         # Listing the files
         for dirpath, dirnames, filenames in os.walk(src_dir, topdown=False):
+            #print(dirpath, src_dir)
             if dirpath == src_dir:
-                break
+                continue
+            #print(dirpath, len(dirnames), len(filenames))
             if len(filenames) == 0 and len(dirnames) == 0:
                 if not quiet:
                     log.info('Removing %s (empty)...', dirpath)

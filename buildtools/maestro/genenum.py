@@ -49,11 +49,17 @@ class GenerateEnumTarget(SingleBuildTarget):
         else:
             return ''
 
+    def _get_for(self, vpak, key, default=''):
+        if isinstance(vpak, dict):
+            return vpak.get(key, default)
+        else:
+            return default
+
     def build(self):
         definition = {}
         with open(self.filename, 'r') as r:
             definition=yaml.safe_load(r)['enum']
-            
+
         if 'auto-value' in definition:
             autoval = definition['auto-value']
             i=autoval.get('start',0)
@@ -62,9 +68,25 @@ class GenerateEnumTarget(SingleBuildTarget):
                     definition[k]['value']=1 >> i if definition.get('flags', False) else i
                     i += 1
 
-        if 'tests' in definition:
+        flags = False
+        if 'flags' in definition and definition['flags']:
+            flags=True
+            definition['tests']=definition.get('tests',{})
+            definition['tests']['unique']=definition['tests'].get('unique',True)
+            definition['tests']['single-bit-only']=definition['tests'].get('single-bit-only',True)
+
+        default = definition.get('default', 0)
+        for k,vpak in definition['values'].items():
+            val = self._get_value_for(vpak)
+            if self._get_for(vpak, 'default', False):
+                if flags:
+                    default |= val
+                else:
+                    default = val
+
+        if flags or 'tests' in definition:
             with log.info('Testing %s....', definition['name']):
-                tests = definition['tests']
+                tests = definition.get('tests',{})
                 if 'increment' in tests:
                     incrdef = tests['increment']
                     start = incrdef.get('start',0)
@@ -76,14 +98,26 @@ class GenerateEnumTarget(SingleBuildTarget):
 
                     for i in range(start,stop):
                         if i not in vals:
-                            log.error('Increment: Missing value %d!', i)
+                            log.error('increment: Missing value %d!', i)
                 if 'unique' in tests and tests['unique']:
                     vals={}
                     for k,vpak in definition['values'].items():
                         val = self._get_value_for(vpak)
                         if val in vals:
-                            log.error('Unique: Entry %s is not using a unique value!', k)
+                            log.error('unique: Entry %s is not using a unique value!', k)
                         vals[val]=True
+                if flags:
+                    if 'single-bit-only' in tests and tests['single-bit-only']:
+                        for k,vpak in definition['values'].items():
+                            val = self._get_value_for(vpak)
+                            c = 0
+                            while val > 0:
+                                c = val & 1
+                                val >>= 1
+                                if c > 1:
+                                    log.error('single-bit-only: Entry %s has too many bits!', k)
+                                    break
+        definition['default'] = default
         os_utils.ensureDirExists(os.path.dirname(self.target), noisy=True)
         with open(self.target, 'w') as w:
             self.writer.write(w, definition)
