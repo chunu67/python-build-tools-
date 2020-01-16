@@ -153,6 +153,93 @@ class ReplaceTextTarget(SingleBuildTarget):
                         log.info('Longest line: %d chars', longest_line)
         shutil.move(self.target + '.out', self.target)
 
+class PrependToFileTarget(SingleBuildTarget):
+    BT_TYPE = 'Prepend'
+    BT_LABEL = 'PREPEND'
+
+    def __init__(self, target, filename, text='', dependencies=[], read_encoding='utf-8-sig', write_encoding='utf-8-sig', display_progress=False):
+        self.text = text
+        self.subject = filename
+        self.read_encoding = read_encoding
+        self.write_encoding = write_encoding
+        self.display_progress = display_progress
+        super().__init__(target, [filename], dependencies)
+
+    def serialize(self):
+        dat = super(PrependToFileTarget, self).serialize()
+        dat['subject'] = self.subject
+        dat['text'] = self.text
+        dat['read-encoding'] = self.read_encoding
+        dat['write-encoding'] = self.write_encoding
+        if self.display_progress:
+            dat['display-progress'] = self.display_progress
+        return dat
+
+    def deserialize(self, data):
+        super(PrependToFileTarget, self).deserialize(data)
+        self.subject = data['subject']
+        self.text = data['text']
+        self.read_encoding = data['read-encoding']
+        self.write_encoding = data['write-encoding']
+        self.display_progress = data.get('display-progress', False)
+        self.subject = data['files'][0]
+
+    def get_config(self):
+        return {
+            'subject': self.subject,
+            'text': self.text,
+            'read-encoding': self.read_encoding,
+            'write-encoding': self.write_encoding
+        }
+
+    def build(self):
+        linebuf = ''
+        nlines = 0
+        lastbytecount = 0
+        lastcheck = 0
+        longest_line = 0
+        os_utils.ensureDirExists(os.path.dirname(self.target))
+        nbytes = os.path.getsize(self.subject)
+        with codecs.open(self.subject, 'r', encoding=self.read_encoding) as inf:
+            with codecs.open(self.target + '.out', 'w', encoding=self.write_encoding) as outf:
+                progBar = tqdm.tqdm(total=nbytes, unit='B', leave=False) if self.display_progress else None
+                outf.write(self.text)
+                while True:
+                    block = inf.read(4096)
+                    block = block.replace('\r\n', '\n')
+                    block = block.replace('\r', '\n')
+                    if not block:  # EOF
+                        outf.write(linebuf)
+                        nlines += 1
+                        charsInLine = len(linebuf)
+                        if charsInLine > longest_line:
+                            longest_line = charsInLine
+                        break
+                    for c in block:
+                        nbytes += 1
+                        if self.display_progress:
+                            # if nbytes % 10 == 1:
+                            cms = utils.current_milli_time()
+                            if cms - lastcheck >= 250:
+                                progBar.set_postfix({'linebuf': len(linebuf), 'nlines': nlines})
+                                progBar.update(nbytes - lastbytecount)
+                                lastcheck = cms
+                                lastbytecount = nbytes
+                        linebuf += c
+                        if c in '\r\n':
+                            outf.write(linebuf)
+                            nlines += 1
+                            charsInLine = len(linebuf)
+                            if charsInLine > longest_line:
+                                longest_line = charsInLine
+                            linebuf = ''
+                if self.display_progress:
+                    progBar.close()
+                    with log.info('Completed.'):
+                        log.info('Lines.......: %d', nlines)
+                        log.info('Chars.......: %d', nbytes)
+                        log.info('Longest line: %d chars', longest_line)
+        shutil.move(self.target + '.out', self.target)
 
 class ConcatenateBuildTarget(SingleBuildTarget):
     BT_TYPE = 'Concatenate'
@@ -293,7 +380,7 @@ class RSyncRemoteTarget(SingleBuildTarget):
 class ExtractArchiveTarget(SingleBuildTarget):
     BT_TYPE = 'ExtractArchive'
     BT_LABEL = 'EXTRACT'
-    
+
     def __init__(self, target_dir: str, archive: str, dependencies=[], provides=[]):
         self.target_dir = target_dir
         self.archive = archive

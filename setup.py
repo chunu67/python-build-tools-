@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pybuildtools",
-    version="0.2.3",
+    version="0.2.4",
     description=("Library implementing common processes and logging for buildsystems"),
     author="Rob Nelson",
     author_email="nexisentertainment@gmail.com",
