@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "packages": {
+    "psutil": {},
+    "lxml": {},
+    "twisted": {},
+    "pyyaml": {},
+    "jinja2": {},
+    "toml": {},
+    "requests": {},
+    "six": {},
+    "colorama": {},
+    "tqdm": {},
+    "pygit2": {}
+  }
+}

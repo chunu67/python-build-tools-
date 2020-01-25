@@ -1,0 +1,11 @@
+colorama==0.4.3
+Jinja2==2.10.3
+lxml==4.4.2
+psutil==5.6.7
+pygit2==1.0.2
+PyYAML==5.3
+requests==2.22.0
+six==1.14.0
+toml==0.10.0
+tqdm==4.42.0
+Twisted==19.10.0
