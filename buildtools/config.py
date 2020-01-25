@@ -28,6 +28,7 @@ import jinja2
 import sys
 import codecs
 
+from typing import Any
 from buildtools.bt_logging import log, NullIndenter
 from buildtools.os_utils import ensureDirExists
 import fnmatch
@@ -50,6 +51,7 @@ def delimset(cfg, key, value, delim='.'):
     try:
         if len(parts) == 1:
             cfg[parts[0]] = value
+            return
         if parts[0] not in cfg:
             cfg[parts[0]] = collections.OrderedDict()
         L = cfg[parts[0]]
@@ -58,6 +60,22 @@ def delimset(cfg, key, value, delim='.'):
                 L[part] = collections.OrderedDict()
             L = L[part]
         L[parts[-1]] = value
+    except (KeyError, TypeError):
+        return
+def delimdel(cfg, key, delim='.'):
+    parts = key.split(delim)
+    try:
+        if len(parts) == 1:
+            del cfg[parts[0]]
+            return
+        if parts[0] not in cfg:
+            return
+        L = cfg[parts[0]]
+        for part in parts[1:-1]:
+            if part not in L:
+                return
+            L = L[part]
+        del L[parts[-1]]
     except (KeyError, TypeError):
         return
 
@@ -120,22 +138,40 @@ def dict_merge(a, b, path=None):
     return a
 
 
-class BaseConfig(object):
-
+class BaseConfig(dict):
     def __init__(self):
-        self.cfg = {}
+        self.cfg: Dict[str, Any] = {}
+        self.delim: str = '.'
 
-    def __getitem__(self, key):
+    def __contains__(self, key: str) -> bool:
+        parts = key.split(self.delim)
+        if len(parts) == 1:
+            return self.cfg.__contains__(key)
+        try:
+            value = cfg[parts[0]]
+            for part in parts[1:]:
+                value = value[part]
+            return True
+        except (KeyError, TypeError):
+            return False
+
+    def __delitem__(self, key: str) -> None:
+        delimdel(self.cfg, key, self.delim)
+
+    def __iter__(self):
+        return self.cfg.__iter__()
+
+    def __getitem__(self, key) -> Any:
         return self.cfg.__getitem__(key)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value) -> None:
         return self.cfg.__setitem__(key, value)
 
-    def get(self, key, default=None, delim='.'):
-        return delimget(self.cfg, key, default, delim)
+    def get(self, key, default=None) -> Any:
+        return delimget(self.cfg, key, default, self.delim)
 
-    def set(self, key, value, delim='.'):
-        delimset(self.cfg, key, value, delim)
+    def set(self, key, value) -> None:
+        delimset(self.cfg, key, value, self.delim)
 
 
 class ConfigFile(BaseConfig):
