@@ -28,7 +28,7 @@ import jinja2
 import sys
 import codecs
 
-from typing import Any
+from typing import Any, Dict, Union, Optional
 from buildtools.bt_logging import log, NullIndenter
 from buildtools.os_utils import ensureDirExists
 import fnmatch
@@ -176,12 +176,12 @@ class BaseConfig(dict):
 
 class ConfigFile(BaseConfig):
 
-    def __init__(self, filename=None, default={}, template_dir=None, variables={}, verbose=False, encoding='utf-8'):
+    def __init__(self, filename: str = None, default: Dict[str, Any] = {}, template_dir: str=None, variables: Dict[str, Any]={}, verbose:bool=False, encoding: str='utf-8'):
+        super().__init__()
         self.encoding=encoding
         env_vars = salty_jinja_envs()
         env_vars['loader'] = jinja2.loaders.FileSystemLoader(os.path.dirname(filename) if template_dir is None else template_dir, encoding=encoding)
         self.environment = jinja2.Environment(**env_vars)
-        self.cfg = {}
         self.filename = filename
         self.template_dir = template_dir
         if filename is None:
