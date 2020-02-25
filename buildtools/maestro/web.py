@@ -330,6 +330,8 @@ class CacheBashifyFiles(SingleBuildTarget):
     BT_TYPE = 'CacheBashify'
     BT_LABEL = 'CACHE BASH'
 
+    CHECK_MTIMES = False
+
     def __init__(self, destdir, source, manifest, basedirsrc='.', basedirdest=None, dependencies=[], flags=None):
         self.source      = source
         self.destdir     = destdir

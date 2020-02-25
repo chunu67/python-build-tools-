@@ -35,6 +35,7 @@ class CoffeeBuildTarget(SingleBuildTarget):
     BT_TYPE = 'CoffeeScript'
     BT_LABEL = 'COFFEE'
 
+    CHECK_MTIMES = False
     def __init__(self, target=None, files=[], dependencies=[], coffee_opts=['--no-header','-bc'], coffee_executable=None, make_map=False, coffee_concat_executable=None):
         if coffee_executable is None:
             coffee_executable = os_utils.which('coffee')
