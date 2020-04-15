@@ -132,6 +132,9 @@ class AsyncCommand(object):
 
         self.log = log
 
+        self.stdout_buffer = ''
+        self.stderr_buffer = ''
+
         self.pipe_reader = None
         self.debug = debug
 
@@ -147,11 +150,24 @@ class AsyncCommand(object):
         else:
             self.log.info('%s has exited normally.', self.refName)
 
+    def __addToBuffer(self, text, bufname, ascmd, logmethod):
+        buf = getattr(self, bufname)
+
+        for c in text:
+            if c == '\r':
+                continue # Fuck you, you don't exist.
+            if c == '\n':
+                logmethod('[%s] %s', ascmd.refName, buf+c)
+                buf = ''
+                continue
+            buf += c
+        setattr(self, bufname, buf)
+
     def default_stdout(self, ascmd, buf):
-        ascmd.log.info('[%s] %s', ascmd.refName, buf)
+        self.__addToBuffer(buf, 'stdout_buffer', ascmd, ascmd.log.info)
 
     def default_stderr(self, ascmd, buf):
-        ascmd.log.error('[%s] %s', ascmd.refName, buf)
+        self.__addToBuffer(buf, 'stderr_buffer', ascmd, ascmd.log.info)
 
     def Start(self):
         if self.echo:
