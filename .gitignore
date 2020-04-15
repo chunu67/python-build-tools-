@@ -58,3 +58,4 @@ target/
 
 .pre-commit-config.yaml
 /.venv/
+/.mypy_cache/3.8
