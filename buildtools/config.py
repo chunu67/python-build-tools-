@@ -143,12 +143,12 @@ class BaseConfig(dict):
         self.cfg: Dict[str, Any] = {}
         self.delim: str = '.'
 
-    def __contains__(self, key: str) -> bool:
+    def __contains__(self, key) -> bool:
         parts = key.split(self.delim)
         if len(parts) == 1:
             return self.cfg.__contains__(key)
         try:
-            value = cfg[parts[0]]
+            value = self.cfg[parts[0]]
             for part in parts[1:]:
                 value = value[part]
             return True
@@ -173,9 +173,14 @@ class BaseConfig(dict):
     def set(self, key, value) -> None:
         delimset(self.cfg, key, value, self.delim)
 
+    def has_key(self, key: str) -> bool:
+        return self.__contains__(key)
+
+    def strict_has_key(self, key: str) -> bool:
+        return self.cfg.has_key(key)
+
 
 class ConfigFile(BaseConfig):
-
     def __init__(self, filename: str = None, default: Dict[str, Any] = {}, template_dir: str=None, variables: Dict[str, Any]={}, verbose:bool=False, encoding: str='utf-8'):
         super().__init__()
         self.encoding=encoding
@@ -249,7 +254,7 @@ class YAMLConfig(ConfigFile):
 
     def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False, ordered_dicts=False, encoding='utf-8'):
         self._ordered_dicts=False
-        super(YAMLConfig, self).__init__(filename, default, template_dir, variables, verbose, encoding)
+        super().__init__(filename, default, template_dir, variables, verbose, encoding)
         self._ordered_dicts=ordered_dicts
 
     def dump_to_file(self, filename, data):
