@@ -39,12 +39,13 @@ from buildtools.utils import bytes2str
 
 class _PipeReader(ProcessProtocol):
 
-    def __init__(self, asc, process, stdout_callback, stderr_callback, exit_callback):
+    def __init__(self, asc, process, stdout_callback, stderr_callback, exit_callback, linebreaks=None):
         self._asyncCommand = asc
         self._cb_stdout = stdout_callback
         self._cb_stderr = stderr_callback
         self._cb_exit = exit_callback
         self.process = process
+        self.linebreaks = linebreaks or ('\r','\n','')
 
         self.buf = {
             'stdout': '',
@@ -52,11 +53,12 @@ class _PipeReader(ProcessProtocol):
         }
         self.debug = False
 
-    def _processData(self, bid, cb, data):
+    def _processData(self, bid: str, cb, data: bytes):
+        print(type(bid), type(cb), type(data))
         if self.debug:
             log.info('%s %s: Received %d bytes', self._logPrefix(), bid, len(data))
         for b in bytes2str(data):
-            if b != '\n' and b != '\r' and b != '':
+            if b not in self.linebreaks:
                 self.buf[bid] += b
             else:
                 self._dump_to_callback(bid, cb)
@@ -69,10 +71,10 @@ class _PipeReader(ProcessProtocol):
             cb(self._asyncCommand, buf)
         self.buf[bid] = ''
 
-    def outReceived(self, data):
+    def outReceived(self, data: bytes):
         self._processData('stdout', self._cb_stdout, data)
 
-    def errReceived(self, data):
+    def errReceived(self, data: bytes):
         self._processData('stderr', self._cb_stderr, data)
 
     def _logPrefix(self):
@@ -89,7 +91,7 @@ class _PipeReader(ProcessProtocol):
         self._dump_to_callback('stdout', self._cb_stdout)
         self._asyncCommand.running=False
         self._asyncCommand.exit_code = reason.value.exitCode
-        self._cb_exit(self._asyncCommand.exit_code)
+        self._cb_exit(self._asyncCommand, self._asyncCommand.exit_code)
 
 
 class ReactorManager:
@@ -111,13 +113,14 @@ class ReactorManager:
 
 class AsyncCommand(object):
 
-    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None, debug=False, globbify=True):
+    def __init__(self, command, stdout=None, stderr=None, echo=False, env=None, PTY=False, refName=None, debug=False, globbify=True, linebreaks=None):
         self.running=False
         self.echo = echo
         self.command = command
         self.PTY = PTY
         self.stdout_callback = stdout if stdout is not None else self.default_stdout
         self.stderr_callback = stderr if stderr is not None else self.default_stderr
+        self.linebreaks = linebreaks
 
         self.env = os_utils._cmd_handle_env(env)
         self.command = os_utils._cmd_handle_args(command,globbify=globbify)
@@ -138,7 +141,7 @@ class AsyncCommand(object):
         self.pipe_reader = None
         self.debug = debug
 
-    def default_exit_handler(self, code):
+    def default_exit_handler(self, ascmd, code):
         if code != 0:
             if code < 0:
                 strerr = '%s: Received signal %d' % (self.refName, 0-code)
@@ -151,6 +154,7 @@ class AsyncCommand(object):
             self.log.info('%s has exited normally.', self.refName)
 
     def __addToBuffer(self, text, bufname, ascmd, logmethod):
+        #print(bufname, repr(text))
         buf = getattr(self, bufname)
 
         for c in text:
@@ -172,7 +176,7 @@ class AsyncCommand(object):
     def Start(self):
         if self.echo:
             self.log.info('[ASYNC] $ "%s"', '" "'.join(self.command))
-        pr = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback, self.exit_code_handler)
+        pr = _PipeReader(self, self.child, self.stdout_callback, self.stderr_callback, self.exit_code_handler, self.linebreaks)
         pr.debug = self.debug
         self.running=True
         self.child = reactor.spawnProcess(pr, self.command[0], self.command[1:], env=self.env, usePTY=self.PTY)
