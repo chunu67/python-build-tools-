@@ -1,25 +1,30 @@
 from setuptools import setup, find_packages
 
-
+README = ''
+with open('README.md', 'r') as f:
+    README=f.read()
 setup(
     name="pybuildtools",
-    version="0.2.4",
-    description=("Library implementing common processes and logging for buildsystems"),
+    version="0.3.0",
+    description="Library implementing common processes and logging for buildsystems",
+    long_description=README,
+    long_description_content_type='text/markdown',
     author="Rob Nelson",
     author_email="nexisentertainment@gmail.com",
     packages=find_packages(exclude=['testcopyright', '*-fixed', 'qc', 'build']),
+    python_requires='>=3.6',
     install_requires=[
-        "psutil",
-        "lxml",
-        "twisted",
-        "pyyaml",
-        "jinja2",
-        "toml",
-        "requests>=2.0",
-        'six',
         'colorama',
+        'jinja2',
+        'lxml',
+        'psutil',
+        'pygit2',
+        'pyyaml',
+        'requests',
+        'six',
+        'toml',
         'tqdm',
-        'pygit2'
+        'twisted'
     ],
     tests_require=[
         "pytest",
@@ -30,10 +35,12 @@ setup(
             "pylint",
         ],
     },
-    license="MIT License",
+    license="MIT",
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Development Status :: 4 - Beta",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.6",
     ],
 )
