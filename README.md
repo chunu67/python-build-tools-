@@ -1,5 +1,4 @@
-python-build-tools
-==================
+# python-build-tools
 
 A toolkit containing many powerful utilities, including:
 
@@ -8,10 +7,50 @@ A toolkit containing many powerful utilities, including:
  * The powerful Maestro build management system (buildtools.maestro)
  * A powerful VCS repository wrapper system (buildtools.repo)
  * A mess of other random things.
- 
-Maestro
-=======
 
+## os_utils
+```python
+from buildtools import os_utils
+
+# Ensure test/ exists
+os_utils.ensureDirExists('test')
+
+# Get copy of current environmental variables.
+ENV = os_utils.ENV.clone()
+
+# Add .bin/ to the beginning of PATH in our virtual environment
+ENV.prependTo('PATH', '.bin/')
+
+# Remove any duplicate entries from PATH
+ENV.removeDuplicatedEntries('PATH')
+
+# Find gcc in our virtual environment (checks PATHEXT on Windows, too!)
+# Returns the path to gcc, or None if it couldn't be found.
+GCC = ENV.which('gcc')
+
+# Ensure bash exists before continuing (same rules as above)
+ENV.assertWhich('bash')
+
+# Bring up gcc's help page. Crash if non-0 exit code, echo command to console, and output STDOUT/STDERR to console.
+os_utils.cmd([GCC, '--help'], critical=True, echo=True, show_output=True)
+```
+
+## Logging
+```python
+from buildtools import log
+
+def a():
+  log.info('This will be indented if a() is called in a log block.')
+
+log.info('No indentation, yet.')
+with log.warning('A warning. Next line will be indented.'):
+  log.error('Error!')
+  with log.info('The following function\'s log output will be indented by another layer.')
+    a()
+    log.critical('So will %s!', 'this')
+```
+
+## Maestro
 ```python
 from buildtools.maestro import BuildMaestro
 from buildtools.maestro.fileio import ReplaceTextTarget
@@ -28,21 +67,9 @@ bm.add(CoffeeBuildTarget('htdocs/js/editpoll.option.js',      ['coffee/editpoll.
 # Convert CSS to SCSS
 bm.add(SCSSBuildTarget('htdocs/css/style.css', ['style/style.scss'], [], import_paths=['style'], compass=True))
 
-### PMK FILES
-
-# Tell Maestro what target types to recognize
-bm.RecognizeType(SCSSBuildTarget)
-bm.RecognizeType(SCSSConvertTarget)
-bm.RecognizeType(CoffeeBuildTarget)
-bm.RecognizeType(ReplaceTextTarget)
-
-# Save previously-made rules to disk.
-bm.saveRules('Makefile.pmk')
-
-# Load previously-made rules.
-bm.loadRules('Makefile.pmk')
-
-### COMPILE
-# Sort all targets by dependency
+# Compile, taking dependencies into count when ordering operations.
 bm.run()
+
+# Same as above, but providing command line arguments such as --clean, and --rebuild.
+bm.as_app()
 ```
