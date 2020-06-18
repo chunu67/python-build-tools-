@@ -54,7 +54,6 @@ class _PipeReader(ProcessProtocol):
         self.debug = False
 
     def _processData(self, bid: str, cb, data: bytes):
-        print(type(bid), type(cb), type(data))
         if self.debug:
             log.info('%s %s: Received %d bytes', self._logPrefix(), bid, len(data))
         for b in bytes2str(data):
