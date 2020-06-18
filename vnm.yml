@@ -1,0 +1,14 @@
+VERSION: 2
+---
+packages:
+  colorama: {}
+  jinja2: {}
+  lxml: {}
+  psutil: {}
+  pygit2: {}
+  pyyaml: {}
+  requests: {}
+  six: {}
+  toml: {}
+  tqdm: {}
+  twisted: {}
