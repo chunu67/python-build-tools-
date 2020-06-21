@@ -181,13 +181,15 @@ class BaseConfig(dict):
 
 
 class ConfigFile(BaseConfig):
-    def __init__(self, filename: str = None, default: Dict[str, Any] = {}, template_dir: str=None, variables: Dict[str, Any]={}, verbose:bool=False, encoding: str='utf-8'):
+    def __init__(self, filename: str = None, default: Dict[str, Any] = {}, template_dir: str=None, variables: Dict[str, Any]={}, verbose:bool=False, encoding: str='utf-8', skip_defaults: bool = False):
         super().__init__()
         self.encoding=encoding
+        self.skip_defaults = skip_defaults
         env_vars = salty_jinja_envs()
         env_vars['loader'] = jinja2.loaders.FileSystemLoader(os.path.dirname(filename) if template_dir is None else template_dir, encoding=encoding)
         self.environment = jinja2.Environment(**env_vars)
         self.filename = filename
+        self.actual_filename = filename if template_dir is None else os.path.join(template_dir, filename)
         self.template_dir = template_dir
         if filename is None:
             self.cfg = default
@@ -196,10 +198,12 @@ class ConfigFile(BaseConfig):
 
     def Load(self, filename, merge=False, defaults=None, variables={}, verbose=False):
         lh = NullIndenter()
+        if self.actual_filename is None:
+            self.actual_filename = filename if self.template_dir is None else os.path.join(self.template_dir, filename)
         if verbose:
             lh = log.info("Loading %s...", filename)
         with lh:
-            if not os.path.isfile(filename):
+            if not self.skip_defaults and not os.path.isfile(filename):
                 if defaults is None:
                     if verbose: log.error('Failed to load %s.', filename)
                     return False
@@ -208,21 +212,20 @@ class ConfigFile(BaseConfig):
                     ensureDirExists(os.path.dirname(filename))
                     self.dump_to_file(filename, defaults)
 
-            if os.path.isfile(filename):
-                rendered = ''
-                try:
-                    template = self.environment.get_template(os.path.basename(filename))
-                    rendered = template.render(variables)
-                except jinja2.exceptions.TemplateNotFound:
-                    if verbose: log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
-                    with codecs.open(filename, 'r', encoding=self.encoding) as f:
-                        rendered = f.read()
+            rendered = ''
+            try:
+                template = self.environment.get_template(os.path.basename(filename) if self.template_dir is None else filename)
+                rendered = template.render(variables)
+            except jinja2.exceptions.TemplateNotFound:
+                if verbose: log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
+                with codecs.open(filename, 'r', encoding=self.encoding) as f:
+                    rendered = f.read()
 
-                newcfg = self.load_from_string(rendered)
-                if merge:
-                    self.cfg = dict_merge(self.cfg, newcfg)
-                else:
-                    self.cfg = newcfg
+            newcfg = self.load_from_string(rendered)
+            if merge:
+                self.cfg = dict_merge(self.cfg, newcfg)
+            else:
+                self.cfg = newcfg
         return True
 
     def Save(self, filename):
