@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
     README=f.read()
 setup(
     name="pybuildtools",
-    version="0.3.1",
+    version="0.3.2",
     description="Library implementing common processes and logging for buildsystems",
     long_description=README,
     long_description_content_type='text/markdown',
