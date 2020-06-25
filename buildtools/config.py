@@ -283,16 +283,6 @@ class YAMLConfig(ConfigFile):
         finally:
             loader.dispose()
 
-
-class Config(YAMLConfig):
-
-    '''DEPRECATED: Use YAMLConfig instead.'''
-
-    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False):
-        log.warn('Config class is deprecated.  Use YAMLConfig instead.')
-        super(Config, self).__init__(filename, default, template_dir, variables, verbose)
-
-
 class TOMLConfig(ConfigFile):
 
     def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False, encoding='utf-8'):

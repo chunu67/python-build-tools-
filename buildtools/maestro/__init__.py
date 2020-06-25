@@ -28,6 +28,8 @@ import os
 import re
 import sys
 import shutil
+import argparse
+
 from collections import defaultdict
 from buildtools import os_utils
 from buildtools.bt_logging import NullIndenter, log
@@ -111,6 +113,8 @@ class BuildMaestro(object):
         # This will get Maestro to delete the listed directories, if they are present during --clean.
         self.other_dirs_to_clean=[]
 
+        self.args: argparse.Namespace = None
+
     def add(self, bt):
         bt.ID = len(self.alltargets)
         self.alltargets.append(bt)
@@ -118,7 +122,6 @@ class BuildMaestro(object):
         return bt
 
     def build_argparser(self):
-        import argparse
         argp = argparse.ArgumentParser()
         argp.add_argument('--clean', action='store_true', help='Cleans everything.')
         argp.add_argument('--no-colors', action='store_true', help='Disables colors.')
@@ -133,13 +136,13 @@ class BuildMaestro(object):
         return argp.parse_args(args)
 
     def as_app(self, argp=None, args=None):
-        args = self.parse_args(argp, args)
+        self.args = self.parse_args(argp, args)
         if args.verbose:
             log.log.setLevel(logging.DEBUG)
             self.verbose = True
 
-        self.show_commands = args.show_commands
-        self.colors = not args.no_colors
+        self.show_commands = self.args.show_commands
+        self.colors = not self.args.no_colors
 
         if self.colors:
             log.enableANSIColors()
