@@ -1,3 +1,8 @@
+# 0.3.5 - July 4th, 2020
+
+* Fix lack of default values in maestro args.
+* Fix crashes in Maestro.
+
 # 0.3.4 - July 4th, 2020
 
 * Fix Jinja2 rendering issues in BaseConfig.

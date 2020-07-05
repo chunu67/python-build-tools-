@@ -123,11 +123,11 @@ class BuildMaestro(object):
 
     def build_argparser(self):
         argp = argparse.ArgumentParser()
-        argp.add_argument('--clean', action='store_true', help='Cleans everything.')
-        argp.add_argument('--no-colors', action='store_true', help='Disables colors.')
-        argp.add_argument('--rebuild', action='store_true', help='Clean rebuild of project.')
-        argp.add_argument('--show-commands', action='store_true', help='Echoes the line used to execute commands. (echo=True in os_utils.cmd())')
-        argp.add_argument('--verbose', action='store_true', help='Show hidden buildsteps.')
+        argp.add_argument('--clean', action='store_true', default=False, help='Cleans everything.')
+        argp.add_argument('--no-colors', action='store_true', default=False, help='Disables colors.')
+        argp.add_argument('--rebuild', action='store_true', default=False, help='Clean rebuild of project.')
+        argp.add_argument('--show-commands', action='store_true', default=False, help='Echoes the line used to execute commands. (echo=True in os_utils.cmd())')
+        argp.add_argument('--verbose', action='store_true', default=False, help='Show hidden buildsteps.')
         return argp
 
     def parse_args(self, argp=None, args=None):
@@ -137,7 +137,7 @@ class BuildMaestro(object):
 
     def as_app(self, argp=None, args=None):
         self.args = self.parse_args(argp, args)
-        if args.verbose:
+        if self.args.verbose:
             log.log.setLevel(logging.DEBUG)
             self.verbose = True
 
@@ -147,9 +147,9 @@ class BuildMaestro(object):
         if self.colors:
             log.enableANSIColors()
 
-        if args.rebuild or args.clean:
+        if self.args.rebuild or self.args.clean:
             self.clean()
-        if args.clean:
+        if self.args.clean:
             return
         self.run()
 
