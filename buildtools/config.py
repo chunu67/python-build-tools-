@@ -186,7 +186,8 @@ class ConfigFile(BaseConfig):
         self.encoding=encoding
         self.skip_defaults = skip_defaults
         env_vars = salty_jinja_envs()
-        env_vars['loader'] = jinja2.loaders.FileSystemLoader(os.path.dirname(filename) if template_dir is None else template_dir, encoding=encoding)
+        if template_dir is not None:
+            env_vars['loader'] = jinja2.loaders.FileSystemLoader(template_dir, encoding=encoding)
         self.environment = jinja2.Environment(**env_vars)
         self.filename = filename
         self.actual_filename = filename if template_dir is None else os.path.join(template_dir, filename)
@@ -213,14 +214,22 @@ class ConfigFile(BaseConfig):
                     self.dump_to_file(filename, defaults)
 
             rendered = ''
+            template: jinja2.Template = None
+            #print(repr(self.template_dir))
             try:
-                template = self.environment.get_template(os.path.basename(filename) if self.template_dir is None else filename)
+                if self.template_dir is not None:
+                    template = self.environment.get_template(os.path.basename(filename) if self.template_dir is None else filename)
+                else:
+                    with open(filename) as f:
+                        template = self.environment.from_string(f.read())
                 rendered = template.render(variables)
-            except jinja2.exceptions.TemplateNotFound:
-                if verbose: log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
+            except jinja2.exceptions.TemplateNotFound as tnf:
+                if verbose: 
+                    log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
+                    log.exception(tnf)
                 with codecs.open(filename, 'r', encoding=self.encoding) as f:
                     rendered = f.read()
-
+            #print(rendered)
             newcfg = self.load_from_string(rendered)
             if merge:
                 self.cfg = dict_merge(self.cfg, newcfg)
@@ -255,7 +264,7 @@ class YAMLConfig(ConfigFile):
     def dict_constructor(self, loader, node):
         return collections.OrderedDict(loader.construct_pairs(node))
 
-    def __init__(self, filename=None, default={}, template_dir='.', variables={}, verbose=False, ordered_dicts=False, encoding='utf-8'):
+    def __init__(self, filename=None, default={}, template_dir=None, variables={}, verbose=False, ordered_dicts=False, encoding='utf-8'):
         self._ordered_dicts=False
         super().__init__(filename, default, template_dir, variables, verbose, encoding)
         self._ordered_dicts=ordered_dicts
