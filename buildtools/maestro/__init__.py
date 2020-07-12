@@ -356,13 +356,13 @@ class BuildMaestro(object):
                         if bt.dirty:
                             self.targetsDirty += bt.provides()
                     except Exception as e:
-                        bt.failed()
+                        bt.__failed()
                         self._write_targets()
                         log.critical('An exception occurred, build halted.')
                         log.exception(e)
                         return
                     except KeyboardInterrupt:
-                        bt.failed()
+                        bt.__failed()
                         self._write_targets()
                         log.critical('Cancelled via KeyboardInterrupt.')
                         return

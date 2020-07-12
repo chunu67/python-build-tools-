@@ -88,11 +88,13 @@ class BuildTarget(object):
             log.info('<red>RM    </red> %s',filename)
             os.remove(filename)
 
-    def failed(self):
+    def __failed(self):
         self.built = False
         log.warn('Cleaning build artifacts due to failure...')
         self.clean()
 
+    def failed(self, msg: str = 'Build failed'):
+        raise UserError(msg)
 
     def get_config(self):
         return {}
