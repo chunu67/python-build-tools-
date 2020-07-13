@@ -28,7 +28,7 @@ setup(
     ],
     extras_require={
         "development": [
-            "pylint",
+            "mypy"
         ],
     },
     license="MIT",

@@ -9,3 +9,5 @@ six==1.15.0
 toml==0.10.1
 tqdm==4.47.0
 twisted==20.3.0
+mypy==0.782
+pytest==5.4.3

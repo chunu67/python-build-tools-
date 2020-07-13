@@ -12,3 +12,6 @@ packages:
   toml: {}
   tqdm: {}
   twisted: {}
+dev-packages:
+  mypy: {}
+  pytest: {}
