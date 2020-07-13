@@ -1,3 +1,7 @@
+# 0.3.6 - July 13th, 2020
+
+* Fix CopyFileTarget not accepting filename as target. **BREAKING CHANGE!** 
+
 # 0.3.5 - July 4th, 2020
 
 * Fix lack of default values in maestro args.
