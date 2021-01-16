@@ -12,3 +12,4 @@ tqdm==4.56.0
 twisted==20.3.0
 mypy==0.790
 pytest==6.2.1
+twine==3.3.0

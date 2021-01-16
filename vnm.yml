@@ -28,3 +28,4 @@ dev-packages:
     frozen-at: '0.790'
   pytest:
     frozen-at: 6.2.1
+  twine: {}
