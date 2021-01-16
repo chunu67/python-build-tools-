@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
     README=f.read()
 setup(
     name="pybuildtools",
-    version="0.3.5",
+    version="0.3.6",
     description="Library implementing common processes and logging for buildsystems",
     long_description=README,
     long_description_content_type='text/markdown',
@@ -26,13 +26,9 @@ setup(
         'tqdm',
         'twisted'
     ],
-    tests_require=[
-        "pytest",
-        "mock==1.0.1",
-    ],
     extras_require={
         "development": [
-            "pylint",
+            "mypy"
         ],
     },
     license="MIT",
