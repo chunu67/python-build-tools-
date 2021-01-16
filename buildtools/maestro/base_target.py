@@ -88,7 +88,7 @@ class BuildTarget(object):
             log.info('<red>RM    </red> %s',filename)
             os.remove(filename)
 
-    def __failed(self):
+    def _set_failed(self):
         self.built = False
         log.warn('Cleaning build artifacts due to failure...')
         self.clean()
