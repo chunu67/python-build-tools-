@@ -1,6 +1,11 @@
+# 0.4.0 - IN DEV
+
+* Fix error regarding `__failed` attribute in some Maestro targets.
+* Removed PyYAML in favor of ruamel.yaml, which is YAML 1.2-compliant and updated more frequently.
+
 # 0.3.6 - July 13th, 2020
 
-* Fix CopyFileTarget not accepting filename as target. **BREAKING CHANGE!** 
+* Fix CopyFileTarget not accepting filename as target. **BREAKING CHANGE!**
 
 # 0.3.5 - July 4th, 2020
 

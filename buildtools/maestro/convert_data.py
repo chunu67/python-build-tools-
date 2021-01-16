@@ -24,10 +24,12 @@ SOFTWARE.
 '''
 import codecs
 import os
-import yaml
 import toml
 import json
 import enum
+
+from ruamel.yaml import YAML
+yaml = YAML(typ='safe', pure=True)
 
 from buildtools import log, os_utils
 from buildtools.maestro.base_target import SingleBuildTarget
@@ -64,7 +66,7 @@ class ConvertDataBuildTarget(SingleBuildTarget):
         data = {}
         with open(self.files[0],'r', encoding='utf-8-sig') as inf:
             if self.from_type == EDataType.YAML:
-                data=yaml.full_load(inf)
+                data=yaml.load(inf)
             if self.from_type == EDataType.JSON:
                 data=json.load(inf)
             if self.from_type == EDataType.TOML:

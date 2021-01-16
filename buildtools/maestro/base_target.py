@@ -23,10 +23,12 @@ SOFTWARE.
 
 '''
 import hashlib
-import yaml
 import os
 
 from pathlib import Path
+
+from ruamel.yaml import YAML
+yaml = YAML(typ='safe', pure=True)
 
 from buildtools import os_utils, utils
 from buildtools.bt_logging import log
@@ -39,7 +41,7 @@ class BuildTarget(object):
     BT_LABEL = None
 
     #           YYYYMMDDhhmm
-    CACHE_VER = 201906171527
+    CACHE_VER = 202101160312
 
     CHECK_MTIMES = True
     CHECK_HASHES = True
@@ -216,7 +218,7 @@ class BuildTarget(object):
         if os.path.isfile(self.getCacheFile()):
             try:
                 with open(self.getCacheFile(), 'r') as f:
-                    cachedata = list(yaml.load_all(f, Loader=yaml.Loader))
+                    cachedata = list(yaml.load_all(f))
                     if len(cachedata)==6 and cachedata[0] == self.CACHE_VER:
                         _, _CH, _TH, _LFT, _LFH, _CFG = cachedata
                         self.lastConfigHash=_CH

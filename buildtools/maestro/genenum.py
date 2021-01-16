@@ -22,7 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
-import yaml, os
+import os
+
+from ruamel.yaml import YAML
+yaml = YAML(typ='safe', pure=True)
+
 from buildtools import os_utils, utils, log
 from buildtools.maestro.base_target import SingleBuildTarget
 
@@ -58,7 +62,7 @@ class GenerateEnumTarget(SingleBuildTarget):
     def build(self):
         definition = {}
         with open(self.filename, 'r') as r:
-            definition=yaml.safe_load(r)['enum']
+            definition=yaml.load(r)['enum']
 
         if 'auto-value' in definition:
             autoval = definition['auto-value']

@@ -224,7 +224,7 @@ class ConfigFile(BaseConfig):
                         template = self.environment.from_string(f.read())
                 rendered = template.render(variables)
             except jinja2.exceptions.TemplateNotFound as tnf:
-                if verbose: 
+                if verbose:
                     log.warn('Jinja2 failed to load %s (TemplateNotFound). Failing over to plain string.', filename)
                     log.exception(tnf)
                 with codecs.open(filename, 'r', encoding=self.encoding) as f:
@@ -258,39 +258,33 @@ class ConfigFile(BaseConfig):
 
 
 class YAMLConfig(ConfigFile):
-    def dict_representer(self, dumper, data):
-        return dumper.represent_dict(data.items())
-
-    def dict_constructor(self, loader, node):
-        return collections.OrderedDict(loader.construct_pairs(node))
+    _YAML_INSTANCE: 'ruamel.yaml.YAML'
 
     def __init__(self, filename=None, default={}, template_dir=None, variables={}, verbose=False, ordered_dicts=False, encoding='utf-8'):
         self._ordered_dicts=False
         super().__init__(filename, default, template_dir, variables, verbose, encoding)
         self._ordered_dicts=ordered_dicts
 
+        self._YAML_INSTANCE = None
+
+    def yaml(self) -> 'ruamel.yaml.YAML':
+        from ruamel.yaml import YAML
+        from ruamel.yaml.representer import RoundTripRepresenter
+
+        class ODRepresenter(RoundTripRepresenter):
+            pass
+
+        if self._YAML_INSTANCE is None:
+            self._YAML_INSTANCE = YAML(typ='safe', pure=True)
+            self._YAML_INSTANCE.representer.add_representer(collections.OrderedDict, ODRepresenter.represent_dict, representer=ODRepresenter)
+        return self._YAML_INSTANCE
+
     def dump_to_file(self, filename, data):
-        import yaml
         with codecs.open(filename, 'w', encoding=self.encoding) as f:
-            dumper = yaml.Dumper(f, default_flow_style=False, encoding=self.encoding)
-            #if self._ordered_dicts:
-            dumper.add_representer(collections.OrderedDict, self.dict_representer)
-            try:
-                dumper.open()
-                dumper.represent(data)
-                dumper.close()
-            finally:
-                dumper.dispose()
+            self.yaml.dump(data, f)
 
     def load_from_string(self, string):
-        import yaml
-        loader = yaml.FullLoader(string)
-        if self._ordered_dicts:
-            loader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, self.dict_constructor)
-        try:
-            return loader.get_single_data()
-        finally:
-            loader.dispose()
+        self.yaml.load(string)
 
 class TOMLConfig(ConfigFile):
 
@@ -308,7 +302,6 @@ class TOMLConfig(ConfigFile):
 
 
 class Properties(object):
-
     def __init__(self):
         self.properties = {}
 

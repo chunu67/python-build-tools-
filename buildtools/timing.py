@@ -27,11 +27,13 @@ Created on Mar 26, 2015
 
 import time
 import sys
-import yaml
+#import yaml
 #import os
 import logging
 import math
 
+from ruamel.yaml import YAML
+yaml = YAML(typ='safe', pure=True)
 
 def clock():
     if sys.platform == 'win32':
@@ -55,9 +57,9 @@ class IDelayer(object):
     def TimeLeft(self):
         return
 
-
+@yaml.register_class
 class SimpleDelayer(IDelayer):
-
+    yaml_tag = '!simpledelay'
     def __init__(self, _id, min_delay=1):
         super(SimpleDelayer, self).__init__(_id, min_delay)
         self.lastCheck = 0
@@ -90,23 +92,17 @@ class SimpleDelayer(IDelayer):
     def serialize(self):
         return self.lastCheck
 
+    @classmethod
+    def to_yaml(cls, representer, node):
+        return representer.represent_scalar(cls.yaml_tag,f'{data.id}@{data.lastCheck}')
 
-def SimpleDelayRepresenter(dumper, data):
-    return dumper.represent_scalar('!simpledelay', '{}@{}'.format(data.id, data.lastCheck))
-
-
-def SimpleDelayConstructor(loader, node):
-    _id, value = loader.construct_scalar(node).split('@')
-    value = float(value)
-    s = SimpleDelayer(_id, min_delay=0)
-    s.lastCheck = value
-    return s
-
-
-def SetupYaml():
-    yaml.add_constructor(u'!simpledelay', SimpleDelayConstructor)
-    yaml.add_representer(SimpleDelayer, SimpleDelayRepresenter)
-
+    @classmethod
+    def from_yaml(cls, constructor, node):
+        _id, value = node.value.split('@')
+        value = float(value)
+        s = cls(_id, min_delay=0)
+        s.lastCheck = value
+        return s
 
 class DelayCollection(object):
 

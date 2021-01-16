@@ -24,7 +24,7 @@ SOFTWARE.
 '''
 import codecs
 import os
-import yaml
+
 from tqdm import tqdm
 
 from buildtools import log, os_utils

@@ -21,6 +21,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+
+MODIFICATIONS:
+
+Jan 16 2021:
+ * Converted PyYAML to ruamel.yaml.
+
 '''
 
 # Import python libs
@@ -37,7 +43,11 @@ from jinja2.environment import TemplateModule
 from jinja2.ext import Extension
 from jinja2.exceptions import TemplateRuntimeError
 import jinja2
-import yaml
+from ruamel.yaml import YAML
+from ruamel.yaml.compat import StringIO
+from ruamel.yaml.representer import RoundTripRepresenter
+
+yaml = YAML(typ='safe', pure=True)
 
 from collections import OrderedDict
 
@@ -74,13 +84,13 @@ def salty_jinja_envs(trim_blocks=False,lstrip_blocks=False):
 
 # To dump OrderedDict objects as regular dicts. Used by the yaml
 # template filter.
-class OrderedDictDumper(yaml.Dumper):  # pylint: disable=W0232
+class ODRepresenter(RoundTripRepresenter):
     pass
 
-
-yaml.add_representer(OrderedDict,
-                     yaml.representer.SafeRepresenter.represent_dict,
-                     Dumper=OrderedDictDumper)
+yaml = YAML(typ='safe')
+yaml.representer.add_representer(OrderedDict,
+                                 ODRepresenter.represent_dict,
+                                 representer=ODRepresenter)
 
 
 
@@ -324,8 +334,13 @@ class SerializerExtension(Extension, object):
         return Markup(json.dumps(value, sort_keys=sort_keys, indent=indent).strip())
 
     def format_yaml(self, value, flow_style=True):
-        yaml_txt = yaml.dump(value, default_flow_style=flow_style,
-                             Dumper=OrderedDictDumper).strip()
+        if not flow_style:
+            yaml.indent()
+        else:
+            yaml.compact()
+        s = StringIO()
+        yaml.dump(value, s)
+        yaml_txt = s.getvalue().strip()
         if yaml_txt.endswith('\n...\n'):
             # Changed to warning. - N3X
             log.warn('Yaml filter ended with "\n...\n". This trailing string '
@@ -339,7 +354,7 @@ class SerializerExtension(Extension, object):
         if isinstance(value, TemplateModule):
             value = str(value)
         try:
-            return yaml.safe_load(value)
+            return yaml.load(value)
         except AttributeError:
             raise TemplateRuntimeError(
                 'Unable to load yaml from {0}'.format(value))

@@ -40,9 +40,11 @@ from buildtools.maestro.fileio import (ConcatenateBuildTarget, CopyFilesTarget,
 from buildtools.maestro.utils import (SerializableFileLambda,
                                       SerializableLambda, callLambda)
 
-import yaml
+from ruamel.yaml import YAML
 from typing import List
 from tqdm import tqdm
+
+yaml = YAML(typ='safe', pure=True)
 
 class TarjanGraphVertex(object):
     def __init__(self, ID: int, refs: List[int]):
@@ -157,7 +159,7 @@ class BuildMaestro(object):
         older_files = set()
         if os.path.isfile(self.all_targets_file):
             with open(self.all_targets_file, 'r', encoding='utf-8') as f:
-                older_files = set(sorted(yaml.safe_load(f)))
+                older_files = set(sorted(yaml.load(f)))
         for bt in self.alltargets:
             bt.maestro = self
             bt.clean()

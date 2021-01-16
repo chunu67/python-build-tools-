@@ -11,10 +11,10 @@ packages:
     frozen-at: 5.8.0
   pygit2:
     frozen-at: 1.4.0
-  pyyaml:
-    frozen-at: 5.3.1
   requests:
     frozen-at: 2.25.1
+  ruamel.yaml:
+    frozen-at: 0.16.12
   six:
     frozen-at: 1.15.0
   toml:

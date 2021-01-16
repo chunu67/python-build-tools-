@@ -32,7 +32,9 @@ from buildtools.repo.git import GitRepository
 from buildtools.wrapper.git import Git
 
 import toml
-import yaml
+
+#from ruamel.yaml import YAML
+#yaml = YAML(typ='safe', pure=True)
 
 '''
 [submodule "lib/js/jquery-ui"]
@@ -110,10 +112,12 @@ class GitSubmoduleCheckTarget(SingleBuildTarget):
                     #print(line)
                     k, v = line.split('=', 2)
                     gitconfig[smid][k.strip()] = v.strip()
+        '''
         with open(self.gitmodulesfile + '.yml', 'w') as f:
             yaml.dump(gitmodules, f, default_flow_style=False)
         with open('.gitconfig.yml', 'w') as f:
             yaml.dump(gitconfig, f, default_flow_style=False)
+        '''
         for repoID, repoconf in gitconfig.items():
             if repoID not in gitmodules.keys():
                 with log.warn('Submodule %s is present in .git/config but not .gitmodules!', repoID):

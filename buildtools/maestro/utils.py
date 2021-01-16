@@ -23,10 +23,14 @@ SOFTWARE.
 
 '''
 import codecs
-import yaml
+
 from buildtools.utils import img2blob
-class SerializableLambda(yaml.YAMLObject):
-    yaml_loader = yaml.Loader
+
+from ruamel.yaml import YAML
+#yaml = YAML(typ='safe', pure=True)
+
+@YAML.register_class
+class SerializableLambda:
     yaml_tag = '!lambda'
 
     def __init__(self, text):
@@ -35,8 +39,8 @@ class SerializableLambda(yaml.YAMLObject):
     def __call__(self, arg):
         return self.string
 
-class SerializableFileLambda(yaml.YAMLObject):
-    yaml_loader = yaml.Loader
+@YAML.register_class
+class SerializableFileLambda:
     yaml_tag = '!filelambda'
 
     def __init__(self, filename: str, outformat: str='{FILEDATA}', encoding: str='utf-8-sig', as_blob: bool=False):
