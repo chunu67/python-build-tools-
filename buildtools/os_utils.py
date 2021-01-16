@@ -22,20 +22,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 '''
+import codecs
+import filecmp
 import glob
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
 import tarfile
 import time
 import tqdm
-import zipfile
 import typing
-import codecs
-import filecmp
+import zipfile
+
 from buildtools.bt_logging import log
 from functools import reduce
 from subprocess import CalledProcessError
@@ -49,7 +51,6 @@ scripts_dir = os.path.join(buildtools_dir, 'scripts')
 
 REG_EXCESSIVE_WHITESPACE = re.compile(r'\s{2,}')
 PLATFORM = platform.system()
-
 
 def clock():
     if sys.platform == 'win32':
@@ -616,16 +617,17 @@ def cygpath(inpath):
     chunks[0] = chunks[0].lower()[:-1]
     return '/cygdrive/' + '/'.join(chunks)
 
-
+'''
 def _autoescape(string):
     if ' ' in string:
         return '"' + string + '"'
     else:
         return string
-
+'''
 
 def _args2str(cmdlist):
-    return ' '.join([_autoescape(x) for x in cmdlist])
+    #return ' '.join([_autoescape(x) for x in cmdlist])
+    return ' '.join([shlex.quote(x) for x in cmdlist])
 
 PATH_7ZA: typing.Optional[str] = None
 def decompressFile(archive, to='.', env=None):

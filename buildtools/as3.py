@@ -29,7 +29,6 @@ import shutil
 
 from .indentation import getIndentChars
 
-
 def calculateNewImports(readImports, requiredImports):
     # print(repr(readImports))
     newImports = []
