@@ -1,7 +1,8 @@
 # 0.4.0 - IN DEV
 
-* Fix error regarding `__failed` attribute in some Maestro targets.
 * Removed PyYAML in favor of ruamel.yaml, which is YAML 1.2-compliant and updated more frequently.
+* `os_utils._args2str()` now uses `shlex.quote` instead of a homebrew solution.
+* Fix error regarding `__failed` attribute in some Maestro targets.
 
 # 0.3.6 - July 13th, 2020
 
