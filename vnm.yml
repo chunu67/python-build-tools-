@@ -20,7 +20,7 @@ packages:
   toml:
     frozen-at: 0.10.2
   tqdm:
-    frozen-at: 4.55.0
+    frozen-at: 4.56.0
   twisted:
     frozen-at: 20.3.0
 dev-packages:
