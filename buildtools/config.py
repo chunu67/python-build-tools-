@@ -258,7 +258,7 @@ class ConfigFile(BaseConfig):
 
 
 class YAMLConfig(ConfigFile):
-    _YAML_INSTANCE: 'ruamel.yaml.YAML'
+    _YAML_INSTANCE: 'ruamel.yaml.YAML' = None
 
     def __init__(self, filename=None, default={}, template_dir=None, variables={}, verbose=False, ordered_dicts=False, encoding='utf-8'):
         self._ordered_dicts=False
@@ -267,6 +267,7 @@ class YAMLConfig(ConfigFile):
 
         self._YAML_INSTANCE = None
 
+    @property
     def yaml(self) -> 'ruamel.yaml.YAML':
         from ruamel.yaml import YAML
         from ruamel.yaml.representer import RoundTripRepresenter
@@ -276,7 +277,7 @@ class YAMLConfig(ConfigFile):
 
         if self._YAML_INSTANCE is None:
             self._YAML_INSTANCE = YAML(typ='safe', pure=True)
-            self._YAML_INSTANCE.representer.add_representer(collections.OrderedDict, ODRepresenter.represent_dict, representer=ODRepresenter)
+            self._YAML_INSTANCE.representer.add_representer(collections.OrderedDict, ODRepresenter.represent_dict)
         return self._YAML_INSTANCE
 
     def dump_to_file(self, filename, data):
@@ -284,7 +285,7 @@ class YAMLConfig(ConfigFile):
             self.yaml.dump(data, f)
 
     def load_from_string(self, string):
-        self.yaml.load(string)
+        return self.yaml.load(string)
 
 class TOMLConfig(ConfigFile):
 

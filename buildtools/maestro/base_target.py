@@ -28,6 +28,7 @@ import os
 from pathlib import Path
 
 from ruamel.yaml import YAML
+from ruamel.yaml.compat import StringIO
 yaml = YAML(typ='safe', pure=True)
 
 from buildtools import os_utils, utils
@@ -197,7 +198,9 @@ class BuildTarget(object):
         return os.path.join(self.maestro.builddir, 'cache', filename)
 
     def getConfigHash(self):
-        return hashlib.md5(yaml.dump(self.get_config()).encode('utf-8')).hexdigest()
+        s = StringIO()
+        yaml.dump(self.get_config(), s)
+        return hashlib.md5(s.getvalue().encode('utf-8')).hexdigest()
 
     def getTargetHash(self):
         return hashlib.md5(';'.join(self.provides()).encode('utf-8')).hexdigest()
@@ -307,7 +310,9 @@ class BuildTarget(object):
                 return True
 
         if config is not None:
-            configHash = hashlib.md5(yaml.dump(config).encode('utf-8')).hexdigest()
+            s = StringIO()
+            yaml.dump(config, s)
+            configHash = hashlib.md5(s.getvalue().encode('utf-8')).hexdigest()
             targetHash = hashlib.md5(';'.join(targets).encode('utf-8')).hexdigest()
 
             def writeHash():

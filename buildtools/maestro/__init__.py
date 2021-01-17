@@ -46,6 +46,9 @@ from tqdm import tqdm
 
 yaml = YAML(typ='safe', pure=True)
 
+yaml.register_class(SerializableLambda)
+yaml.register_class(SerializableFileLambda)
+
 class TarjanGraphVertex(object):
     def __init__(self, ID: int, refs: List[int]):
         self.ID=ID
@@ -159,7 +162,10 @@ class BuildMaestro(object):
         older_files = set()
         if os.path.isfile(self.all_targets_file):
             with open(self.all_targets_file, 'r', encoding='utf-8') as f:
-                older_files = set(sorted(yaml.load(f)))
+                try:
+                    older_files = set(sorted(yaml.load(f)))
+                except:
+                    older_files = []
         for bt in self.alltargets:
             bt.maestro = self
             bt.clean()
@@ -195,7 +201,8 @@ class BuildMaestro(object):
         for rule in self.alltargets:
             serialized[rule.name] = rule.serialize()
         with codecs.open(filename + '.yml', 'w', encoding='utf-8') as f:
-            yaml.dump(serialized, f, default_flow_style=False)
+            yaml.indent()
+            yaml.dump(serialized, f)
         with codecs.open(filename, 'w', encoding='utf-8') as f:
             for tKey in sorted(serialized.keys()):
                 target = dict(serialized[tKey])
@@ -209,7 +216,8 @@ class BuildMaestro(object):
                 del target['files']
                 del target['type']
                 if len(target.keys()) > 0:
-                    yaml.dump(target, f, default_flow_style=False)
+                    yaml.indent()
+                    yaml.dump(target, f)
                 f.write(u'\n')
 
     def loadRules(self, filename):
@@ -315,7 +323,7 @@ class BuildMaestro(object):
                     alltargets.add(targetfile)
         os_utils.ensureDirExists(os.path.dirname(self.all_targets_file))
         with open(self.all_targets_file, 'w', encoding='utf-8') as f:
-            yaml.dump(list(alltargets), f, default_flow_style=False)
+            yaml.dump(list(alltargets), f)
 
     def run(self, verbose=None):
         if verbose is not None:

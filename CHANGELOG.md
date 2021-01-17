@@ -1,4 +1,12 @@
-# 0.4.0 - IN DEV
+# 0.4.2 - January 16th, 2021
+
+* More crash fixes.
+
+# 0.4.1 - January 16th, 2021
+
+* Fixed crash in config and salt.
+
+# 0.4.0 - January 16th, 2021
 
 * Removed PyYAML in favor of ruamel.yaml, which is YAML 1.2-compliant and updated more frequently.
 * `os_utils._args2str()` now uses `shlex.quote` instead of a homebrew solution.

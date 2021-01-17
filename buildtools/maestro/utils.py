@@ -26,10 +26,10 @@ import codecs
 
 from buildtools.utils import img2blob
 
-from ruamel.yaml import YAML
+#from ruamel.yaml import YAML
 #yaml = YAML(typ='safe', pure=True)
 
-@YAML.register_class
+#@YAML.register_class
 class SerializableLambda:
     yaml_tag = '!lambda'
 
@@ -39,7 +39,7 @@ class SerializableLambda:
     def __call__(self, arg):
         return self.string
 
-@YAML.register_class
+#@YAML.register_class
 class SerializableFileLambda:
     yaml_tag = '!filelambda'
 

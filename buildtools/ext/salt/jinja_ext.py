@@ -89,8 +89,7 @@ class ODRepresenter(RoundTripRepresenter):
 
 yaml = YAML(typ='safe')
 yaml.representer.add_representer(OrderedDict,
-                                 ODRepresenter.represent_dict,
-                                 representer=ODRepresenter)
+                                 ODRepresenter.represent_dict)
 
 
 
