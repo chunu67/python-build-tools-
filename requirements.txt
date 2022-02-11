@@ -9,4 +9,4 @@ ruamel.yaml==0.16.12
 six==1.15.0
 toml==0.10.2
 tqdm==4.56.0
-twisted==20.3.0
+twisted==22.1.0
